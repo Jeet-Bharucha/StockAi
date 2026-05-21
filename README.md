@@ -182,5 +182,5 @@ MIT — feel free to fork, modify, and use this project.
 ---
 
 <div align="center">
-  Built with ❤️ by <a href="https://github.com/YOUR_USERNAME">Your Name</a>
+  Built with ❤️ by <a href="https://github.com/Jeet-Bharucha">Your Name</a>
 </div>
