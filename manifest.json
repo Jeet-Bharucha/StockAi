@@ -1,0 +1,19 @@
+{
+  "name": "StockAI — AI Stock Analysis",
+  "short_name": "StockAI",
+  "description": "AI-powered real-time stock market analysis, portfolio tracking, and price alerts",
+  "start_url": "/dashboard.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050b1f",
+  "theme_color": "#00d4ff",
+  "categories": ["finance", "business"],
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    { "name": "Dashboard", "url": "/dashboard.html", "description": "Open trading dashboard" },
+    { "name": "Watchlist", "url": "/dashboard.html#watchlist", "description": "View your watchlist" }
+  ]
+}

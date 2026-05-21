@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — StockAI</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4ff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050b1f;--cyan:#00d4ff;--cyan2:#0055ff;--green:#00ff88;--red:#ff4466;
+  --gold:#ffd700;--purple:#a855f7;--text:#e2e8f0;--muted:#64748b;
+  --card:rgba(255,255,255,0.04);--card2:rgba(255,255,255,0.07);
+  --border:rgba(0,212,255,0.15);--border2:rgba(255,255,255,0.07);
+}
+html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+.page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+
+/* NAV */
+nav{padding:1rem 1.8rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(5,11,31,0.6);position:sticky;top:0;z-index:100}
+.nav-left{display:flex;align-items:center;gap:1.2rem}
+.logo{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:inherit}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 0 14px rgba(0,212,255,0.3)}
+.logo span{font-size:1.15rem;font-weight:900;background:linear-gradient(90deg,var(--cyan),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-back{display:flex;align-items:center;gap:.4rem;padding:.4rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:.82rem;font-weight:600;text-decoration:none;transition:.2s}
+.nav-back:hover{color:var(--cyan);border-color:rgba(0,212,255,0.35)}
+.nav-user{display:flex;align-items:center;gap:.6rem;font-size:.84rem;color:var(--muted)}
+.nav-avatar{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--cyan2),var(--green));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem}
+
+/* MAIN */
+main{flex:1;max-width:860px;width:100%;margin:0 auto;padding:2rem 1.4rem 4rem}
+
+/* SECTION */
+.section{margin-bottom:2rem}
+.section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* PROFILE CARD */
+.profile-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap}
+.profile-avatar-wrap{position:relative;flex-shrink:0}
+.profile-avatar{width:88px;height:88px;border-radius:22px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:2.6rem;font-weight:900;box-shadow:0 0 30px rgba(0,212,255,0.3);letter-spacing:-.02em}
+.avatar-badge{position:absolute;bottom:-4px;right:-4px;width:22px;height:22px;background:var(--green);border-radius:50%;border:3px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:.55rem}
+.profile-info{flex:1;min-width:200px}
+.profile-name{font-size:1.7rem;font-weight:900;letter-spacing:-.04em;margin-bottom:.2rem}
+.profile-email{font-size:.88rem;color:var(--muted);margin-bottom:.7rem}
+.profile-joined{display:inline-flex;align-items:center;gap:.4rem;font-size:.74rem;color:var(--muted);padding:.3rem .7rem;background:rgba(255,255,255,0.04);border:1px solid var(--border2);border-radius:50px}
+.profile-type{display:inline-flex;align-items:center;gap:.35rem;font-size:.73rem;font-weight:700;padding:.28rem .7rem;border-radius:50px;margin-left:.5rem}
+.profile-type.free{background:rgba(0,255,136,0.08);color:var(--green);border:1px solid rgba(0,255,136,0.2)}
+.profile-type.guest{background:rgba(255,215,0,0.08);color:var(--gold);border:1px solid rgba(255,215,0,0.2)}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.2rem;text-align:center}
+.stat-icon{font-size:1.4rem;margin-bottom:.4rem}
+.stat-val{font-size:1.8rem;font-weight:900;letter-spacing:-.04em;line-height:1}
+.stat-lbl{font-size:.68rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-top:.3rem}
+
+/* FORM CARD */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.4rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.form-group{display:flex;flex-direction:column;gap:.4rem}
+.form-group label{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.form-input{padding:.62rem .9rem;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.88rem;font-family:'Inter',sans-serif;outline:none;transition:.2s}
+.form-input:focus{border-color:var(--cyan);background:rgba(0,212,255,0.05);box-shadow:0 0 0 3px rgba(0,212,255,0.1)}
+.form-input::placeholder{color:var(--muted);opacity:.6}
+.form-input:disabled{opacity:.5;cursor:not-allowed}
+.form-actions{display:flex;gap:.7rem;align-items:center;margin-top:.4rem}
+.btn-save{padding:.6rem 1.4rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border:none;border-radius:9px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s}
+.btn-save:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,85,255,0.35)}
+.btn-cancel{padding:.6rem 1rem;background:transparent;border:1px solid var(--border);border-radius:9px;color:var(--muted);font-size:.85rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s}
+.btn-cancel:hover{color:var(--text);border-color:var(--border2)}
+.form-note{font-size:.76rem;color:var(--muted);margin-top:.4rem;line-height:1.5}
+.success-msg{display:none;color:var(--green);font-size:.82rem;font-weight:600}
+.success-msg.show{display:inline}
+
+/* PREFERENCES */
+.pref-list{display:flex;flex-direction:column;gap:.2rem}
+.pref-row{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.1rem;background:var(--card);border:1px solid var(--border);border-radius:12px;gap:1rem}
+.pref-row:not(:last-child){margin-bottom:.4rem}
+.pref-info{flex:1}
+.pref-label{font-size:.87rem;font-weight:600;margin-bottom:.1rem}
+.pref-sub{font-size:.74rem;color:var(--muted)}
+.pref-control{flex-shrink:0}
+.pref-select{padding:.38rem .65rem;background:var(--card2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'Inter',sans-serif;font-size:.82rem;outline:none;transition:.2s}
+.pref-select:focus{border-color:var(--cyan)}
+
+/* TOGGLE */
+.toggle{position:relative;width:44px;height:24px;display:inline-block;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,0.12);border-radius:24px;cursor:pointer;transition:.25s}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s}
+.toggle input:checked+.toggle-slider{background:var(--cyan)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(20px)}
+
+/* DATA ACTIONS */
+.data-actions{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.btn-data{padding:.75rem 1rem;border-radius:11px;font-size:.83rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s;display:flex;align-items:center;gap:.5rem;text-align:left;border:1px solid}
+.btn-export-data{background:rgba(0,212,255,0.07);border-color:rgba(0,212,255,0.2);color:var(--cyan)}
+.btn-export-data:hover{background:rgba(0,212,255,0.14)}
+.btn-clear-wl{background:rgba(255,215,0,0.07);border-color:rgba(255,215,0,0.2);color:var(--gold)}
+.btn-clear-wl:hover{background:rgba(255,215,0,0.14)}
+.btn-clear-port{background:rgba(168,85,247,0.07);border-color:rgba(168,85,247,0.2);color:var(--purple)}
+.btn-clear-port:hover{background:rgba(168,85,247,0.14)}
+.btn-clear-alerts{background:rgba(255,140,0,0.07);border-color:rgba(255,140,0,0.2);color:#ff8c00}
+.btn-clear-alerts:hover{background:rgba(255,140,0,0.14)}
+
+/* DANGER ZONE */
+.danger-card{background:rgba(255,68,102,0.04);border:1px solid rgba(255,68,102,0.22);border-radius:16px;padding:1.4rem}
+.danger-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--red);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem}
+.danger-row{display:flex;align-items:center;justify-content:space-between;padding:.9rem 0;border-bottom:1px solid rgba(255,68,102,0.1);gap:1rem;flex-wrap:wrap}
+.danger-row:last-child{border-bottom:none;padding-bottom:0}
+.danger-info{flex:1}
+.danger-label{font-size:.88rem;font-weight:700;margin-bottom:.2rem}
+.danger-sub{font-size:.75rem;color:var(--muted);line-height:1.5}
+.btn-danger{padding:.55rem 1.1rem;background:transparent;border:1px solid rgba(255,68,102,0.4);border-radius:9px;color:var(--red);font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s;white-space:nowrap}
+.btn-danger:hover{background:rgba(255,68,102,0.1);border-color:var(--red)}
+.btn-danger-fill{background:rgba(255,68,102,0.12);border-color:var(--red)}
+.btn-danger-fill:hover{background:rgba(255,68,102,0.22)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);padding:1rem}
+.modal-overlay.hidden{display:none}
+.modal{background:#0b1525;border:1px solid rgba(255,68,102,0.25);border-radius:20px;padding:2rem;width:100%;max-width:420px;position:relative;box-shadow:0 30px 80px rgba(0,0,0,0.7)}
+.modal.safe{border-color:var(--border)}
+.modal-icon{font-size:3rem;text-align:center;margin-bottom:1rem}
+.modal h3{font-size:1.15rem;font-weight:800;margin-bottom:.5rem;text-align:center}
+.modal p{font-size:.83rem;color:var(--muted);margin-bottom:1.2rem;line-height:1.65;text-align:center}
+.modal-confirm-input{width:100%;padding:.65rem .9rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,68,102,0.3);border-radius:10px;color:var(--text);font-size:.88rem;font-family:'Inter',sans-serif;outline:none;transition:.2s;margin-bottom:1rem}
+.modal-confirm-input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,68,102,0.1)}
+.modal-confirm-input::placeholder{color:var(--muted);opacity:.6}
+.modal-actions{display:flex;gap:.7rem}
+.btn-modal-confirm{flex:1;padding:.7rem;background:var(--red);border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;font-size:.88rem;transition:.2s;opacity:.4;pointer-events:none}
+.btn-modal-confirm.ready{opacity:1;pointer-events:auto}
+.btn-modal-confirm.ready:hover{background:#e0304a}
+.btn-modal-safe{flex:1;padding:.7rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;font-size:.88rem;transition:.2s}
+.btn-modal-cancel{padding:.7rem 1.2rem;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;font-size:.88rem}
+.close-modal{position:absolute;top:.9rem;right:.9rem;background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;transition:.15s}
+.close-modal:hover{color:var(--text)}
+
+/* TOAST */
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#0b1525;border:1px solid var(--cyan);color:var(--cyan);padding:.7rem 1.2rem;border-radius:10px;font-size:.85rem;font-weight:700;z-index:2000;opacity:0;transform:translateY(8px);transition:.3s;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.err{border-color:var(--red);color:var(--red)}
+
+/* RESPONSIVE */
+@media(max-width:640px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .form-row{grid-template-columns:1fr}
+  .data-actions{grid-template-columns:1fr}
+  .profile-card{flex-direction:column;align-items:flex-start;gap:1.2rem}
+  main{padding:1.2rem 1rem 3rem}
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div class="page">
+  <nav>
+    <div class="nav-left">
+      <a href="dashboard.html" class="nav-back">← Dashboard</a>
+      <a href="index.html" class="logo">
+        <div class="logo-icon">📈</div>
+        <span>StockAI</span>
+      </a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <span id="nav-name">Loading…</span>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ── PROFILE ─────────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">👤 Your Profile</div>
+      <div class="profile-card" data-tilt data-tilt-max="5" data-tilt-scale="1.01">
+        <div class="profile-avatar-wrap">
+          <div class="profile-avatar" id="profile-avatar">?</div>
+          <div class="avatar-badge">✓</div>
+        </div>
+        <div class="profile-info">
+          <div class="profile-name" id="profile-name">Loading…</div>
+          <div class="profile-email" id="profile-email">—</div>
+          <div>
+            <span class="profile-joined" id="profile-joined">📅 Joined —</span>
+            <span class="profile-type free" id="profile-type">✓ Free Account</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STATS ──────────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">📊 Account Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card" data-tilt data-tilt-max="12"><div class="stat-icon">⭐</div><div class="stat-val" id="stat-wl">0</div><div class="stat-lbl">Watchlist</div></div>
+        <div class="stat-card" data-tilt data-tilt-max="12"><div class="stat-icon">💼</div><div class="stat-val" id="stat-port">0</div><div class="stat-lbl">Holdings</div></div>
+        <div class="stat-card" data-tilt data-tilt-max="12"><div class="stat-icon">🔔</div><div class="stat-val" id="stat-alerts">0</div><div class="stat-lbl">Alerts</div></div>
+        <div class="stat-card" data-tilt data-tilt-max="12"><div class="stat-icon">📅</div><div class="stat-val" id="stat-days">0</div><div class="stat-lbl">Days Active</div></div>
+      </div>
+    </div>
+
+    <!-- ── EDIT PROFILE ───────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">✏️ Edit Profile</div>
+      <div class="form-card">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Display Name</label>
+            <input class="form-input" type="text" id="edit-name" placeholder="Your name">
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input class="form-input" type="email" id="edit-email" placeholder="you@example.com" disabled>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-save" onclick="saveName()">Save Changes</button>
+          <span class="success-msg" id="save-success">✓ Saved!</span>
+        </div>
+        <p class="form-note">Email cannot be changed as it is used for login. Contact support to transfer your account.</p>
+      </div>
+    </div>
+
+    <!-- ── CHANGE PASSWORD ────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">🔒 Change Password</div>
+      <div class="form-card">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Current Password</label>
+            <input class="form-input" type="password" id="pwd-current" placeholder="Enter current password">
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input class="form-input" type="password" id="pwd-new" placeholder="New password (min 6 chars)" oninput="checkPwd()">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem">
+          <label>Confirm New Password</label>
+          <input class="form-input" type="password" id="pwd-confirm" placeholder="Repeat new password" oninput="checkPwd()" style="max-width:340px">
+        </div>
+        <div id="pwd-strength-wrap" style="margin-bottom:.9rem;display:none">
+          <div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden;width:220px">
+            <div id="pwd-strength-bar" style="height:100%;width:0;border-radius:2px;transition:.3s"></div>
+          </div>
+          <div id="pwd-strength-lbl" style="font-size:.72rem;margin-top:.3rem;color:var(--muted)"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-save" onclick="changePassword()">Update Password</button>
+          <span class="success-msg" id="pwd-success">✓ Password updated!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PREFERENCES ────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">⚙️ Preferences</div>
+      <div class="pref-list">
+        <div class="pref-row">
+          <div class="pref-info">
+            <div class="pref-label">Default Stock on Load</div>
+            <div class="pref-sub">Which stock opens when you first visit the dashboard</div>
+          </div>
+          <div class="pref-control">
+            <select class="pref-select" id="pref-default-stock" onchange="savePref('defaultStock',this.value)">
+              <option value="AAPL">AAPL — Apple</option>
+              <option value="MSFT">MSFT — Microsoft</option>
+              <option value="GOOGL">GOOGL — Alphabet</option>
+              <option value="TSLA">TSLA — Tesla</option>
+              <option value="NVDA">NVDA — NVIDIA</option>
+              <option value="AMZN">AMZN — Amazon</option>
+              <option value="META">META — Meta</option>
+              <option value="SPY">SPY — S&amp;P 500 ETF</option>
+            </select>
+          </div>
+        </div>
+        <div class="pref-row">
+          <div class="pref-info">
+            <div class="pref-label">Price Alert Notifications</div>
+            <div class="pref-sub">Show browser notifications when your price alerts trigger</div>
+          </div>
+          <div class="pref-control">
+            <label class="toggle">
+              <input type="checkbox" id="pref-notif" onchange="toggleNotifications(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="pref-row">
+          <div class="pref-info">
+            <div class="pref-label">Session Remember Duration</div>
+            <div class="pref-sub">How long you stay logged in without revisiting</div>
+          </div>
+          <div class="pref-control">
+            <select class="pref-select" id="pref-session" onchange="savePref('sessionDays',this.value)">
+              <option value="7">7 days</option>
+              <option value="30">30 days (default)</option>
+              <option value="90">90 days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DATA ───────────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">💾 Your Data</div>
+      <div class="data-actions">
+        <button class="btn-data btn-export-data" onclick="exportAllData()">
+          <span>⬇</span>
+          <div><div style="font-weight:800">Export All Data</div><div style="font-size:.72rem;font-weight:400;opacity:.8">Download your watchlist, portfolio &amp; alerts as JSON</div></div>
+        </button>
+        <button class="btn-data btn-clear-wl" onclick="confirmClear('watchlist')">
+          <span>⭐</span>
+          <div><div style="font-weight:800">Clear Watchlist</div><div style="font-size:.72rem;font-weight:400;opacity:.8">Remove all stocks from your watchlist</div></div>
+        </button>
+        <button class="btn-data btn-clear-port" onclick="confirmClear('portfolio')">
+          <span>💼</span>
+          <div><div style="font-weight:800">Clear Portfolio</div><div style="font-size:.72rem;font-weight:400;opacity:.8">Delete all portfolio holdings and history</div></div>
+        </button>
+        <button class="btn-data btn-clear-alerts" onclick="confirmClear('alerts')">
+          <span>🔔</span>
+          <div><div style="font-weight:800">Clear All Alerts</div><div style="font-size:.72rem;font-weight:400;opacity:.8">Remove all your price alerts</div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── DANGER ZONE ────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title" style="color:var(--red)">☠️ Danger Zone</div>
+      <div class="danger-card">
+        <div class="danger-title">⚠ Irreversible Actions</div>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <div class="danger-label">Sign Out Everywhere</div>
+            <div class="danger-sub">Clears your session from this browser. You'll need to log back in. Your data is preserved.</div>
+          </div>
+          <button class="btn-danger" onclick="Auth.logout()">Sign Out</button>
+        </div>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <div class="danger-label">Reset All Data</div>
+            <div class="danger-sub">Deletes your watchlist, portfolio, and all price alerts. Your account and login are kept.</div>
+          </div>
+          <button class="btn-danger btn-danger-fill" onclick="openDangerModal('reset')">Reset My Data</button>
+        </div>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <div class="danger-label">Delete Account</div>
+            <div class="danger-sub">Permanently deletes your account, all saved data, and cannot be undone. You will be signed out immediately.</div>
+          </div>
+          <button class="btn-danger btn-danger-fill" onclick="openDangerModal('delete')" style="border-color:var(--red);background:rgba(255,68,102,0.18);color:var(--red)">Delete Account</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- CLEAR CONFIRM MODAL -->
+<div class="modal-overlay hidden" id="clear-modal">
+  <div class="modal safe">
+    <button class="close-modal" onclick="closeModal('clear-modal')">✕</button>
+    <div class="modal-icon" id="clear-modal-icon">⭐</div>
+    <h3 id="clear-modal-title">Clear Watchlist?</h3>
+    <p id="clear-modal-body">This will remove all stocks from your watchlist. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-modal-safe ready" id="clear-modal-confirm" onclick="">Confirm</button>
+      <button class="btn-modal-cancel" onclick="closeModal('clear-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DANGER MODAL -->
+<div class="modal-overlay hidden" id="danger-modal">
+  <div class="modal">
+    <button class="close-modal" onclick="closeModal('danger-modal')">✕</button>
+    <div class="modal-icon" id="danger-icon">⚠️</div>
+    <h3 id="danger-title">Are you sure?</h3>
+    <p id="danger-body">This action is irreversible.</p>
+    <p style="font-size:.8rem;color:var(--red);margin-bottom:.7rem;text-align:center" id="danger-type-hint">Type your <strong>name</strong> below to confirm:</p>
+    <input class="modal-confirm-input" type="text" id="danger-confirm-input" placeholder="" oninput="checkDangerInput()">
+    <div class="modal-actions">
+      <button class="btn-modal-confirm" id="danger-confirm-btn" onclick="executeDanger()">Confirm</button>
+      <button class="btn-modal-cancel" onclick="closeModal('danger-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/animations.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/features.js"></script>
+<script>
+// ── Guard ──────────────────────────────────────────────────────────────────
+const session = Auth.getSession();
+if (!session) {
+  window.location.href = 'login.html';
+  document.body.style.display = 'none';
+  throw new Error('No session — redirecting to login');
+}
+if (session.isGuest) {
+  window.location.href = 'dashboard.html';
+  document.body.style.display = 'none';
+  throw new Error('Guest session — redirecting to dashboard');
+}
+
+// ── Particle background ────────────────────────────────────────────────────
+(function(){
+  const c=document.getElementById('bg-canvas'),x=c.getContext('2d');
+  let W=c.width=innerWidth,H=c.height=innerHeight;
+  const pts=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,r:1+Math.random()*1.5}));
+  window.addEventListener('resize',()=>{W=c.width=innerWidth;H=c.height=innerHeight});
+  function draw(){
+    x.clearRect(0,0,W,H);x.fillStyle='#050b1f';x.fillRect(0,0,W,H);
+    const g1=x.createRadialGradient(W*.2,H*.3,0,W*.2,H*.3,500);
+    g1.addColorStop(0,'rgba(0,85,255,0.07)');g1.addColorStop(1,'transparent');
+    x.fillStyle=g1;x.fillRect(0,0,W,H);
+    pts.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+      x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle='rgba(0,212,255,0.3)';x.fill();
+    });
+    pts.forEach((a,i)=>pts.slice(i+1).forEach(b=>{
+      const d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(d<110){x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.strokeStyle=`rgba(0,212,255,${0.1*(1-d/110)})`;x.lineWidth=.5;x.stroke();}
+    }));
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── Load profile data ──────────────────────────────────────────────────────
+function loadProfile() {
+  const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
+  const user  = users.find(u => u.id === session.userId) || {};
+
+  // Avatar & name
+  const initial = (session.name || '?')[0].toUpperCase();
+  document.getElementById('profile-avatar').textContent = initial;
+  document.getElementById('nav-avatar').textContent     = initial;
+  document.getElementById('nav-name').textContent       = session.name;
+  document.getElementById('profile-name').textContent   = session.name;
+  document.getElementById('profile-email').textContent  = session.email;
+  document.getElementById('edit-name').value  = session.name;
+  document.getElementById('edit-email').value = session.email;
+
+  // Joined date
+  const created = user.created || session.token || Date.now();
+  const joined  = new Date(created).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const days    = Math.max(1, Math.floor((Date.now()-created)/(864e5)));
+  document.getElementById('profile-joined').textContent  = `📅 Joined ${joined}`;
+  document.getElementById('stat-days').textContent       = days;
+
+  // Guest badge
+  if (session.isGuest) {
+    document.getElementById('profile-type').textContent = '👤 Guest';
+    document.getElementById('profile-type').className   = 'profile-type guest';
+  }
+
+  // Stats
+  const wl    = Auth.getWatchlist();
+  const port  = Portfolio.get();
+  const alerts = JSON.parse(localStorage.getItem('stockai_alerts')||'[]');
+  document.getElementById('stat-wl').textContent     = wl.length;
+  document.getElementById('stat-port').textContent   = port.length;
+  document.getElementById('stat-alerts').textContent = alerts.length;
+}
+
+// ── Preferences ────────────────────────────────────────────────────────────
+function loadPrefs() {
+  const prefs = JSON.parse(localStorage.getItem('stockai_prefs') || '{}');
+  const ds = document.getElementById('pref-default-stock');
+  if (prefs.defaultStock && ds) ds.value = prefs.defaultStock;
+
+  const sd = document.getElementById('pref-session');
+  if (prefs.sessionDays && sd) sd.value = prefs.sessionDays;
+
+  const notif = document.getElementById('pref-notif');
+  if (notif) notif.checked = Notification?.permission === 'granted';
+}
+
+function savePref(key, value) {
+  const prefs = JSON.parse(localStorage.getItem('stockai_prefs') || '{}');
+  prefs[key] = value;
+  localStorage.setItem('stockai_prefs', JSON.stringify(prefs));
+  showToast('Preference saved');
+}
+
+function toggleNotifications(on) {
+  if (on && 'Notification' in window && Notification.permission !== 'granted') {
+    Notification.requestPermission().then(p => {
+      if (p !== 'granted') {
+        document.getElementById('pref-notif').checked = false;
+        showToast('Notification permission denied', true);
+      } else {
+        showToast('Notifications enabled');
+      }
+    });
+  } else if (!on) {
+    showToast('Notifications disabled — browser controls this setting');
+  }
+}
+
+// ── Edit name ──────────────────────────────────────────────────────────────
+function saveName() {
+  const newName = document.getElementById('edit-name').value.trim();
+  if (!newName) { showToast('Name cannot be empty', true); return; }
+
+  // Update user record
+  const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
+  const idx = users.findIndex(u => u.id === session.userId);
+  if (idx !== -1) { users[idx].name = newName; localStorage.setItem('stockai_users', JSON.stringify(users)); }
+
+  // Update session
+  const raw = localStorage.getItem('stockai_session') || sessionStorage.getItem('stockai_session');
+  if (raw) {
+    const s = JSON.parse(raw); s.name = newName;
+    if (localStorage.getItem('stockai_session')) localStorage.setItem('stockai_session', JSON.stringify(s));
+    else sessionStorage.setItem('stockai_session', JSON.stringify(s));
+  }
+
+  document.getElementById('profile-name').textContent = newName;
+  document.getElementById('nav-name').textContent = newName;
+  document.getElementById('profile-avatar').textContent = newName[0].toUpperCase();
+  document.getElementById('nav-avatar').textContent = newName[0].toUpperCase();
+
+  const msg = document.getElementById('save-success');
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 2500);
+}
+
+// ── Change password ────────────────────────────────────────────────────────
+function checkPwd() {
+  const v = document.getElementById('pwd-new').value;
+  const wrap = document.getElementById('pwd-strength-wrap');
+  const bar  = document.getElementById('pwd-strength-bar');
+  const lbl  = document.getElementById('pwd-strength-lbl');
+  wrap.style.display = v ? 'block' : 'none';
+
+  let score = 0;
+  if (v.length >= 8) score++;
+  if (/[A-Z]/.test(v)) score++;
+  if (/[0-9]/.test(v)) score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+  const cfgs = [{pct:'0%',color:'transparent',text:''},{pct:'25%',color:'#ff4466',text:'Weak'},{pct:'50%',color:'#ffa500',text:'Fair'},{pct:'75%',color:'#ffd700',text:'Good'},{pct:'100%',color:'#00ff88',text:'Strong'}];
+  const cfg = cfgs[score] || cfgs[0];
+  bar.style.width = cfg.pct; bar.style.background = cfg.color;
+  lbl.textContent = cfg.text; lbl.style.color = cfg.color;
+}
+
+function changePassword() {
+  const current = document.getElementById('pwd-current').value;
+  const nw      = document.getElementById('pwd-new').value;
+  const confirm = document.getElementById('pwd-confirm').value;
+
+  if (!current || !nw || !confirm) { showToast('Fill in all password fields', true); return; }
+  if (nw.length < 6) { showToast('New password must be at least 6 characters', true); return; }
+  if (nw !== confirm) { showToast('Passwords do not match', true); return; }
+
+  const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
+  const idx   = users.findIndex(u => u.id === session.userId && u.password === btoa(current));
+  if (idx === -1) { showToast('Current password is incorrect', true); return; }
+
+  users[idx].password = btoa(nw);
+  localStorage.setItem('stockai_users', JSON.stringify(users));
+  document.getElementById('pwd-current').value = '';
+  document.getElementById('pwd-new').value = '';
+  document.getElementById('pwd-confirm').value = '';
+  document.getElementById('pwd-strength-wrap').style.display = 'none';
+
+  const msg = document.getElementById('pwd-success');
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 2500);
+}
+
+// ── Data export ────────────────────────────────────────────────────────────
+function exportAllData() {
+  const data = {
+    exportedAt:  new Date().toISOString(),
+    profile:     { name: session.name, email: session.email },
+    watchlist:   Auth.getWatchlist(),
+    portfolio:   Portfolio.get(),
+    alerts:      JSON.parse(localStorage.getItem('stockai_alerts') || '[]'),
+    preferences: JSON.parse(localStorage.getItem('stockai_prefs') || '{}'),
+  };
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
+  a.download = `stockai_data_${new Date().toISOString().slice(0,10)}.json`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Data exported as JSON');
+}
+
+// ── Clear modals ───────────────────────────────────────────────────────────
+const CLEAR_CONFIGS = {
+  watchlist: { icon:'⭐', title:'Clear Watchlist?', body:'All stocks will be removed from your watchlist. Your portfolio and alerts are unaffected.', action: () => { localStorage.removeItem(`watchlist_${session.userId}`); loadProfile(); } },
+  portfolio: { icon:'💼', title:'Clear Portfolio?', body:'All your holdings will be deleted permanently. This cannot be undone.', action: () => { localStorage.removeItem('stockai_portfolio'); loadProfile(); } },
+  alerts:    { icon:'🔔', title:'Clear All Alerts?', body:'All your price alerts will be removed and any triggered alerts will be lost.', action: () => { localStorage.removeItem('stockai_alerts'); loadProfile(); } },
+};
+let pendingClearAction = null;
+
+function confirmClear(type) {
+  const cfg = CLEAR_CONFIGS[type]; if (!cfg) return;
+  document.getElementById('clear-modal-icon').textContent  = cfg.icon;
+  document.getElementById('clear-modal-title').textContent = cfg.title;
+  document.getElementById('clear-modal-body').textContent  = cfg.body;
+  document.getElementById('clear-modal-confirm').onclick   = () => { cfg.action(); closeModal('clear-modal'); showToast(`${type.charAt(0).toUpperCase()+type.slice(1)} cleared`); };
+  document.getElementById('clear-modal').classList.remove('hidden');
+}
+
+// ── Danger modal ───────────────────────────────────────────────────────────
+let dangerAction = null;
+
+function openDangerModal(type) {
+  const isDelete = type === 'delete';
+  document.getElementById('danger-icon').textContent = isDelete ? '💀' : '🗑';
+  document.getElementById('danger-title').textContent = isDelete ? 'Delete Your Account?' : 'Reset All Your Data?';
+  document.getElementById('danger-body').textContent  = isDelete
+    ? 'This will permanently delete your account, watchlist, portfolio, and all alerts. You will be signed out immediately and cannot undo this.'
+    : 'This will delete your watchlist, portfolio, and all price alerts. Your account login is kept. This cannot be undone.';
+  document.getElementById('danger-type-hint').innerHTML = `Type your <strong>${isDelete ? 'email address' : 'name'}</strong> to confirm:`;
+  document.getElementById('danger-confirm-input').placeholder = isDelete ? session.email : session.name;
+  document.getElementById('danger-confirm-input').value = '';
+  document.getElementById('danger-confirm-btn').classList.remove('ready');
+
+  dangerAction = isDelete ? 'delete' : 'reset';
+  document.getElementById('danger-modal').classList.remove('hidden');
+}
+
+function checkDangerInput() {
+  const val     = document.getElementById('danger-confirm-input').value.trim();
+  const expected = dangerAction === 'delete' ? session.email : session.name;
+  const btn = document.getElementById('danger-confirm-btn');
+  btn.classList.toggle('ready', val === expected);
+}
+
+function executeDanger() {
+  if (dangerAction === 'delete') {
+    // Remove user from users array
+    const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
+    const updated = users.filter(u => u.id !== session.userId);
+    localStorage.setItem('stockai_users', JSON.stringify(updated));
+    // Wipe all user data
+    localStorage.removeItem(`watchlist_${session.userId}`);
+    localStorage.removeItem('stockai_portfolio');
+    localStorage.removeItem('stockai_alerts');
+    localStorage.removeItem('stockai_last_email');
+    localStorage.removeItem('stockai_prefs');
+    // Sign out
+    localStorage.removeItem('stockai_session');
+    sessionStorage.removeItem('stockai_session');
+    window.location.href = 'index.html';
+  } else if (dangerAction === 'reset') {
+    localStorage.removeItem(`watchlist_${session.userId}`);
+    localStorage.removeItem('stockai_portfolio');
+    localStorage.removeItem('stockai_alerts');
+    closeModal('danger-modal');
+    loadProfile();
+    showToast('All data has been reset');
+  }
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+['clear-modal','danger-modal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal(id);
+  });
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function showToast(msg, isErr=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = isErr ? 'show err' : 'show';
+  setTimeout(() => t.className = '', 2800);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+if (localStorage.getItem('stockai_theme') === 'light') document.body.classList.add('light');
+initTilt('[data-tilt]');
+try { loadProfile(); } catch(e) { console.error('loadProfile error:', e); }
+try { loadPrefs();   } catch(e) { console.error('loadPrefs error:', e); }
+</script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+</body>
+</html>

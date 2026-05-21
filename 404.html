@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 — Page Not Found | StockAI</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#050b1f;--cyan:#00d4ff;--cyan2:#0055ff;--green:#00ff88;--text:#e2e8f0;--muted:#64748b;--border:rgba(0,212,255,0.15)}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+canvas{position:fixed;inset:0;z-index:0}
+.page{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;text-align:center;padding:2rem}
+.err-code{font-size:clamp(6rem,20vw,12rem);font-weight:900;background:linear-gradient(135deg,var(--cyan2),var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-.05em;filter:drop-shadow(0 0 40px rgba(0,212,255,0.3))}
+.err-title{font-size:clamp(1.2rem,3vw,1.8rem);font-weight:800;letter-spacing:-.02em}
+.err-sub{color:var(--muted);font-size:.95rem;max-width:420px;line-height:1.6}
+.btn-home{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 2rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border:none;border-radius:12px;color:#fff;font-size:.95rem;font-weight:700;text-decoration:none;transition:.2s;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-home:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,85,255,0.4)}
+.btn-back{padding:.7rem 1.4rem;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:.88rem;font-weight:600;text-decoration:none;transition:.2s}
+.btn-back:hover{border-color:rgba(0,212,255,0.4);color:var(--cyan)}
+.btns{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap}
+.chart-line{position:absolute;bottom:15%;left:50%;transform:translateX(-50%);opacity:.08;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="page">
+  <div class="err-code">404</div>
+  <div class="err-title">Page not found</div>
+  <div class="err-sub">The stock you're looking for doesn't trade here. This page may have moved, been delisted, or never existed.</div>
+  <div class="btns">
+    <a href="dashboard.html" class="btn-home">📊 Go to Dashboard</a>
+    <a href="javascript:history.back()" class="btn-back">← Go back</a>
+  </div>
+  <svg class="chart-line" width="600" height="80" viewBox="0 0 600 80">
+    <polyline points="0,60 80,40 160,55 240,20 320,35 400,10 480,30 600,15" fill="none" stroke="#00d4ff" stroke-width="2"/>
+  </svg>
+</div>
+<script>
+(function(){
+  const c=document.getElementById('c'),x=c.getContext('2d');
+  let W=c.width=innerWidth,H=c.height=innerHeight;
+  const pts=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:1+Math.random()*1.5}));
+  window.addEventListener('resize',()=>{W=c.width=innerWidth;H=c.height=innerHeight});
+  function draw(){
+    x.clearRect(0,0,W,H);x.fillStyle='#050b1f';x.fillRect(0,0,W,H);
+    const g=x.createRadialGradient(W/2,H/2,0,W/2,H/2,500);
+    g.addColorStop(0,'rgba(0,85,255,0.08)');g.addColorStop(1,'transparent');
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+    pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle='rgba(0,212,255,0.35)';x.fill()});
+    pts.forEach((a,i)=>pts.slice(i+1).forEach(b=>{const d=Math.hypot(a.x-b.x,a.y-b.y);if(d<100){x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.strokeStyle=`rgba(0,212,255,${0.12*(1-d/100)})`;x.lineWidth=.5;x.stroke()}}));
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

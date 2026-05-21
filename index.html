@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockAI — AI-Powered Stock Market Intelligence</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4ff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#020818;--cyan:#00d4ff;--cyan2:#0055ff;
+  --green:#00ff88;--red:#ff4466;--gold:#ffd700;--purple:#a855f7;
+  --text:#f0f4ff;--muted:#64748b;
+  --border:rgba(0,212,255,0.15);--glow:rgba(0,212,255,0.4);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6}
+
+/* CANVAS */
+#canvas-wrap{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#globe-canvas{width:100%;height:100%;display:block}
+
+/* FLOATING ORB BACKGROUNDS */
+.orb{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0}
+.orb1{width:600px;height:600px;background:rgba(0,80,255,0.18);top:-200px;right:-100px;animation:orbFloat1 12s ease-in-out infinite}
+.orb2{width:500px;height:500px;background:rgba(0,212,255,0.12);bottom:-100px;left:-100px;animation:orbFloat2 15s ease-in-out infinite}
+.orb3{width:400px;height:400px;background:rgba(168,85,247,0.1);top:40%;left:30%;animation:orbFloat3 18s ease-in-out infinite}
+@keyframes orbFloat1{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,60px)}}
+@keyframes orbFloat2{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,-40px)}}
+@keyframes orbFloat3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-30px,30px) scale(1.1)}}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:1rem 2.5rem;backdrop-filter:blur(24px);background:rgba(2,8,24,0.7);border-bottom:1px solid var(--border);transition:.3s}
+.logo{display:flex;align-items:center;gap:.6rem;font-size:1.4rem;font-weight:900;letter-spacing:-0.04em;text-decoration:none;color:inherit}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 0 24px rgba(0,212,255,0.4)}
+.logo span{background:linear-gradient(90deg,var(--cyan),#fff 60%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-links{display:flex;gap:2rem;list-style:none}
+.nav-links a{color:rgba(240,244,255,0.6);text-decoration:none;font-size:.9rem;font-weight:500;transition:.2s;letter-spacing:0.01em}
+.nav-links a:hover{color:var(--cyan)}
+.nav-cta{display:flex;gap:.8rem;align-items:center}
+.btn-ghost{padding:.5rem 1.4rem;border:1px solid rgba(255,255,255,0.15);border-radius:9px;color:var(--text);text-decoration:none;font-size:.88rem;font-weight:600;transition:.2s;background:rgba(255,255,255,0.04)}
+.btn-ghost:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,0.06)}
+.btn-primary{padding:.55rem 1.5rem;border-radius:9px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));color:#fff;text-decoration:none;font-size:.88rem;font-weight:700;transition:.2s;border:none;cursor:pointer;box-shadow:0 0 24px rgba(0,100,255,0.5);letter-spacing:0.01em}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,212,255,0.6)}
+
+/* TICKER */
+.ticker-wrap{position:fixed;top:68px;left:0;right:0;z-index:999;background:rgba(2,8,24,0.92);border-bottom:1px solid var(--border);overflow:hidden;height:36px;display:flex;align-items:center}
+.ticker-track{display:flex;white-space:nowrap;animation:ticker 50s linear infinite}
+.ticker-track:hover{animation-play-state:paused}
+.ticker-item{display:inline-flex;gap:.5rem;align-items:center;padding:0 1.8rem;font-size:.78rem;font-weight:600;border-right:1px solid rgba(255,255,255,0.06)}
+.ticker-item .sym{color:var(--cyan);font-weight:800;letter-spacing:0.02em}
+.ticker-item .chg.up{color:var(--green)}
+.ticker-item .chg.down{color:var(--red)}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* PAGE */
+.page{position:relative;z-index:10}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:9rem 2rem 5rem;gap:2rem;position:relative}
+
+.hero-badge{display:inline-flex;align-items:center;gap:.6rem;padding:.45rem 1.2rem;border:1px solid rgba(0,212,255,0.3);border-radius:50px;font-size:.78rem;font-weight:700;color:var(--cyan);background:rgba(0,212,255,0.08);backdrop-filter:blur(10px);letter-spacing:0.04em;text-transform:uppercase}
+.hero-badge .pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulseDot 1.5s infinite;box-shadow:0 0 8px var(--green)}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+
+.hero h1{font-size:clamp(3.2rem,7vw,6.5rem);font-weight:900;line-height:1.0;letter-spacing:-0.05em;max-width:900px}
+.hero h1 .word-ai{
+  background:linear-gradient(135deg,var(--cyan) 0%,#fff 45%,var(--green) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 40px rgba(0,212,255,0.5));
+}
+.hero h1 .line2{display:block;font-size:clamp(2rem,4.5vw,4.2rem);font-weight:800;color:rgba(240,244,255,0.7);letter-spacing:-0.03em;margin-top:.3rem}
+
+.hero-sub{font-size:clamp(1rem,2vw,1.2rem);color:rgba(100,116,139,1);max-width:580px;line-height:1.75;font-weight:400}
+
+.hero-cta{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-top:.5rem}
+.btn-lg{padding:1rem 2.4rem;font-size:1.05rem;border-radius:14px;font-weight:800;letter-spacing:-0.01em}
+.btn-hero-ghost{padding:1rem 2.2rem;font-size:1.05rem;border-radius:14px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:var(--text);text-decoration:none;font-weight:700;transition:.2s;backdrop-filter:blur(10px)}
+.btn-hero-ghost:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,0.07)}
+
+/* FLOATING STOCK CARDS */
+.floating-cards{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.float-card{position:absolute;background:rgba(255,255,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:14px;padding:.8rem 1.1rem;backdrop-filter:blur(16px);font-size:.8rem;min-width:140px;animation:floatCard linear infinite}
+.float-card .fc-sym{font-weight:800;font-size:.9rem;color:var(--cyan);margin-bottom:.15rem}
+.float-card .fc-price{font-weight:700;font-size:1rem}
+.float-card .fc-chg{font-size:.72rem;font-weight:600;margin-top:.1rem}
+.float-card .fc-chg.up{color:var(--green)}
+.float-card .fc-chg.down{color:var(--red)}
+.float-card .fc-bar{height:3px;border-radius:2px;margin-top:.5rem}
+.float-card.c1{left:4%;top:22%;animation-duration:8s;animation-name:fc1}
+.float-card.c2{right:5%;top:28%;animation-duration:10s;animation-name:fc2}
+.float-card.c3{left:6%;bottom:25%;animation-duration:9s;animation-name:fc3}
+.float-card.c4{right:6%;bottom:30%;animation-duration:11s;animation-name:fc4}
+@keyframes fc1{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-18px) rotate(-2deg)}}
+@keyframes fc2{0%,100%{transform:translateY(0) rotate(1.5deg)}50%{transform:translateY(-22px) rotate(1.5deg)}}
+@keyframes fc3{0%,100%{transform:translateY(0) rotate(2deg)}50%{transform:translateY(-15px) rotate(2deg)}}
+@keyframes fc4{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-20px) rotate(-1deg)}}
+@media(max-width:900px){.float-card{display:none}}
+
+/* STATS BAR */
+.hero-stats{display:flex;gap:0;flex-wrap:wrap;justify-content:center;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:20px;backdrop-filter:blur(20px);overflow:hidden;margin-top:1rem}
+.stat-item{padding:1.4rem 2.5rem;text-align:center;border-right:1px solid var(--border);flex:1;min-width:120px}
+.stat-item:last-child{border-right:none}
+.stat-num{font-size:2rem;font-weight:900;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.04em}
+.stat-lbl{font-size:.75rem;color:var(--muted);margin-top:.3rem;font-weight:500;letter-spacing:0.04em;text-transform:uppercase}
+
+/* SECTION COMMONS */
+section{position:relative;z-index:10}
+.section-label{font-size:.72rem;letter-spacing:.25em;text-transform:uppercase;color:var(--cyan);font-weight:700;margin-bottom:.8rem}
+.section-title{font-size:clamp(2rem,4vw,3rem);font-weight:900;letter-spacing:-0.04em;line-height:1.1;margin-bottom:1rem}
+.section-sub{color:var(--muted);max-width:560px;margin:0 auto 4rem;line-height:1.75;font-size:1rem}
+
+/* FEATURES */
+.features{padding:8rem 2rem;max-width:1200px;margin:0 auto;text-align:center}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;text-align:left}
+.feat-card{padding:2.2rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:22px;transition:.35s;position:relative;overflow:hidden;group}
+.feat-card::after{content:'';position:absolute;inset:0;opacity:0;transition:.35s;border-radius:22px}
+.feat-card:hover{transform:translateY(-6px);border-color:rgba(0,212,255,0.3);box-shadow:0 24px 80px rgba(0,0,0,0.5),0 0 60px rgba(0,212,255,0.08)}
+.feat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0;transition:.35s}
+.feat-card:hover::before{opacity:1}
+.feat-icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin-bottom:1.4rem}
+.feat-icon.cyan{background:rgba(0,212,255,0.1);box-shadow:0 0 24px rgba(0,212,255,0.2)}
+.feat-icon.green{background:rgba(0,255,136,0.1);box-shadow:0 0 24px rgba(0,255,136,0.2)}
+.feat-icon.gold{background:rgba(255,215,0,0.1);box-shadow:0 0 24px rgba(255,215,0,0.2)}
+.feat-icon.purple{background:rgba(168,85,247,0.1);box-shadow:0 0 24px rgba(168,85,247,0.2)}
+.feat-title{font-size:1.15rem;font-weight:800;margin-bottom:.7rem;letter-spacing:-0.02em}
+.feat-desc{font-size:.9rem;color:var(--muted);line-height:1.7}
+
+/* AI SECTION */
+.ai-section{padding:8rem 2rem;background:linear-gradient(180deg,transparent,rgba(0,60,255,0.05) 50%,transparent)}
+.ai-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+.ai-text .section-title{text-align:left;font-size:clamp(1.8rem,3vw,2.6rem)}
+.ai-text .section-label{text-align:left}
+.ai-text p{color:var(--muted);line-height:1.75;margin:1rem 0 2rem;font-size:.95rem}
+.ai-list{list-style:none;display:flex;flex-direction:column;gap:.9rem}
+.ai-list li{display:flex;gap:.9rem;align-items:flex-start;font-size:.9rem;color:rgba(240,244,255,0.75)}
+.ai-list li .check{color:var(--green);font-weight:900;font-size:.95rem;margin-top:.05rem;flex-shrink:0}
+.ai-list li strong{color:var(--text);font-weight:700}
+
+.ai-mockup{background:rgba(255,255,255,0.04);border:1px solid rgba(0,212,255,0.2);border-radius:22px;padding:1.8rem;backdrop-filter:blur(20px);box-shadow:0 40px 100px rgba(0,0,0,0.5),0 0 80px rgba(0,80,255,0.1)}
+.mockup-header{font-size:.72rem;color:var(--muted);margin-bottom:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:.5rem}
+.mockup-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulseDot 2s infinite}
+.ai-pred-demo{text-align:center;padding:1.4rem;border-radius:14px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.15);margin-bottom:1.4rem}
+.demo-dir{font-size:2.5rem;font-weight:900;color:var(--green);letter-spacing:-0.03em}
+.demo-conf{font-size:.82rem;color:var(--muted);margin-top:.4rem;font-weight:500}
+.demo-sig-list{display:flex;flex-direction:column;gap:.5rem}
+.demo-sig{display:flex;justify-content:space-between;align-items:center;padding:.5rem .8rem;background:rgba(255,255,255,0.03);border-radius:9px;font-size:.8rem;border:1px solid rgba(255,255,255,0.05)}
+.demo-sig .lbl{color:var(--muted);font-weight:500}
+.demo-sig .val{font-weight:700}
+.demo-sig .val.buy{color:var(--green)}
+.demo-sig .val.sell{color:var(--red)}
+.demo-sig .val.neutral{color:var(--gold)}
+
+/* HOW IT WORKS */
+.how-section{padding:8rem 2rem;text-align:center}
+.how-inner{max-width:1000px;margin:0 auto}
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-top:4rem;text-align:left}
+.how-step{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:22px;padding:2rem}
+.step-num{font-size:3rem;font-weight:900;background:linear-gradient(135deg,var(--cyan2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:1rem;letter-spacing:-0.05em}
+.step-title{font-size:1.1rem;font-weight:800;margin-bottom:.6rem;letter-spacing:-0.02em}
+.step-desc{font-size:.88rem;color:var(--muted);line-height:1.7}
+
+/* CTA */
+.cta-section{padding:8rem 2rem;text-align:center}
+.cta-card{max-width:750px;margin:0 auto;padding:5rem 3rem;background:linear-gradient(135deg,rgba(0,80,255,0.15),rgba(0,212,255,0.08),rgba(168,85,247,0.08));border:1px solid rgba(0,212,255,0.25);border-radius:32px;backdrop-filter:blur(20px);position:relative;overflow:hidden}
+.cta-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),var(--purple),transparent)}
+.cta-card h2{font-size:clamp(2rem,4vw,3.2rem);font-weight:900;letter-spacing:-0.05em;margin-bottom:1rem;line-height:1.1}
+.cta-card h2 span{background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.cta-card p{color:var(--muted);margin-bottom:2.5rem;line-height:1.75;font-size:1rem;max-width:480px;margin-left:auto;margin-right:auto}
+.cta-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+
+/* FOOTER */
+footer{border-top:1px solid rgba(255,255,255,0.06);padding:2.5rem 2rem;text-align:center;color:var(--muted);font-size:.82rem}
+footer p{line-height:1.8}
+
+/* ANIMATIONS — scroll reveal */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* MOBILE */
+@media(max-width:768px){
+  .nav-links{display:none}
+  .ai-inner{grid-template-columns:1fr;gap:3rem}
+  .how-grid{grid-template-columns:1fr}
+  .hero-stats{gap:0}
+  .stat-item{padding:1rem 1.2rem;border-right:none;border-bottom:1px solid var(--border)}
+  .stat-item:last-child{border-bottom:none}
+  .btn-lg,.btn-hero-ghost{width:100%;text-align:center}
+  nav{padding:1rem 1.2rem}
+}
+</style>
+</head>
+<body>
+
+<!-- Background layers -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+<div id="canvas-wrap"><canvas id="globe-canvas"></canvas></div>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo"><div class="logo-icon">📈</div><span>StockAI</span></a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#ai">AI Engine</a></li>
+    <li><a href="#how">How It Works</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="login.html" class="btn-ghost">Sign In</a>
+    <a href="register.html" class="btn-primary">Get Started Free →</a>
+  </div>
+</nav>
+
+<!-- LIVE TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-track" id="ticker-track"></div>
+</div>
+
+<div class="page">
+
+  <!-- HERO -->
+  <section class="hero">
+    <!-- Floating stock cards (decorative) -->
+    <div class="floating-cards">
+      <div class="float-card c1">
+        <div class="fc-sym">NVDA</div>
+        <div class="fc-price">$877.30</div>
+        <div class="fc-chg up">▲ +12.45 (+1.44%)</div>
+        <div class="fc-bar" style="background:linear-gradient(90deg,var(--green),rgba(0,255,136,0.3));width:80%"></div>
+      </div>
+      <div class="float-card c2">
+        <div class="fc-sym">AAPL</div>
+        <div class="fc-price">$185.42</div>
+        <div class="fc-chg up">▲ +2.18 (+1.19%)</div>
+        <div class="fc-bar" style="background:linear-gradient(90deg,var(--cyan),rgba(0,212,255,0.3));width:65%"></div>
+      </div>
+      <div class="float-card c3">
+        <div class="fc-sym">TSLA</div>
+        <div class="fc-price">$246.80</div>
+        <div class="fc-chg down">▼ -3.42 (-1.37%)</div>
+        <div class="fc-bar" style="background:linear-gradient(90deg,var(--red),rgba(255,68,102,0.3));width:40%"></div>
+      </div>
+      <div class="float-card c4">
+        <div class="fc-sym">META</div>
+        <div class="fc-price">$512.40</div>
+        <div class="fc-chg up">▲ +4.18 (+0.82%)</div>
+        <div class="fc-bar" style="background:linear-gradient(90deg,var(--purple),rgba(168,85,247,0.3));width:72%"></div>
+      </div>
+    </div>
+
+    <div class="hero-badge"><span class="pulse-dot"></span>Live Market AI — Real-time Predictions Active</div>
+
+    <h1>
+      <span class="word-ai">Predict the Market</span>
+      <span class="line2">with AI Intelligence</span>
+    </h1>
+
+    <p class="hero-sub">Harness <strong style="color:var(--text);font-weight:700">7 technical indicators</strong>, machine-learning signals, and real-time streaming data to make smarter investment decisions — free, no credit card required.</p>
+
+    <div class="hero-cta">
+      <a href="register.html" class="btn-primary btn-lg">Start Free — No Card Needed →</a>
+      <a href="login.html" class="btn-hero-ghost btn-lg">Sign In</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-item"><div class="stat-num" id="cnt-stocks">5,000+</div><div class="stat-lbl">Stocks Tracked</div></div>
+      <div class="stat-item"><div class="stat-num">87%</div><div class="stat-lbl">Prediction Accuracy</div></div>
+      <div class="stat-item"><div class="stat-num">7</div><div class="stat-lbl">AI Indicators</div></div>
+      <div class="stat-item"><div class="stat-num">Real-time</div><div class="stat-lbl">Live Data Feed</div></div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <p class="section-label reveal">Why StockAI</p>
+    <h2 class="section-title reveal">Everything you need to<br>trade <span style="background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">smarter</span></h2>
+    <p class="section-sub reveal">Professional-grade tools powered by AI — designed for traders of all levels.</p>
+    <div class="feat-grid">
+      <div class="feat-card reveal">
+        <div class="feat-icon cyan">🤖</div>
+        <h3 class="feat-title">AI Price Prediction</h3>
+        <p class="feat-desc">Our engine analyzes RSI, MACD, Bollinger Bands, moving averages, stochastic oscillator, OBV, and momentum to predict market direction with a confidence score from 0–100%.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon green">⚡</div>
+        <h3 class="feat-title">Real-time Streaming</h3>
+        <p class="feat-desc">Live candlestick charts with sub-second price updates, volume analysis, and dynamic SMA overlays (20/50/200) powered by TradingView's chart engine.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon gold">📊</div>
+        <h3 class="feat-title">Technical Analysis</h3>
+        <p class="feat-desc">Full indicator suite calculated in real-time. Support & resistance levels, ATR volatility measurement, golden cross / death cross detection, and more.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon purple">🔔</div>
+        <h3 class="feat-title">Price Alerts</h3>
+        <p class="feat-desc">Set custom price alerts for any stock. Get browser notifications the instant a target price is crossed — above or below — with one click.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon cyan">💼</div>
+        <h3 class="feat-title">Portfolio Tracker</h3>
+        <p class="feat-desc">Track your holdings, total portfolio value, unrealized P&L, and return % — all updated live with real market prices.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon green">📰</div>
+        <h3 class="feat-title">Market News Feed</h3>
+        <p class="feat-desc">Stay informed with live company and market news, sourced directly from Finnhub. Filter by stock or browse broad market headlines.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI SHOWCASE -->
+  <section class="ai-section" id="ai">
+    <div class="ai-inner">
+      <div class="ai-text reveal">
+        <p class="section-label">AI Engine</p>
+        <h2 class="section-title">Multi-indicator<br>prediction with<br>confidence scoring</h2>
+        <p>Our AI combines 7 weighted technical indicators into a composite signal. When indicators converge, confidence is high. Each signal is independently scored from -2 (strong sell) to +2 (strong buy).</p>
+        <ul class="ai-list">
+          <li><span class="check">✓</span><span><strong>RSI (14)</strong> — Overbought &amp; oversold momentum</span></li>
+          <li><span class="check">✓</span><span><strong>MACD (12,26,9)</strong> — Trend direction &amp; momentum shifts</span></li>
+          <li><span class="check">✓</span><span><strong>Bollinger Bands (20)</strong> — Volatility &amp; price extremes</span></li>
+          <li><span class="check">✓</span><span><strong>SMA 50/200</strong> — Golden cross &amp; death cross detection</span></li>
+          <li><span class="check">✓</span><span><strong>Stochastic (14)</strong> — Short-term price momentum</span></li>
+          <li><span class="check">✓</span><span><strong>OBV</strong> — Volume-based trend confirmation</span></li>
+          <li><span class="check">✓</span><span><strong>10-Day Momentum</strong> — Recent price trajectory</span></li>
+        </ul>
+      </div>
+      <div class="ai-mockup reveal">
+        <div class="mockup-header"><span class="mockup-dot"></span>AAPL — Live AI Analysis</div>
+        <div class="ai-pred-demo">
+          <div class="demo-dir">▲ BULLISH</div>
+          <div class="demo-conf">Confidence: 78% &nbsp;·&nbsp; 5 Buy &nbsp;·&nbsp; 1 Sell &nbsp;·&nbsp; 1 Neutral</div>
+        </div>
+        <div class="demo-sig-list">
+          <div class="demo-sig"><span class="lbl">RSI (14)</span><span class="val buy">▲ BUY — 38.2</span></div>
+          <div class="demo-sig"><span class="lbl">MACD (12,26,9)</span><span class="val buy">▲ STRONG BUY</span></div>
+          <div class="demo-sig"><span class="lbl">Bollinger Bands</span><span class="val buy">▲ BUY — 22%</span></div>
+          <div class="demo-sig"><span class="lbl">SMA 50/200</span><span class="val buy">▲ GOLDEN CROSS ↑</span></div>
+          <div class="demo-sig"><span class="lbl">Stochastic (14)</span><span class="val neutral">● NEUTRAL — 51.3</span></div>
+          <div class="demo-sig"><span class="lbl">OBV (Volume)</span><span class="val buy">▲ BUY</span></div>
+          <div class="demo-sig"><span class="lbl">Momentum (10d)</span><span class="val sell">▼ SELL — -1.2%</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-section" id="how">
+    <div class="how-inner">
+      <p class="section-label reveal">Simple to Start</p>
+      <h2 class="section-title reveal">Up and running<br>in <span style="background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">60 seconds</span></h2>
+      <div class="how-grid">
+        <div class="how-step reveal">
+          <div class="step-num">01</div>
+          <h3 class="step-title">Create a Free Account</h3>
+          <p class="step-desc">Sign up with just your name and email. No credit card, no subscription. Or jump straight in as a Guest to explore the dashboard instantly.</p>
+        </div>
+        <div class="how-step reveal">
+          <div class="step-num">02</div>
+          <h3 class="step-title">Search Any Stock</h3>
+          <p class="step-desc">Type any ticker symbol or company name — AAPL, TSLA, NVDA, SPY. The AI instantly loads live charts, technical indicators, and a full prediction.</p>
+        </div>
+        <div class="how-step reveal">
+          <div class="step-num">03</div>
+          <h3 class="step-title">Trade With Confidence</h3>
+          <p class="step-desc">Read the AI's confidence score, review 7 indicator signals, set price alerts, track your portfolio, and follow live market news — all in one place.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="about">
+    <div class="cta-card reveal">
+      <h2>Ready to predict<br>the <span>market?</span></h2>
+      <p>Join traders worldwide using AI-powered technical analysis. Completely free — no credit card, no setup, no limits.</p>
+      <div class="cta-btns">
+        <a href="register.html" class="btn-primary btn-lg">Create Free Account →</a>
+        <a href="login.html" class="btn-hero-ghost btn-lg">Sign In</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>⚠️ StockAI is for <strong>educational purposes only</strong>. Not financial advice. Always consult a licensed financial advisor before investing.</p>
+    <p style="margin-top:.5rem;opacity:.5">© 2026 StockAI — Built with Three.js · TradingView Lightweight Charts · Finnhub API</p>
+  </footer>
+</div>
+
+<!-- THREE.JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script>
+(function(){
+  const canvas = document.getElementById('globe-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(window.innerWidth,window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(52, window.innerWidth/window.innerHeight, 0.1, 500);
+  camera.position.set(0, 0, 3.2);
+
+  // Starfield
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(10000*3);
+  for(let i=0;i<10000*3;i++) starPos[i]=(Math.random()-0.5)*300;
+  starGeo.setAttribute('position',new THREE.BufferAttribute(starPos,3));
+  const starMat = new THREE.PointsMaterial({color:0xffffff,size:0.035,transparent:true,opacity:0.6});
+  const stars = new THREE.Points(starGeo,starMat);
+  scene.add(stars);
+
+  // Globe
+  const sphereGeo = new THREE.SphereGeometry(1,64,64);
+  const sphereMat = new THREE.MeshPhongMaterial({
+    color:0x061428,emissive:0x020810,specular:0x1a4080,shininess:80,transparent:true,opacity:0.97
+  });
+  const globe = new THREE.Mesh(sphereGeo,sphereMat);
+  scene.add(globe);
+
+  // Wireframe
+  const wireGeo = new THREE.SphereGeometry(1.002,40,40);
+  const wireMat = new THREE.MeshBasicMaterial({color:0x00d4ff,wireframe:true,transparent:true,opacity:0.09});
+  const wire = new THREE.Mesh(wireGeo,wireMat);
+  scene.add(wire);
+
+  // Atmosphere
+  const atmoGeo = new THREE.SphereGeometry(1.18,64,64);
+  const atmoMat = new THREE.ShaderMaterial({
+    uniforms:{glowColor:{value:new THREE.Color(0x0044ff)},intensity:{value:0.8}},
+    vertexShader:`varying vec3 vNormal;void main(){vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`varying vec3 vNormal;uniform vec3 glowColor;uniform float intensity;void main(){float rim=1.0-abs(dot(vNormal,vec3(0,0,1)));float g=pow(rim,2.2)*intensity;gl_FragColor=vec4(glowColor*g,g*0.85);}`,
+    blending:THREE.AdditiveBlending,side:THREE.BackSide,transparent:true
+  });
+  scene.add(new THREE.Mesh(atmoGeo,atmoMat));
+
+  // Inner rim glow
+  const rimGeo = new THREE.SphereGeometry(1.06,32,32);
+  const rimMat = new THREE.ShaderMaterial({
+    uniforms:{glowColor:{value:new THREE.Color(0x00d4ff)},intensity:{value:0.35}},
+    vertexShader:`varying vec3 vNormal;void main(){vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`varying vec3 vNormal;uniform vec3 glowColor;uniform float intensity;void main(){float rim=1.0-abs(dot(vNormal,vec3(0,0,1)));gl_FragColor=vec4(glowColor,pow(rim,3.5)*intensity);}`,
+    blending:THREE.AdditiveBlending,side:THREE.FrontSide,transparent:true
+  });
+  scene.add(new THREE.Mesh(rimGeo,rimMat));
+
+  // Orbital rings
+  function makeRing(radius, tilt, color, opacity){
+    const geo = new THREE.TorusGeometry(radius, 0.003, 8, 120);
+    const mat = new THREE.MeshBasicMaterial({color, transparent:true, opacity});
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = tilt;
+    return mesh;
+  }
+  const ring1 = makeRing(1.35, Math.PI/5,  0x00d4ff, 0.4);
+  const ring2 = makeRing(1.55, -Math.PI/3, 0x0066ff, 0.3);
+  const ring3 = makeRing(1.75, Math.PI/2,  0xa855f7, 0.2);
+  scene.add(ring1,ring2,ring3);
+
+  // Orbiting satellite dots
+  function makeSatGroup(ringRadius, tilt, dotColor, count){
+    const group = new THREE.Group();
+    group.rotation.x = tilt;
+    for(let i=0;i<count;i++){
+      const angle = (i/count)*Math.PI*2;
+      const geo = new THREE.SphereGeometry(0.015,6,6);
+      const mat = new THREE.MeshBasicMaterial({color:dotColor});
+      const dot = new THREE.Mesh(geo,mat);
+      dot.position.set(Math.cos(angle)*ringRadius,0,Math.sin(angle)*ringRadius);
+      group.add(dot);
+    }
+    return group;
+  }
+  const sat1 = makeSatGroup(1.35, Math.PI/5, 0x00d4ff, 4);
+  const sat2 = makeSatGroup(1.55, -Math.PI/3, 0x00ff88, 3);
+  scene.add(sat1, sat2);
+
+  // Exchange points
+  function latLng(lat,lng,r){
+    const phi=(90-lat)*Math.PI/180,theta=(lng+180)*Math.PI/180;
+    return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
+  }
+  const exchanges=[
+    {lat:40.71,lng:-74.01},{lat:51.51,lng:-0.13},{lat:35.68,lng:139.65},
+    {lat:22.28,lng:114.16},{lat:48.87,lng:2.33},{lat:1.28,lng:103.85},
+    {lat:-33.87,lng:151.21},{lat:19.08,lng:72.88},{lat:55.75,lng:37.62},
+    {lat:-23.55,lng:-46.63},{lat:37.56,lng:126.97},{lat:25.2,lng:55.27}
+  ];
+  const dotGroup = new THREE.Group();
+  exchanges.forEach(ex=>{
+    const pos=latLng(ex.lat,ex.lng,1.02);
+    const geo=new THREE.SphereGeometry(0.02,8,8);
+    const mat=new THREE.MeshBasicMaterial({color:0x00ff88});
+    const dot=new THREE.Mesh(geo,mat);
+    dot.position.copy(pos);
+    dotGroup.add(dot);
+    const rg=new THREE.RingGeometry(0.028,0.045,16);
+    const rm=new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:0.7,side:THREE.DoubleSide});
+    const ring=new THREE.Mesh(rg,rm);
+    ring.position.copy(pos);
+    ring.lookAt(new THREE.Vector3(0,0,0));
+    dotGroup.add(ring);
+  });
+  scene.add(dotGroup);
+
+  // Trade arcs
+  const arcGroup = new THREE.Group();
+  scene.add(arcGroup);
+  const arcColors=[0x00d4ff,0x00ff88,0xa855f7,0xffd700];
+  function makeArc(a,b,color){
+    const start=latLng(a.lat,a.lng,1.02);
+    const end=latLng(b.lat,b.lng,1.02);
+    const mid=start.clone().add(end).multiplyScalar(0.5).normalize().multiplyScalar(1.38);
+    const curve=new THREE.QuadraticBezierCurve3(start,mid,end);
+    const pts=curve.getPoints(80);
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    const mat=new THREE.LineBasicMaterial({color,transparent:true,opacity:0.45});
+    return new THREE.Line(geo,mat);
+  }
+  [[0,1],[1,2],[0,2],[2,3],[3,5],[0,4],[4,1],[5,6],[7,3],[0,8],[9,4],[10,2],[11,7],[3,10],[6,11]].forEach(([i,j],k)=>{
+    arcGroup.add(makeArc(exchanges[i],exchanges[j],arcColors[k%arcColors.length]));
+  });
+
+  // Floating data particles
+  const dpGeo=new THREE.BufferGeometry();
+  const dpPos=new Float32Array(300*3);
+  for(let i=0;i<300;i++){
+    const th=Math.random()*Math.PI*2,ph=Math.random()*Math.PI;
+    const r=1.12+Math.random()*0.5;
+    dpPos[i*3]=r*Math.sin(ph)*Math.cos(th);
+    dpPos[i*3+1]=r*Math.cos(ph);
+    dpPos[i*3+2]=r*Math.sin(ph)*Math.sin(th);
+  }
+  dpGeo.setAttribute('position',new THREE.BufferAttribute(dpPos,3));
+  const dpMat=new THREE.PointsMaterial({color:0x00d4ff,size:0.01,transparent:true,opacity:0.5});
+  scene.add(new THREE.Points(dpGeo,dpMat));
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0x1a2a5a,2.5));
+  const sun=new THREE.DirectionalLight(0x3366ff,4);
+  sun.position.set(5,3,5);scene.add(sun);
+  const rim=new THREE.DirectionalLight(0x00d4ff,2);
+  rim.position.set(-4,-2,-4);scene.add(rim);
+  const topLight=new THREE.DirectionalLight(0x8844ff,1);
+  topLight.position.set(0,6,0);scene.add(topLight);
+
+  // Mouse parallax
+  let mx=0,my=0,tmx=0,tmy=0;
+  document.addEventListener('mousemove',e=>{
+    tmx=(e.clientX/window.innerWidth-0.5)*0.6;
+    tmy=(e.clientY/window.innerHeight-0.5)*0.4;
+  });
+
+  window.addEventListener('resize',()=>{
+    renderer.setSize(window.innerWidth,window.innerHeight);
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+  });
+
+  let t=0;
+  (function animate(){
+    requestAnimationFrame(animate);
+    t+=0.005;
+
+    // Smooth mouse follow
+    mx+=(tmx-mx)*0.04;
+    my+=(tmy-my)*0.04;
+
+    globe.rotation.y+=0.002;
+    wire.rotation.y+=0.002;
+    dotGroup.rotation.y+=0.002;
+    arcGroup.rotation.y+=0.002;
+    stars.rotation.y+=0.00008;
+
+    // Orbital ring spin
+    ring1.rotation.z+=0.004;
+    ring2.rotation.z-=0.003;
+    ring3.rotation.z+=0.002;
+    sat1.rotation.y+=0.012;
+    sat2.rotation.y-=0.009;
+
+    // Camera parallax
+    camera.position.x+=(mx-camera.position.x)*0.05;
+    camera.position.y+=(-my-camera.position.y)*0.05;
+    camera.lookAt(0,0,0);
+
+    // Pulse exchange rings
+    dotGroup.children.forEach((c,i)=>{
+      if(c.geometry&&c.geometry.type==='RingGeometry'){
+        c.material.opacity=0.25+0.5*Math.abs(Math.sin(t*2.5+i*0.7));
+        const s=1+0.2*Math.abs(Math.sin(t*1.8+i));
+        c.scale.set(s,s,s);
+      }
+    });
+
+    // Arc pulse
+    arcGroup.children.forEach((c,i)=>{
+      c.material.opacity=0.2+0.4*Math.abs(Math.sin(t*1.2+i*0.5));
+    });
+
+    renderer.render(scene,camera);
+  })();
+})();
+</script>
+
+<!-- Ticker -->
+<script>
+(function(){
+  const tickers=[
+    {sym:'AAPL',price:185.42,chg:1.24},{sym:'GOOGL',price:175.18,chg:-0.83},
+    {sym:'MSFT',price:421.35,chg:2.15},{sym:'TSLA',price:246.80,chg:-3.42},
+    {sym:'AMZN',price:196.22,chg:0.97},{sym:'META',price:512.40,chg:4.18},
+    {sym:'NVDA',price:877.30,chg:12.45},{sym:'NFLX',price:651.20,chg:-2.10},
+    {sym:'AMD',price:167.55,chg:1.88},{sym:'JPM',price:207.33,chg:0.55},
+    {sym:'V',price:276.40,chg:-0.22},{sym:'DIS',price:96.10,chg:0.73},
+    {sym:'SPX',price:5232.10,chg:18.40},{sym:'BTC',price:67450,chg:1240},
+    {sym:'ETH',price:3520,chg:-45},{sym:'COIN',price:207.80,chg:3.22},
+  ];
+  const track=document.getElementById('ticker-track');
+  const all=[...tickers,...tickers];
+  function render(){
+    track.innerHTML=all.map(t=>`
+      <div class="ticker-item">
+        <span class="sym">${t.sym}</span>
+        <span>${t.price.toLocaleString('en-US',{maximumFractionDigits:2})}</span>
+        <span class="chg ${t.chg>=0?'up':'down'}">${t.chg>=0?'+':''}${t.chg.toFixed(2)}</span>
+      </div>`).join('');
+  }
+  render();
+  setInterval(()=>{
+    tickers.forEach(t=>{
+      t.price=Math.max(1,t.price*(1+(Math.random()-0.5)*0.0008));
+      t.chg+=(Math.random()-0.5)*0.04;
+    });
+    render();
+  },3000);
+})();
+</script>
+
+<!-- Scroll reveal -->
+<script>
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible')}});
+},{threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+</script>
+
+<!-- Nav smooth scroll -->
+<script>
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    const id=a.getAttribute('href').slice(1);
+    const el=document.getElementById(id);
+    if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth'})}
+  });
+});
+</script>
+
+<script src="js/auth.js"></script>
+<script>
+  // Already logged in → go to dashboard
+  if(Auth.getSession() && !Auth.isGuest?.()) window.location.href='dashboard.html';
+</script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+</body>
+</html>
