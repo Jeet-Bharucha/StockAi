@@ -707,7 +707,37 @@ body.light .scr-select,.scr-input{background:#f8fafc}
 /* Misc */
 .port-refresh-btn{padding:.42rem .85rem;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.2);border-radius:8px;color:var(--cyan);font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s;white-space:nowrap}
 .port-refresh-btn:hover{background:rgba(0,212,255,.15)}
-select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .6rem center}
+/* ── Fixed dark-theme select dropdown ──────────────────── */
+select.port-input{
+  appearance:none;-webkit-appearance:none;
+  padding-right:1.8rem;
+  background-color:#0d1b30;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300d4ff'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right .65rem center;
+  color:#e2e8f0;
+  border-color:rgba(0,212,255,0.18);
+  cursor:pointer;
+}
+select.port-input:focus{background-color:#0d1b30;border-color:var(--cyan)}
+select.port-input option{background:#0d1b30;color:#e2e8f0;padding:.4rem .6rem}
+
+/* ── Portfolio type filter tabs ─────────────────────────── */
+.port-filter-tabs{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;margin-bottom:.85rem;margin-top:.1rem}
+.port-ftab{
+  padding:.3rem .85rem;border-radius:7px;font-size:.75rem;font-weight:700;
+  cursor:pointer;border:1px solid var(--border);background:transparent;
+  color:var(--muted);transition:.18s;font-family:'Inter',sans-serif;
+  white-space:nowrap;
+}
+.port-ftab:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+.port-ftab.active{color:#fff;border-color:transparent}
+.port-ftab[data-filter="all"].active{background:rgba(100,116,139,0.25);color:var(--text)}
+.port-ftab[data-filter="stock"].active{background:rgba(124,58,237,0.3);border-color:rgba(124,58,237,0.5);color:#c4b5fd}
+.port-ftab[data-filter="etf"].active{background:rgba(6,182,212,0.22);border-color:rgba(6,182,212,0.4);color:#67e8f9}
+.port-ftab[data-filter="crypto"].active{background:rgba(245,158,11,0.22);border-color:rgba(245,158,11,0.4);color:#fcd34d}
+.port-ftab[data-filter="roth_ira"].active{background:rgba(16,185,129,0.22);border-color:rgba(16,185,129,0.4);color:#6ee7b7}
+.port-ftab[data-filter="k401"].active{background:rgba(217,119,6,0.22);border-color:rgba(217,119,6,0.4);color:#fbbf24}
+.port-ftab-count{font-size:.62rem;opacity:.7;margin-left:.18rem}
 /* Layout */
 .port-main-grid{display:grid;grid-template-columns:1fr 270px;gap:1.2rem;align-items:start}
 /* ── PORTFOLIO HERO ──────────────────────────────────────────────────── */
@@ -1295,6 +1325,16 @@ select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;b
           <div class="port-holdings-hdr">
             <span class="port-holdings-title">Holdings</span>
             <button class="btn-add-holding" onclick="toggleAddForm()">+ Add Holding</button>
+          </div>
+
+          <!-- Asset type filter tabs -->
+          <div class="port-filter-tabs" id="port-filter-tabs">
+            <button class="port-ftab active" data-filter="all" onclick="setPortFilter('all')">All <span class="port-ftab-count" id="ftab-count-all"></span></button>
+            <button class="port-ftab" data-filter="stock" onclick="setPortFilter('stock')">Stocks <span class="port-ftab-count" id="ftab-count-stock"></span></button>
+            <button class="port-ftab" data-filter="etf" onclick="setPortFilter('etf')">ETF <span class="port-ftab-count" id="ftab-count-etf"></span></button>
+            <button class="port-ftab" data-filter="crypto" onclick="setPortFilter('crypto')">Crypto <span class="port-ftab-count" id="ftab-count-crypto"></span></button>
+            <button class="port-ftab" data-filter="roth_ira" onclick="setPortFilter('roth_ira')">Roth IRA <span class="port-ftab-count" id="ftab-count-roth_ira"></span></button>
+            <button class="port-ftab" data-filter="k401" onclick="setPortFilter('k401')">401(k) <span class="port-ftab-count" id="ftab-count-k401"></span></button>
           </div>
 
           <!-- Collapsible add form -->

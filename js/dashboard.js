@@ -990,8 +990,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gainEl = document.getElementById('qs-gain');
     if (gainEl) { gainEl.textContent = (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)); gainEl.style.color = up?'var(--green)':'var(--red)'; }
 
+    // ── Update filter tab counts ──────────────────────────────────────────────
+    const filterGroups = { all: rows.length, stock: 0, etf: 0, crypto: 0, roth_ira: 0, k401: 0 };
+    rows.forEach(r => {
+      const t = r.assetType || 'stock';
+      const a = r.accountType || 'taxable';
+      if (t === 'stock') filterGroups.stock++;
+      else if (t === 'etf') filterGroups.etf++;
+      else if (t === 'crypto') filterGroups.crypto++;
+      if (a === 'roth_ira') filterGroups.roth_ira++;
+      if (a === 'k401') filterGroups.k401++;
+    });
+    Object.entries(filterGroups).forEach(([k,v]) => {
+      const el = document.getElementById(`ftab-count-${k}`);
+      if (el) el.textContent = v ? `(${v})` : '';
+    });
+    // Hide tabs with 0 items (except "all")
+    document.querySelectorAll('.port-ftab[data-filter]').forEach(btn => {
+      if (btn.dataset.filter === 'all') return;
+      const cnt = filterGroups[btn.dataset.filter] || 0;
+      btn.style.display = cnt > 0 ? '' : 'none';
+    });
+
+    // ── Apply active filter ───────────────────────────────────────────────────
+    const filteredRows = _portFilter === 'all' ? rows : rows.filter(r => {
+      if (_portFilter === 'stock')   return (r.assetType || 'stock') === 'stock';
+      if (_portFilter === 'etf')     return (r.assetType || 'stock') === 'etf';
+      if (_portFilter === 'crypto')  return (r.assetType || 'stock') === 'crypto';
+      if (_portFilter === 'roth_ira') return (r.accountType || 'taxable') === 'roth_ira';
+      if (_portFilter === 'k401')    return (r.accountType || 'taxable') === 'k401';
+      return true;
+    });
+
     // ── Render table rows (PortfolioTracker style) ────────────────────────────
-    listEl.innerHTML = rows.map(row => {
+    if (!filteredRows.length) {
+      listEl.innerHTML = `<div class="port-empty" style="padding:2rem 1rem;text-align:center;color:var(--muted)">No ${_portFilter === 'all' ? 'holdings' : _portFilter.replace('_',' ').replace('k401','401(k)')} found.</div>`;
+      renderAllocation(rows);
+      renderPortfolioChart();
+      renderPortfolioAnalytics();
+      return;
+    }
+
+    listEl.innerHTML = filteredRows.map(row => {
       const rUp       = row.pl >= 0;
       const dayUp     = (row.chg24h ?? 0) >= 0;
       const iconCls   = _portIconCls(row);
@@ -1091,6 +1131,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   window.loadPortfolioStock = function(sym) { loadStock(sym); if(window.switchTab) window.switchTab(null,'dashboard'); };
+
+  // ── Portfolio filter state ────────────────────────────────────────────────
+  let _portFilter = 'all';
+
+  window.setPortFilter = function(filter) {
+    _portFilter = filter;
+    // Update active tab styling
+    document.querySelectorAll('.port-ftab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    renderPortfolio();
+  };
 
   window.refreshPortfolio = function() { renderPortfolio(); showToast('Portfolio refreshed'); };
 
