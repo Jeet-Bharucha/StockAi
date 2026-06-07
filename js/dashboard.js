@@ -912,16 +912,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Build rows with computed values
     let totalCost=0, totalValue=0;
     const rows = holdings.map(h => {
-      const pd       = priceData[h.symbol] || {};
-      const curPrice = pd.price ?? h.buyPrice;
-      const chg24h   = pd.change24h ?? null;
-      const cost     = h.shares * h.buyPrice;
-      const value    = h.shares * curPrice;
-      const pl       = value - cost;
-      const plPct    = cost ? (pl / cost) * 100 : 0;
+      const pd      = priceData[h.symbol] || {};
+      const hasLive = pd.price != null && pd.price > 0;
+
+      // Price source priority: 1) live API price  2) simulated market price  3) avg cost (last resort)
+      let curPrice, priceSource;
+      if (hasLive) {
+        curPrice    = pd.price;
+        priceSource = 'live';
+      } else {
+        // Use simulated price so gain/loss reflects market movement, NOT avg cost
+        try {
+          StockAPI._initSeed(h.symbol);
+          curPrice    = StockAPI._simQuote(h.symbol).price;
+          priceSource = 'sim';
+        } catch(e) {
+          curPrice    = h.buyPrice;
+          priceSource = 'cost';
+        }
+      }
+
+      const chg24h = hasLive ? (pd.change24h ?? null) : null;
+      const cost   = h.shares * h.buyPrice;
+      const value  = h.shares * curPrice;
+      const pl     = value - cost;
+      const plPct  = cost ? (pl / cost) * 100 : 0;
       totalCost  += cost;
       totalValue += value;
-      return { ...h, curPrice, chg24h, cost, value, pl, plPct,
+      return { ...h, curPrice, chg24h, priceSource, cost, value, pl, plPct,
                name: pd.name || h.name || h.symbol,
                assetType: h.assetType || 'stock',
                accountType: h.accountType || 'taxable' };
@@ -981,13 +999,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dayBadge  = row.chg24h !== null
         ? `<div class="port-price-chg ${dayUp?'up':'down'}">${dayUp?'▲':'▼'} ${Math.abs(row.chg24h).toFixed(2)}% today</div>`
         : '';
+      // Price source label so user knows if it's live, simulated, or missing
+      const srcBadge = row.priceSource === 'live'
+        ? `<div style="font-size:.58rem;color:var(--green);font-weight:700;margin-top:.1rem">⚡ LIVE</div>`
+        : row.priceSource === 'sim'
+        ? `<div style="font-size:.58rem;color:var(--gold);font-weight:700;margin-top:.1rem" title="Live price unavailable — using simulated data">~ SIM</div>`
+        : `<div style="font-size:.58rem;color:var(--red);font-weight:700;margin-top:.1rem" title="Could not fetch price — check ticker symbol">⚠ NO DATA</div>`;
       const plSign = rUp ? '+' : '-';
+      // Warn if ticker looks wrong (common typos like APPL→AAPL)
+      const symWarn = (row.priceSource !== 'live' && row.symbol.length <= 5)
+        ? `<div style="font-size:.58rem;color:var(--red);margin-top:.05rem" title="Ticker not found — check spelling">⚠ check ticker</div>` : '';
       return `<div class="port-table-row new-cols">
         <div style="display:flex;align-items:center;gap:.7rem">
           <div class="port-icon ${iconCls}">${row.symbol.slice(0,4)}</div>
           <div>
             <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
             <div style="font-size:.68rem;color:var(--muted);margin-top:.07rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.name}</div>
+            ${symWarn}
           </div>
         </div>
         <span class="port-acct-badge ${row.accountType}" style="align-self:center">${acctLabel}</span>
@@ -996,6 +1024,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div>
           <div class="port-price-main">$${_fmtD(row.curPrice)}</div>
           ${dayBadge}
+          ${srcBadge}
         </div>
         <span style="font-weight:700">$${_fmtD(row.value)}</span>
         <div>
@@ -1082,6 +1111,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const account = document.getElementById('port-account')?.value || 'taxable';
     if (!sym || isNaN(sh) || sh <= 0 || isNaN(price) || price <= 0) {
       showToast('Fill in symbol, shares, and buy price'); return;
+    }
+    // Basic ticker validation — catch obvious typos (APPL vs AAPL, GOGLE vs GOOGL, etc.)
+    const knownTickers = Object.keys(StockAPI.companyInfo || {});
+    if (knownTickers.length && !knownTickers.includes(sym)) {
+      const similar = knownTickers.filter(t => {
+        // Levenshtein distance 1 — single char diff
+        if (Math.abs(t.length - sym.length) > 1) return false;
+        let diffs = 0;
+        const s1 = sym.padEnd(5), s2 = t.padEnd(5);
+        for (let i = 0; i < 5; i++) if (s1[i] !== s2[i]) diffs++;
+        return diffs <= 1;
+      }).slice(0, 3);
+      const hint = similar.length ? `\n\nDid you mean: ${similar.join(', ')}?` : '\n\nDouble-check the ticker symbol.';
+      if (!confirm(`⚠️ "${sym}" not found in known tickers.${hint}\n\nAdd it anyway?`)) return;
     }
     Portfolio.add(sym, sh, price, account, type, name);
     ['port-sym','port-name','port-shares','port-price'].forEach(id => {
