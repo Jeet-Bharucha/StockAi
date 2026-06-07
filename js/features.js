@@ -22,7 +22,11 @@ const Portfolio = {
       return this._cache;
     }
     try {
-      const r = await fetch('/api/user/portfolio', { headers: this._authHeader() });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      let r;
+      try { r = await fetch('/api/user/portfolio', { headers: this._authHeader(), signal: ctrl.signal }); }
+      finally { clearTimeout(timer); }
       if (r.ok) { this._cache = await r.json(); return this._cache; }
     } catch(e) { console.warn('Portfolio.load failed:', e.message); }
     // Fallback: return whatever is cached
@@ -146,8 +150,13 @@ const NewsAPI = {
 
     try {
       const url = symbol ? `/api/news?symbol=${symbol}` : '/api/news';
-      const res  = await fetch(url);
-      const data = await res.json();
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      let res, data;
+      try {
+        res  = await fetch(url, { signal: ctrl.signal });
+        data = await res.json();
+      } finally { clearTimeout(timer); }
       if (!Array.isArray(data) || data.error) throw new Error('no data');
       const sorted = data.sort((a, b) => b.datetime - a.datetime).slice(0, 12);
       this._cache[key] = { ts: Date.now(), data: sorted };

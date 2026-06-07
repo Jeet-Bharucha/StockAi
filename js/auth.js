@@ -120,7 +120,11 @@ const Auth = {
   async loadWatchlist() {
     if (this.isGuest()) { this._watchlistCache = []; return []; }
     try {
-      const r = await fetch('/api/user/watchlist', { headers: this._authHeader() });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      let r;
+      try { r = await fetch('/api/user/watchlist', { headers: this._authHeader(), signal: ctrl.signal }); }
+      finally { clearTimeout(timer); }
       if (r.ok) {
         const data = await r.json();
         this._watchlistCache = data.watchlist || [];

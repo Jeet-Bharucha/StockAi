@@ -74,11 +74,19 @@ const StockAPI = {
   },
 
   // ── REST (hits our /api/* proxy) ──────────────────────────────────────────
-  async _get(path) {
-    const res  = await fetch(path);
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-    return data;
+  // 6-second hard timeout so a sleeping Render server falls back to simulated
+  // data quickly instead of hanging the whole tab for 30-60 seconds.
+  async _get(path, timeoutMs = 6000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res  = await fetch(path, { signal: ctrl.signal });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    } finally {
+      clearTimeout(timer);
+    }
   },
 
   // ── Quote ─────────────────────────────────────────────────────────────────
