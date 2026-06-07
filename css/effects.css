@@ -1,0 +1,137 @@
+/* ═══════════════════════════════════════════════════════════
+   StockAI — Global Visual Effects & Consistency Layer
+   Shared across all pages for a unified premium look
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Custom Scrollbar ───────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.45) }
+
+/* ─── Core Keyframes ─────────────────────────────────────── */
+@keyframes orbFloat1 { 0%,100%{ transform:translate(0,0) scale(1) } 50%{ transform:translate(-35px,55px) scale(1.04) } }
+@keyframes orbFloat2 { 0%,100%{ transform:translate(0,0) scale(1) } 50%{ transform:translate(55px,-30px) scale(1.07) } }
+@keyframes orbFloat3 { 0%,100%{ transform:translate(0,0) scale(1) } 50%{ transform:translate(-25px,-45px) scale(0.96) } }
+@keyframes shimmerSlide { 0%{ transform:translateX(-100%) skewX(-20deg) } 100%{ transform:translateX(250%) skewX(-20deg) } }
+@keyframes fadeUpIn { from{ opacity:0; transform:translateY(16px) } to{ opacity:1; transform:translateY(0) } }
+@keyframes logoPulse { 0%,100%{ box-shadow:0 0 16px rgba(0,212,255,0.35) } 50%{ box-shadow:0 0 30px rgba(0,212,255,0.65), 0 0 55px rgba(0,100,255,0.25) } }
+@keyframes cardLineSweep { 0%{ background-position:-200% 0 } 100%{ background-position:200% 0 } }
+@keyframes rotateSlow { from{ transform:rotateX(15deg) rotateY(0deg) } to{ transform:rotateX(15deg) rotateY(360deg) } }
+@keyframes pulse3d { 0%,100%{ opacity:.12 } 50%{ opacity:.22 } }
+
+/* ─── Floating Background Orbs ───────────────────────────── */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+.bg-orb-1 {
+  width: 700px; height: 700px;
+  background: radial-gradient(circle at center, rgba(0,70,255,0.22), transparent 70%);
+  top: -200px; right: -150px;
+  animation: orbFloat1 16s ease-in-out infinite;
+}
+.bg-orb-2 {
+  width: 550px; height: 550px;
+  background: radial-gradient(circle at center, rgba(0,212,255,0.13), transparent 70%);
+  bottom: -130px; left: -100px;
+  animation: orbFloat2 19s ease-in-out infinite;
+}
+.bg-orb-3 {
+  width: 420px; height: 420px;
+  background: radial-gradient(circle at center, rgba(168,85,247,0.13), transparent 70%);
+  top: 40%; left: 38%;
+  animation: orbFloat3 22s ease-in-out infinite;
+}
+
+/* ─── Subtle Grid Overlay ────────────────────────────────── */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 40%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 85% 85% at 50% 40%, #000 30%, transparent 100%);
+}
+
+/* ─── CSS 3D Wireframe Shape ─────────────────────────────── */
+.shape-3d-wrap {
+  position: fixed; pointer-events: none; z-index: 0;
+  perspective: 600px;
+}
+.shape-3d-inner {
+  width: 100%; height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: rotateSlow 28s linear infinite;
+}
+.shape-face {
+  position: absolute; inset: 0;
+  border: 1px solid rgba(0,212,255,0.12);
+  border-radius: 6px;
+  background: rgba(0,212,255,0.015);
+  animation: pulse3d 4s ease-in-out infinite;
+}
+.shape-face.f1 { transform: translateZ(90px) }
+.shape-face.f2 { transform: rotateY(180deg) translateZ(90px) }
+.shape-face.f3 { transform: rotateY(90deg) translateZ(90px); border-color: rgba(168,85,247,0.1) }
+.shape-face.f4 { transform: rotateY(-90deg) translateZ(90px); border-color: rgba(168,85,247,0.1) }
+.shape-face.f5 { transform: rotateX(90deg) translateZ(90px); border-color: rgba(0,255,136,0.08) }
+.shape-face.f6 { transform: rotateX(-90deg) translateZ(90px); border-color: rgba(0,255,136,0.08) }
+
+/* ─── Card Hover Glow (add class="card-glow" to any card) ── */
+.card-glow {
+  position: relative;
+  transition: border-color .3s, box-shadow .28s, transform .22s;
+}
+.card-glow::before {
+  content: '';
+  position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.7), rgba(168,85,247,0.45), transparent);
+  border-radius: 50%;
+  opacity: 0; transition: opacity .3s; z-index: 1;
+}
+.card-glow:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,212,255,0.12) }
+.card-glow:hover::before { opacity: 1 }
+
+/* ─── Logo Icon Pulse (add to any .logo-icon) ────────────── */
+.logo-glow { animation: logoPulse 3.5s ease-in-out infinite }
+
+/* ─── Button Shimmer ─────────────────────────────────────── */
+.btn-shine { position: relative; overflow: hidden }
+.btn-shine::after {
+  content: '';
+  position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transform: skewX(-20deg);
+}
+.btn-shine:hover::after { animation: shimmerSlide .55s ease forwards }
+
+/* ─── Gradient Number Text ───────────────────────────────── */
+.num-up {
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.num-down {
+  background: linear-gradient(135deg, #ff4466, #ff8c00);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* ─── Stagger-in Animation ───────────────────────────────── */
+.stagger > * { animation: fadeUpIn .5s cubic-bezier(.22,1,.36,1) both }
+.stagger > *:nth-child(1) { animation-delay:.05s }
+.stagger > *:nth-child(2) { animation-delay:.1s }
+.stagger > *:nth-child(3) { animation-delay:.15s }
+.stagger > *:nth-child(4) { animation-delay:.2s }
+.stagger > *:nth-child(5) { animation-delay:.25s }
+.stagger > *:nth-child(6) { animation-delay:.3s }
+
+/* ─── Input Focus Glow ───────────────────────────────────── */
+input:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.13), 0 0 18px rgba(0,212,255,0.08) !important;
+}

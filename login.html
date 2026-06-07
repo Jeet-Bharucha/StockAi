@@ -8,218 +8,313 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00d4ff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/effects.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#050b1f;--cyan:#00d4ff;--cyan2:#0066ff;--green:#00ff88;--red:#ff4466;--text:#e2e8f0;--muted:#64748b;--border:rgba(0,212,255,0.18)}
+:root{
+  --bg:#050b1f;--cyan:#00d4ff;--cyan2:#0055ff;
+  --green:#00ff88;--red:#ff4466;--gold:#ffd700;--purple:#a855f7;
+  --text:#e2e8f0;--muted:#64748b;
+  --border:rgba(0,212,255,0.15);--border2:rgba(255,255,255,0.07);
+  --card:rgba(255,255,255,0.04);--card2:rgba(255,255,255,0.07);
+}
 html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 
-/* Particle background */
-#bg-canvas{position:fixed;inset:0;z-index:0}
-
-.page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+#bg-canvas{position:fixed;inset:0;z-index:1;pointer-events:none}
+.page{position:relative;z-index:10;min-height:100vh;display:flex;flex-direction:column}
 
 /* NAV */
-nav{padding:1.2rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(5,11,31,0.5)}
-.logo{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:inherit}
-.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--cyan),var(--cyan2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem}
-.logo span{font-size:1.2rem;font-weight:800;background:linear-gradient(90deg,var(--cyan),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.nav-right{font-size:.85rem;color:var(--muted)}
-.nav-right a{color:var(--cyan);text-decoration:none;font-weight:600}
+nav{padding:1.1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(24px);background:rgba(5,11,31,0.5)}
+.logo{display:flex;align-items:center;gap:.55rem;text-decoration:none;color:inherit}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.logo span{font-size:1.2rem;font-weight:900;letter-spacing:-.03em;background:linear-gradient(90deg,var(--cyan),#fff 70%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-right{font-size:.84rem;color:var(--muted)}
+.nav-right a{color:var(--cyan);text-decoration:none;font-weight:700;transition:.2s}
+.nav-right a:hover{opacity:.75}
 
 /* MAIN */
 main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 
-.auth-card{width:100%;max-width:440px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:24px;padding:2.5rem;backdrop-filter:blur(30px);box-shadow:0 30px 80px rgba(0,0,0,0.5)}
-.auth-header{text-align:center;margin-bottom:2rem}
-.auth-icon{width:56px;height:56px;background:linear-gradient(135deg,rgba(0,102,255,0.3),rgba(0,212,255,0.2));border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 1rem}
-.auth-header h1{font-size:1.6rem;font-weight:800;letter-spacing:-0.03em;margin-bottom:.4rem}
+/* 3D cube for this page */
+.shape-3d-wrap{position:fixed;right:9%;top:18%;width:175px;height:175px;opacity:.55}
+
+/* AUTH CARD */
+.auth-wrap{width:100%;max-width:440px}
+.auth-card{
+  width:100%;
+  background:rgba(8,14,36,0.84);
+  border:1px solid rgba(0,212,255,0.18);
+  border-radius:24px;
+  padding:2.5rem;
+  backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+  box-shadow:0 30px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.04),inset 0 1px 0 rgba(255,255,255,0.05);
+  position:relative;
+  transform-style:preserve-3d;
+  transition:transform .16s ease,box-shadow .3s;
+  will-change:transform;
+}
+.auth-card::before{
+  content:'';position:absolute;top:0;left:12%;right:12%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,212,255,0.85),rgba(168,85,247,0.55),transparent);
+  border-radius:50%;opacity:0;transition:opacity .4s;z-index:2;
+}
+.auth-card:hover::before{opacity:1}
+.auth-card::after{
+  content:'';position:absolute;inset:0;border-radius:24px;
+  background:radial-gradient(ellipse at 50% -10%,rgba(0,90,255,0.1),transparent 60%);
+  pointer-events:none;z-index:0;
+}
+.auth-card>*{position:relative;z-index:1}
+
+.auth-header{text-align:center;margin-bottom:2rem;animation:fadeUpIn .5s .05s both}
+.auth-icon{
+  width:58px;height:58px;
+  background:linear-gradient(135deg,rgba(0,85,255,0.35),rgba(0,212,255,0.2));
+  border:1px solid rgba(0,212,255,0.3);
+  border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin:0 auto 1rem;
+  box-shadow:0 0 24px rgba(0,212,255,0.18);
+  animation:iconGlow 3.5s ease-in-out infinite;
+}
+.auth-header h1{
+  font-size:1.75rem;font-weight:900;letter-spacing:-0.04em;margin-bottom:.4rem;
+  background:linear-gradient(135deg,#fff 40%,rgba(0,212,255,0.65));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
 .auth-header p{color:var(--muted);font-size:.88rem}
 
 /* Form */
+form{animation:fadeUpIn .5s .12s both}
 .form-group{margin-bottom:1.2rem}
-label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em}
+label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.07em}
 .input-wrap{position:relative}
-.input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:1rem;pointer-events:none;opacity:.5}
-input[type=email],input[type=password],input[type=text]{width:100%;padding:.75rem .9rem .75rem 2.6rem;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:.93rem;font-family:'Inter',sans-serif;outline:none;transition:.2s}
-input:focus{border-color:var(--cyan);background:rgba(0,212,255,0.06);box-shadow:0 0 0 3px rgba(0,212,255,0.1)}
-input::placeholder{color:var(--muted);opacity:.7}
+.input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none;opacity:.4;z-index:2}
+input[type=email],input[type=password],input[type=text]{
+  width:100%;padding:.75rem .9rem .75rem 2.6rem;
+  background:rgba(255,255,255,0.05);border:1px solid rgba(0,212,255,0.13);
+  border-radius:12px;color:var(--text);font-size:.92rem;font-family:'Inter',sans-serif;
+  outline:none;transition:border-color .2s,background .2s,box-shadow .2s;
+}
+input[type=email]:focus,input[type=password]:focus,input[type=text]:focus{
+  border-color:var(--cyan);background:rgba(0,212,255,0.05);
+  box-shadow:0 0 0 3px rgba(0,212,255,0.12),0 0 20px rgba(0,212,255,0.06);
+}
+input::placeholder{color:var(--muted);opacity:.55}
 
 .form-footer{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;font-size:.82rem}
-.form-footer a{color:var(--cyan);text-decoration:none}
+.form-footer a{color:var(--cyan);text-decoration:none;font-weight:600;transition:.2s}
+.form-footer a:hover{opacity:.75}
 .remember{display:flex;align-items:center;gap:.4rem;color:var(--muted);cursor:pointer}
 .remember input[type=checkbox]{accent-color:var(--cyan);width:14px;height:14px;padding:0}
 
-.btn-submit{width:100%;padding:.9rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border:none;border-radius:12px;color:#fff;font-size:.97rem;font-weight:700;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif;position:relative;overflow:hidden}
-.btn-submit:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(0,102,255,0.4)}
+.btn-submit{
+  width:100%;padding:.9rem;
+  background:linear-gradient(135deg,var(--cyan2),var(--cyan));
+  border:none;border-radius:12px;color:#fff;
+  font-size:.97rem;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;
+  position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+  box-shadow:0 4px 22px rgba(0,85,255,0.38);letter-spacing:.01em;
+}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(0,85,255,0.52),0 0 60px rgba(0,212,255,0.14)}
 .btn-submit:active{transform:translateY(0)}
-.btn-submit .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
-@keyframes spin{to{transform:rotate(360deg)}}
+.btn-submit::after{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);transform:skewX(-20deg)}
+.btn-submit:hover::after{animation:shimmer .55s ease forwards}
+.btn-submit .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
 .btn-submit.loading .btn-text{display:none}
 .btn-submit.loading .spinner{display:block}
 
-.divider{display:flex;align-items:center;gap:1rem;margin:1.5rem 0;color:var(--muted);font-size:.8rem}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.divider{display:flex;align-items:center;gap:1rem;margin:1.4rem 0;color:var(--muted);font-size:.78rem;animation:fadeUpIn .5s .18s both}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.2),transparent)}
 
-.social-btns{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.5rem}
-.btn-social{padding:.7rem;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.85rem;font-weight:500;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:.5rem}
-.btn-social:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2)}
+.social-btns{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.4rem;animation:fadeUpIn .5s .22s both}
+.btn-social{
+  padding:.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  border-radius:11px;color:var(--text);font-size:.84rem;font-weight:600;cursor:pointer;
+  transition:background .2s,border-color .2s,transform .2s;font-family:'Inter',sans-serif;
+  display:flex;align-items:center;justify-content:center;gap:.5rem;
+}
+.btn-social:hover{background:rgba(255,255,255,0.08);border-color:rgba(0,212,255,0.28);transform:translateY(-1px)}
 
-.auth-switch{text-align:center;font-size:.85rem;color:var(--muted)}
-.auth-switch a{color:var(--cyan);text-decoration:none;font-weight:600}
+.auth-switch{text-align:center;font-size:.84rem;color:var(--muted);animation:fadeUpIn .5s .26s both}
+.auth-switch a{color:var(--cyan);text-decoration:none;font-weight:700}
 
-/* Error */
-.error-msg{display:none;padding:.7rem 1rem;background:rgba(255,68,102,0.1);border:1px solid rgba(255,68,102,0.3);border-radius:8px;color:#ff6b8a;font-size:.85rem;margin-bottom:1rem}
+.error-msg{display:none;padding:.7rem 1rem;background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.28);border-radius:9px;color:#ff8aa0;font-size:.84rem;margin-bottom:1rem}
 .error-msg.show{display:block}
 
-/* Password toggle */
-.pwd-toggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:0}
+.pwd-toggle{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.88rem;padding:0;z-index:2;transition:.2s}
 .pwd-toggle:hover{color:var(--cyan)}
 
-@media(max-width:480px){.auth-card{padding:1.8rem 1.4rem;border-radius:16px}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{transform:translateX(-100%) skewX(-20deg)}100%{transform:translateX(250%) skewX(-20deg)}}
+@keyframes fadeUpIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes iconGlow{0%,100%{box-shadow:0 0 20px rgba(0,212,255,0.2)}50%{box-shadow:0 0 34px rgba(0,212,255,0.5),0 0 60px rgba(0,100,255,0.18)}}
+@keyframes rotateSlow{from{transform:rotateX(15deg) rotateY(0deg)}to{transform:rotateX(15deg) rotateY(360deg)}}
+@keyframes pulse3d{0%,100%{opacity:.1}50%{opacity:.2}}
+
+@media(max-width:520px){.auth-card{padding:1.8rem 1.4rem;border-radius:18px}.shape-3d-wrap{display:none}}
 </style>
 </head>
 <body>
+
+<!-- Background layers -->
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+<div class="bg-grid"></div>
 <canvas id="bg-canvas"></canvas>
+
+<!-- 3D wireframe cube (decorative) -->
+<div class="shape-3d-wrap">
+  <div class="shape-3d-inner">
+    <div class="shape-face f1"></div>
+    <div class="shape-face f2"></div>
+    <div class="shape-face f3"></div>
+    <div class="shape-face f4"></div>
+    <div class="shape-face f5"></div>
+    <div class="shape-face f6"></div>
+  </div>
+</div>
 
 <div class="page">
   <nav>
     <a href="index.html" class="logo">
-      <div class="logo-icon">📈</div>
+      <div class="logo-icon logo-glow">📈</div>
       <span>StockAI</span>
     </a>
     <div class="nav-right">No account? <a href="register.html">Sign up free →</a></div>
   </nav>
 
   <main>
-    <div class="auth-card">
-      <div class="auth-header">
-        <div class="auth-icon">🔐</div>
-        <h1>Welcome back</h1>
-        <p>Sign in to your StockAI account</p>
-      </div>
+    <div class="auth-wrap">
+      <div class="auth-card" id="auth-card">
+        <div class="auth-header">
+          <div class="auth-icon">🔐</div>
+          <h1>Welcome back</h1>
+          <p>Sign in to your StockAI account</p>
+        </div>
 
-      <div class="error-msg" id="error-msg"></div>
+        <div class="error-msg" id="error-msg"></div>
 
-      <form id="login-form" autocomplete="on">
-        <div class="form-group">
-          <label>Email Address</label>
-          <div class="input-wrap">
-            <span class="icon">✉️</span>
-            <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+        <form id="login-form" autocomplete="on">
+          <div class="form-group">
+            <label>Email Address</label>
+            <div class="input-wrap">
+              <span class="icon">✉️</span>
+              <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <div class="input-wrap">
-            <span class="icon">🔒</span>
-            <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
-            <button type="button" class="pwd-toggle" id="pwd-toggle">👁</button>
+          <div class="form-group">
+            <label>Password</label>
+            <div class="input-wrap">
+              <span class="icon">🔒</span>
+              <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
+              <button type="button" class="pwd-toggle" id="pwd-toggle">👁</button>
+            </div>
           </div>
-        </div>
-        <div class="form-footer">
-          <label class="remember">
-            <input type="checkbox" id="remember"> Remember me
-          </label>
-          <a href="#">Forgot password?</a>
-        </div>
-        <button type="submit" class="btn-submit" id="submit-btn">
-          <span class="btn-text">Sign In →</span>
-          <div class="spinner"></div>
-        </button>
-      </form>
+          <div class="form-footer">
+            <label class="remember">
+              <input type="checkbox" id="remember"> Remember me
+            </label>
+            <a href="#">Forgot password?</a>
+          </div>
+          <button type="submit" class="btn-submit" id="submit-btn">
+            <span class="btn-text">Sign In →</span>
+            <div class="spinner"></div>
+          </button>
+        </form>
 
-      <div class="divider">or continue with</div>
-      <div class="social-btns">
-        <button class="btn-social" onclick="guestLogin()">👤 Continue as Guest</button>
-        <button class="btn-social" onclick="showInfo()">ℹ️ How it works</button>
+        <div class="divider">or continue with</div>
+        <div class="social-btns">
+          <button class="btn-social" onclick="guestLogin()">👤 Continue as Guest</button>
+          <button class="btn-social" onclick="showInfo()">ℹ️ How it works</button>
+        </div>
+
+        <div class="auth-switch">Don't have an account? <a href="register.html">Create one free</a></div>
       </div>
-
-      <div class="auth-switch">Don't have an account? <a href="register.html">Create one free</a></div>
     </div>
   </main>
 </div>
 
 <script src="js/auth.js"></script>
 <script>
-// Redirect if already logged in
 if(Auth.getSession()) window.location.href='dashboard.html';
 
-// Prefill last used email
 const lastEmail = localStorage.getItem('stockai_last_email');
-if(lastEmail) {
-  document.getElementById('email').value = lastEmail;
-  document.getElementById('remember').checked = true;
-}
+if(lastEmail){ document.getElementById('email').value=lastEmail; document.getElementById('remember').checked=true; }
 
-// Particle background
+/* ── Rich multi-color particle background ── */
 (function(){
-  const canvas=document.getElementById('bg-canvas');
-  const ctx=canvas.getContext('2d');
-  let W=window.innerWidth,H=window.innerHeight;
-  canvas.width=W;canvas.height=H;
-  const pts=Array.from({length:80},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:1+Math.random()*2}));
-  window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H});
+  const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
+  let W=canvas.width=innerWidth, H=canvas.height=innerHeight;
+  window.addEventListener('resize',()=>{ W=canvas.width=innerWidth; H=canvas.height=innerHeight; });
+  const COLS=['rgba(0,212,255,','rgba(168,85,247,','rgba(0,255,136,','rgba(0,85,255,'];
+  const pts=Array.from({length:90},()=>({
+    x:Math.random()*W, y:Math.random()*H,
+    vx:(Math.random()-.5)*.28, vy:(Math.random()-.5)*.28,
+    r:.8+Math.random()*1.8,
+    c:COLS[Math.floor(Math.random()*COLS.length)]
+  }));
   function draw(){
     ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='rgba(5,11,31,1)';ctx.fillRect(0,0,W,H);
-    // gradient orbs
-    const g1=ctx.createRadialGradient(W*.2,H*.3,0,W*.2,H*.3,400);
-    g1.addColorStop(0,'rgba(0,102,255,0.12)');g1.addColorStop(1,'transparent');
-    ctx.fillStyle=g1;ctx.fillRect(0,0,W,H);
-    const g2=ctx.createRadialGradient(W*.8,H*.7,0,W*.8,H*.7,350);
-    g2.addColorStop(0,'rgba(0,212,255,0.08)');g2.addColorStop(1,'transparent');
-    ctx.fillStyle=g2;ctx.fillRect(0,0,W,H);
-
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+      if(d<125){ ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(0,212,255,${0.11*(1-d/125)})`;ctx.lineWidth=.5;ctx.stroke(); }
+    }
     pts.forEach(p=>{
-      p.x+=p.vx;p.y+=p.vy;
-      if(p.x<0||p.x>W)p.vx*=-1;
-      if(p.y<0||p.y>H)p.vy*=-1;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle='rgba(0,212,255,0.4)';ctx.fill();
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1; if(p.y<0||p.y>H)p.vy*=-1;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.c+'0.5)';ctx.fill();
     });
-    pts.forEach((a,i)=>pts.slice(i+1).forEach(b=>{
-      const d=Math.hypot(a.x-b.x,a.y-b.y);
-      if(d<120){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(0,212,255,${0.15*(1-d/120)})`;ctx.lineWidth=.5;ctx.stroke();}
-    }));
     requestAnimationFrame(draw);
   }
   draw();
 })();
 
-// Form
+/* ── 3D card tilt ── */
+(function(){
+  const card=document.getElementById('auth-card');
+  let raf;
+  document.addEventListener('mousemove',e=>{
+    cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(()=>{
+      const rect=card.getBoundingClientRect();
+      const dx=(e.clientX-(rect.left+rect.width/2))/(innerWidth/2);
+      const dy=(e.clientY-(rect.top+rect.height/2))/(innerHeight/2);
+      const rx=Math.max(-9,Math.min(9,dy*-7));
+      const ry=Math.max(-9,Math.min(9,dx*8));
+      card.style.transform=`perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(5px)`;
+      card.style.boxShadow=`${-ry*2}px ${rx*1}px 45px rgba(0,0,0,0.5),0 30px 80px rgba(0,0,0,0.55),0 0 ${35+Math.abs(dx)*25}px rgba(0,80,255,0.12)`;
+    });
+  });
+  document.addEventListener('mouseleave',()=>{ card.style.transform=''; card.style.boxShadow=''; });
+})();
+
+/* ── Login form ── */
 document.getElementById('login-form').addEventListener('submit',async function(e){
   e.preventDefault();
-  const btn=document.getElementById('submit-btn');
-  const errEl=document.getElementById('error-msg');
-  btn.classList.add('loading');
-  errEl.classList.remove('show');
+  const btn=document.getElementById('submit-btn'),errEl=document.getElementById('error-msg');
+  btn.classList.add('loading'); errEl.classList.remove('show');
   await new Promise(r=>setTimeout(r,600));
-  const remember=document.getElementById('remember').checked;
   const result=Auth.login(
     document.getElementById('email').value.trim(),
     document.getElementById('password').value,
-    remember
+    document.getElementById('remember').checked
   );
   btn.classList.remove('loading');
-  if(result.success){ window.location.href='dashboard.html'; }
+  if(result.success) window.location.href='dashboard.html';
   else{ errEl.textContent=result.error; errEl.classList.add('show'); }
 });
 
-// Password toggle
 document.getElementById('pwd-toggle').addEventListener('click',function(){
   const inp=document.getElementById('password');
   inp.type=inp.type==='password'?'text':'password';
   this.textContent=inp.type==='password'?'👁':'🙈';
 });
 
-function guestLogin(){
-  Auth.loginAsGuest();
-  window.location.href='dashboard.html';
-}
-
+function guestLogin(){ Auth.loginAsGuest(); window.location.href='dashboard.html'; }
 function showInfo(){
-  alert('StockAI uses localStorage for accounts — no server required.\n\nCreate a free account to save your watchlist, portfolio, and price alerts.\n\nFor live market data, add your free Finnhub API key via the dashboard settings.');
+  alert('StockAI uses localStorage for accounts — no server required.\n\nCreate a free account to save your watchlist, portfolio, and price alerts.\n\nFor live market data, start the local server with: npm start');
 }
 </script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>

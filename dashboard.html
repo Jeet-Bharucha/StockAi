@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#00d4ff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/effects.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -724,6 +725,204 @@ select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;b
 @media(max-width:1200px){.port-main-grid{grid-template-columns:1fr}}
 @media(max-width:900px) {#port-stats-row{grid-template-columns:repeat(2,1fr)!important}}
 @media(max-width:560px) {#port-stats-row{grid-template-columns:1fr 1fr!important}}
+
+/* ═══════════════════════════════════════════════════════════
+   PREMIUM UI EFFECTS — Consistent look across all views
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Custom scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.2);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,212,255,0.4)}
+
+/* ── Card: gradient accent line + lift on hover ──────────── */
+.card{
+  position:relative;
+  transition:border-color .28s, box-shadow .28s, transform .22s;
+}
+.card::before{
+  content:'';
+  position:absolute;top:0;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,212,255,0.65),rgba(168,85,247,0.35),transparent);
+  border-radius:50%;opacity:0;transition:opacity .3s;z-index:2;pointer-events:none;
+}
+.card:hover{
+  border-color:rgba(0,212,255,0.22);
+  transform:translateY(-2px);
+  box-shadow:0 10px 36px rgba(0,0,0,0.38);
+}
+.card:hover::before{opacity:1}
+
+/* Screener flip cards should keep their own transform handling */
+.scr-card:hover{transform:none!important;border-color:transparent!important;box-shadow:none!important}
+.scr-card::before{display:none}
+
+/* ── Market strip: colored glow on up/down ───────────────── */
+.market-card{transition:border-color .25s, box-shadow .25s, transform .2s, background .2s}
+.market-card.up:hover{
+  border-color:rgba(0,255,136,0.35);
+  box-shadow:0 4px 20px rgba(0,255,136,0.12);
+  background:rgba(0,255,136,0.04);
+}
+.market-card.down:hover{
+  border-color:rgba(255,68,102,0.35);
+  box-shadow:0 4px 20px rgba(255,68,102,0.12);
+  background:rgba(255,68,102,0.04);
+}
+
+/* ── Sidebar: glowing left accent on active nav item ─────── */
+.nav-item{border-left:2px solid transparent;transition:.15s,border-left-color .15s}
+.nav-item.active{
+  border-left-color:var(--cyan);
+  padding-left:calc(.9rem - 2px);
+  background:rgba(0,212,255,0.1);
+  box-shadow:inset 2px 0 12px rgba(0,212,255,0.08);
+}
+.nav-item:hover{
+  border-left-color:rgba(0,212,255,0.3);
+  padding-left:calc(.9rem - 2px);
+}
+
+/* ── Logo icon: pulsing glow ─────────────────────────────── */
+.logo-icon{animation:logoGlowDB 3.5s ease-in-out infinite}
+@keyframes logoGlowDB{
+  0%,100%{box-shadow:0 0 14px rgba(0,212,255,0.28)}
+  50%{box-shadow:0 0 28px rgba(0,212,255,0.6),0 0 50px rgba(0,85,255,0.18)}
+}
+
+/* ── Topbar search: focus ring ───────────────────────────── */
+.search-wrap input:focus{
+  box-shadow:0 0 0 2px rgba(0,212,255,0.18),0 0 18px rgba(0,212,255,0.07)!important;
+}
+
+/* ── Loading screen: enhanced ────────────────────────────── */
+#loading-screen{background:radial-gradient(ellipse at center,#060e20,var(--bg))}
+.loader-logo{
+  font-size:2.2rem;font-weight:900;letter-spacing:-.03em;
+  background:linear-gradient(90deg,var(--cyan),var(--green));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 20px rgba(0,212,255,0.4));
+  animation:loadLogoGlow 1.2s ease-in-out infinite alternate;
+}
+@keyframes loadLogoGlow{from{filter:drop-shadow(0 0 10px rgba(0,212,255,0.2))}to{filter:drop-shadow(0 0 30px rgba(0,212,255,0.7))}}
+.loader-fill{background:linear-gradient(90deg,var(--cyan2),var(--cyan),var(--green))}
+
+/* ── Tab 3D transition (keep existing, enhance) ──────────── */
+@keyframes tab3dIn{
+  from{opacity:0;transform:perspective(1200px) rotateY(-8deg) translateX(24px) scale(0.98)}
+  to{opacity:1;transform:none}
+}
+
+/* ── Stock price: colored gradient text ──────────────────── */
+#stock-change.up{ text-shadow:0 0 12px rgba(0,255,136,0.4) }
+#stock-change.down{ text-shadow:0 0 12px rgba(255,68,102,0.4) }
+
+/* ── Watchlist items: colored glow on hover ──────────────── */
+.wl-full-item{transition:border-color .22s, box-shadow .22s, transform .18s}
+.wl-full-item:hover{
+  border-color:rgba(0,212,255,0.38);
+  box-shadow:0 6px 24px rgba(0,0,0,0.3),0 0 0 1px rgba(0,212,255,0.1);
+}
+
+/* ── News cards: hover glow ──────────────────────────────── */
+.news-card:hover{
+  border-color:rgba(0,212,255,0.28);
+  box-shadow:0 14px 45px rgba(0,0,0,0.45),0 0 0 1px rgba(0,212,255,0.08);
+}
+
+/* ── Trend cards: up/down colored lift ───────────────────── */
+.trend-card.up:hover{border-color:rgba(0,255,136,0.3);box-shadow:0 8px 30px rgba(0,255,136,0.1)}
+.trend-card.down:hover{border-color:rgba(255,68,102,0.3);box-shadow:0 8px 30px rgba(255,68,102,0.1)}
+
+/* ── Market cards in markets view: richer hover ──────────── */
+.mkt-card.up:hover{border-color:rgba(0,255,136,0.32);box-shadow:0 6px 22px rgba(0,255,136,0.1);background:rgba(0,255,136,0.03)}
+.mkt-card.down:hover{border-color:rgba(255,68,102,0.32);box-shadow:0 6px 22px rgba(255,68,102,0.1);background:rgba(255,68,102,0.03)}
+
+/* ── Screener cards v2: flip card enhancement ────────────── */
+.scr-card-front::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent);
+  border-radius:13px 13px 0 0;opacity:0;transition:.3s;
+}
+.scr-card:hover .scr-card-front::before{opacity:0}/* front fades out as card flips */
+
+/* ── Chat FAB: pulsing ring ──────────────────────────────── */
+#chat-fab{animation:fabPulse 3s ease-in-out infinite}
+@keyframes fabPulse{
+  0%,100%{box-shadow:0 4px 20px rgba(0,212,255,0.4)}
+  50%{box-shadow:0 4px 28px rgba(0,212,255,0.65),0 0 0 6px rgba(0,212,255,0.08)}
+}
+#chat-fab:hover{animation:none}
+
+/* ── Buttons: shimmer on hover ───────────────────────────── */
+.btn-port-add,.btn-wl-add,.btn-scr-run,.btn-modal-save{
+  position:relative;overflow:hidden;
+}
+.btn-port-add::after,.btn-wl-add::after,.btn-scr-run::after,.btn-modal-save::after{
+  content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
+  transform:skewX(-20deg);
+}
+.btn-port-add:hover::after,.btn-wl-add:hover::after,.btn-scr-run:hover::after,.btn-modal-save:hover::after{
+  animation:btnShimmer .5s ease forwards;
+}
+@keyframes btnShimmer{0%{transform:translateX(-100%) skewX(-20deg)}100%{transform:translateX(250%) skewX(-20deg)}}
+
+/* ── AI direction badge: glow ────────────────────────────── */
+.ai-direction.up{box-shadow:0 0 18px rgba(0,255,136,0.18)}
+.ai-direction.down{box-shadow:0 0 18px rgba(255,68,102,0.18)}
+.ai-direction.neutral{box-shadow:0 0 18px rgba(255,215,0,0.15)}
+
+/* ── Portfolio hero: enhance border glow ─────────────────── */
+.port-hero{
+  box-shadow:0 0 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05);
+  transition:box-shadow .3s;
+}
+.port-hero:hover{box-shadow:0 0 80px rgba(80,60,220,0.2),inset 0 1px 0 rgba(255,255,255,0.07)}
+
+/* ── Daily briefing: glow border ─────────────────────────── */
+.briefing-card{transition:box-shadow .3s,border-color .3s}
+.briefing-card:hover{border-color:rgba(0,212,255,0.35);box-shadow:0 0 30px rgba(0,212,255,0.08)}
+
+/* ── Ticker tape: subtle cyan tint on hover ──────────────── */
+#ticker-tape-wrap{background:rgba(5,11,31,0.7);border-bottom:1px solid rgba(0,212,255,0.1)}
+
+/* ── Notification panel: glassmorphism ───────────────────── */
+#notif-panel{
+  background:rgba(11,21,37,0.95);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-color:rgba(0,212,255,0.18);
+  box-shadow:0 20px 60px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* ── Page view header: gradient text ─────────────────────── */
+.view-title{
+  background:linear-gradient(90deg,var(--text),rgba(0,212,255,0.7));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ── Chat panel: glassmorphism ───────────────────────────── */
+#chat-panel{
+  background:rgba(11,21,37,0.96);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-color:rgba(0,212,255,0.15);
+}
+
+/* ── Modal: glassmorphism upgrade ────────────────────────── */
+.modal{
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  background:rgba(11,21,37,0.96);
+  box-shadow:0 30px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(0,212,255,0.08);
+}
+
+/* ── Sidebar footer user card ────────────────────────────── */
+.user-card{transition:background .2s}
+.user-card:hover{background:var(--card2)}
+
+/* ── Stock header badge: glow ────────────────────────────── */
+.stock-badge{transition:box-shadow .3s}
+.stock-header:hover .stock-badge{box-shadow:0 0 24px rgba(0,212,255,0.4)}
 </style>
 </head>
 <body>

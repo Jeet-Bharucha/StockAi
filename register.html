@@ -8,140 +8,244 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#00d4ff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/effects.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#050b1f;--cyan:#00d4ff;--cyan2:#0066ff;--green:#00ff88;--red:#ff4466;--text:#e2e8f0;--muted:#64748b;--border:rgba(0,212,255,0.18)}
-html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
-#bg-canvas{position:fixed;inset:0;z-index:0}
-.page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
-nav{padding:1.2rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(5,11,31,0.5)}
-.logo{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:inherit}
-.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--cyan),var(--cyan2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem}
-.logo span{font-size:1.2rem;font-weight:800;background:linear-gradient(90deg,var(--cyan),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.nav-right{font-size:.85rem;color:var(--muted)}
-.nav-right a{color:var(--cyan);text-decoration:none;font-weight:600}
+:root{
+  --bg:#050b1f;--cyan:#00d4ff;--cyan2:#0055ff;
+  --green:#00ff88;--red:#ff4466;--gold:#ffd700;--purple:#a855f7;
+  --text:#e2e8f0;--muted:#64748b;
+  --border:rgba(0,212,255,0.15);--border2:rgba(255,255,255,0.07);
+  --card:rgba(255,255,255,0.04);--card2:rgba(255,255,255,0.07);
+}
+html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+
+#bg-canvas{position:fixed;inset:0;z-index:1;pointer-events:none}
+.page{position:relative;z-index:10;min-height:100vh;display:flex;flex-direction:column}
+
+/* NAV */
+nav{padding:1.1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(24px);background:rgba(5,11,31,0.5)}
+.logo{display:flex;align-items:center;gap:.55rem;text-decoration:none;color:inherit}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.logo span{font-size:1.2rem;font-weight:900;letter-spacing:-.03em;background:linear-gradient(90deg,var(--cyan),#fff 70%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-right{font-size:.84rem;color:var(--muted)}
+.nav-right a{color:var(--cyan);text-decoration:none;font-weight:700;transition:.2s}
+.nav-right a:hover{opacity:.75}
+
+/* MAIN */
 main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
-.auth-card{width:100%;max-width:460px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:24px;padding:2.5rem;backdrop-filter:blur(30px);box-shadow:0 30px 80px rgba(0,0,0,0.5)}
-.auth-header{text-align:center;margin-bottom:2rem}
-.auth-icon{width:56px;height:56px;background:linear-gradient(135deg,rgba(0,255,136,0.2),rgba(0,212,255,0.15));border:1px solid rgba(0,255,136,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 1rem}
-.auth-header h1{font-size:1.6rem;font-weight:800;letter-spacing:-0.03em;margin-bottom:.4rem}
+
+/* 3D cube for this page */
+.shape-3d-wrap{position:fixed;left:7%;bottom:15%;width:165px;height:165px;opacity:.5}
+.shape-face.f3,.shape-face.f4{border-color:rgba(0,255,136,0.15)!important}
+
+/* AUTH CARD */
+.auth-wrap{width:100%;max-width:460px}
+.auth-card{
+  width:100%;
+  background:rgba(8,14,36,0.84);
+  border:1px solid rgba(0,212,255,0.18);
+  border-radius:24px;padding:2.4rem;
+  backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+  box-shadow:0 30px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.04),inset 0 1px 0 rgba(255,255,255,0.05);
+  position:relative;transform-style:preserve-3d;
+  transition:transform .16s ease,box-shadow .3s;
+  will-change:transform;
+}
+.auth-card::before{
+  content:'';position:absolute;top:0;left:12%;right:12%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,255,136,0.7),rgba(0,212,255,0.6),transparent);
+  border-radius:50%;opacity:0;transition:opacity .4s;z-index:2;
+}
+.auth-card:hover::before{opacity:1}
+.auth-card::after{
+  content:'';position:absolute;inset:0;border-radius:24px;
+  background:radial-gradient(ellipse at 50% -10%,rgba(0,180,80,0.07),transparent 60%);
+  pointer-events:none;z-index:0;
+}
+.auth-card>*{position:relative;z-index:1}
+
+.auth-header{text-align:center;margin-bottom:1.6rem;animation:fadeUpIn .5s .05s both}
+.auth-icon{
+  width:58px;height:58px;
+  background:linear-gradient(135deg,rgba(0,200,100,0.35),rgba(0,212,255,0.2));
+  border:1px solid rgba(0,255,136,0.3);
+  border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin:0 auto 1rem;
+  box-shadow:0 0 24px rgba(0,255,136,0.15);
+  animation:iconGlowGreen 3.5s ease-in-out infinite;
+}
+.auth-header h1{
+  font-size:1.7rem;font-weight:900;letter-spacing:-0.04em;margin-bottom:.4rem;
+  background:linear-gradient(135deg,#fff 40%,rgba(0,255,136,0.6));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
 .auth-header p{color:var(--muted);font-size:.88rem}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+/* Perks */
+.perks{display:flex;flex-direction:column;gap:.45rem;margin-bottom:1.4rem;padding:.9rem 1rem;background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);border-radius:12px;animation:fadeUpIn .5s .1s both}
+.perk{display:flex;align-items:center;gap:.6rem;font-size:.79rem;color:var(--muted)}
+.perk .check{color:var(--green);font-weight:800;font-size:.88rem}
+
+/* Form */
+form{animation:fadeUpIn .5s .15s both}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
 .form-group{margin-bottom:1.1rem}
-label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em}
+label{display:block;font-size:.74rem;font-weight:700;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.07em}
 .input-wrap{position:relative}
-.input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none;opacity:.5}
-input[type=email],input[type=password],input[type=text]{width:100%;padding:.72rem .9rem .72rem 2.5rem;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:11px;color:var(--text);font-size:.9rem;font-family:'Inter',sans-serif;outline:none;transition:.2s}
-input:focus{border-color:var(--cyan);background:rgba(0,212,255,0.06);box-shadow:0 0 0 3px rgba(0,212,255,0.1)}
-input::placeholder{color:var(--muted);opacity:.7}
+.input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:.92rem;pointer-events:none;opacity:.4;z-index:2}
+input[type=email],input[type=password],input[type=text]{
+  width:100%;padding:.72rem .9rem .72rem 2.5rem;
+  background:rgba(255,255,255,0.05);border:1px solid rgba(0,212,255,0.13);
+  border-radius:11px;color:var(--text);font-size:.9rem;font-family:'Inter',sans-serif;
+  outline:none;transition:border-color .2s,background .2s,box-shadow .2s;
+}
+input[type=email]:focus,input[type=password]:focus,input[type=text]:focus{
+  border-color:var(--cyan);background:rgba(0,212,255,0.05);
+  box-shadow:0 0 0 3px rgba(0,212,255,0.12),0 0 20px rgba(0,212,255,0.06);
+}
+input::placeholder{color:var(--muted);opacity:.55}
 input.error-field{border-color:var(--red)!important}
 input.valid-field{border-color:var(--green)!important}
 
 /* Password strength */
-.pwd-strength{margin-top:.5rem;height:3px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden}
+.pwd-strength{margin-top:.4rem;height:3px;border-radius:2px;background:rgba(255,255,255,0.07);overflow:hidden}
 .pwd-strength-bar{height:100%;width:0;border-radius:2px;transition:.3s}
-.strength-label{font-size:.72rem;margin-top:.3rem}
-.pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:0}
+.strength-label{font-size:.7rem;margin-top:.28rem}
+.pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:0;z-index:2;transition:.2s}
 .pwd-toggle:hover{color:var(--cyan)}
 
-/* Perks */
-.perks{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;padding:1rem;background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);border-radius:12px}
-.perk{display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--muted)}
-.perk .check{color:var(--green);font-weight:700;font-size:.9rem}
-
-.btn-submit{width:100%;padding:.9rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border:none;border-radius:12px;color:#fff;font-size:.97rem;font-weight:700;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif}
-.btn-submit:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(0,102,255,0.4)}
-.btn-submit .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
-@keyframes spin{to{transform:rotate(360deg)}}
+.btn-submit{
+  width:100%;padding:.9rem;
+  background:linear-gradient(135deg,var(--cyan2),var(--cyan));
+  border:none;border-radius:12px;color:#fff;font-size:.97rem;font-weight:800;cursor:pointer;
+  font-family:'Inter',sans-serif;position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+  box-shadow:0 4px 22px rgba(0,85,255,0.38);letter-spacing:.01em;
+}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(0,85,255,0.52),0 0 60px rgba(0,212,255,0.14)}
+.btn-submit:active{transform:translateY(0)}
+.btn-submit::after{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);transform:skewX(-20deg)}
+.btn-submit:hover::after{animation:shimmer .55s ease forwards}
+.btn-submit .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
 .btn-submit.loading .btn-text{display:none}
 .btn-submit.loading .spinner{display:block}
 
-.terms{font-size:.77rem;color:var(--muted);text-align:center;margin-top:1rem;line-height:1.6}
+.terms{font-size:.77rem;color:var(--muted);text-align:center;margin-top:1rem;line-height:1.6;animation:fadeUpIn .5s .22s both}
 .terms a{color:var(--cyan);text-decoration:none}
-.auth-switch{text-align:center;font-size:.85rem;color:var(--muted);margin-top:1.2rem}
-.auth-switch a{color:var(--cyan);text-decoration:none;font-weight:600}
-.error-msg{display:none;padding:.7rem 1rem;background:rgba(255,68,102,0.1);border:1px solid rgba(255,68,102,0.3);border-radius:8px;color:#ff6b8a;font-size:.85rem;margin-bottom:1rem}
+.auth-switch{text-align:center;font-size:.84rem;color:var(--muted);margin-top:1.2rem;animation:fadeUpIn .5s .26s both}
+.auth-switch a{color:var(--cyan);text-decoration:none;font-weight:700}
+.error-msg{display:none;padding:.7rem 1rem;background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.28);border-radius:9px;color:#ff8aa0;font-size:.84rem;margin-bottom:1rem}
 .error-msg.show{display:block}
-@media(max-width:480px){.auth-card{padding:1.8rem 1.2rem}.form-row{grid-template-columns:1fr}}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{transform:translateX(-100%) skewX(-20deg)}100%{transform:translateX(250%) skewX(-20deg)}}
+@keyframes fadeUpIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes iconGlowGreen{0%,100%{box-shadow:0 0 20px rgba(0,255,136,0.18)}50%{box-shadow:0 0 34px rgba(0,255,136,0.45),0 0 60px rgba(0,180,100,0.18)}}
+@keyframes rotateSlow{from{transform:rotateX(15deg) rotateY(0deg)}to{transform:rotateX(15deg) rotateY(360deg)}}
+@keyframes pulse3d{0%,100%{opacity:.08}50%{opacity:.18}}
+
+@media(max-width:520px){.auth-card{padding:1.8rem 1.2rem;border-radius:18px}.form-row{grid-template-columns:1fr}.shape-3d-wrap{display:none}}
 </style>
 </head>
 <body>
+
+<!-- Background layers -->
+<div class="bg-orb bg-orb-1" style="background:radial-gradient(circle,rgba(0,200,100,0.15),transparent 70%)"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3" style="background:radial-gradient(circle,rgba(0,212,255,0.1),transparent 70%)"></div>
+<div class="bg-grid"></div>
 <canvas id="bg-canvas"></canvas>
+
+<!-- 3D wireframe cube (decorative, bottom-left) -->
+<div class="shape-3d-wrap">
+  <div class="shape-3d-inner">
+    <div class="shape-face f1"></div>
+    <div class="shape-face f2"></div>
+    <div class="shape-face f3"></div>
+    <div class="shape-face f4"></div>
+    <div class="shape-face f5"></div>
+    <div class="shape-face f6"></div>
+  </div>
+</div>
+
 <div class="page">
   <nav>
     <a href="index.html" class="logo">
-      <div class="logo-icon">📈</div>
+      <div class="logo-icon logo-glow">📈</div>
       <span>StockAI</span>
     </a>
     <div class="nav-right">Already have an account? <a href="login.html">Sign in →</a></div>
   </nav>
+
   <main>
-    <div class="auth-card">
-      <div class="auth-header">
-        <div class="auth-icon">🚀</div>
-        <h1>Create your account</h1>
-        <p>Start predicting markets with AI — free forever</p>
-      </div>
+    <div class="auth-wrap">
+      <div class="auth-card" id="auth-card">
+        <div class="auth-header">
+          <div class="auth-icon">🚀</div>
+          <h1>Create your account</h1>
+          <p>Start predicting markets with AI — free forever</p>
+        </div>
 
-      <div class="perks">
-        <div class="perk"><span class="check">✓</span>7 AI technical indicators — MACD, RSI, Bollinger & more</div>
-        <div class="perk"><span class="check">✓</span>Real-time candlestick charts with live price streaming</div>
-        <div class="perk"><span class="check">✓</span>Personal watchlist & portfolio tracking</div>
-      </div>
+        <div class="perks">
+          <div class="perk"><span class="check">✓</span>7 AI technical indicators — MACD, RSI, Bollinger &amp; more</div>
+          <div class="perk"><span class="check">✓</span>Real-time candlestick charts with live price streaming</div>
+          <div class="perk"><span class="check">✓</span>Personal watchlist &amp; portfolio tracking</div>
+        </div>
 
-      <div class="error-msg" id="error-msg"></div>
+        <div class="error-msg" id="error-msg"></div>
 
-      <form id="reg-form" autocomplete="on">
-        <div class="form-row">
-          <div class="form-group">
-            <label>First Name</label>
-            <div class="input-wrap">
-              <span class="icon">👤</span>
-              <input type="text" id="fname" placeholder="John" required autocomplete="given-name">
+        <form id="reg-form" autocomplete="on">
+          <div class="form-row">
+            <div class="form-group">
+              <label>First Name</label>
+              <div class="input-wrap">
+                <span class="icon">👤</span>
+                <input type="text" id="fname" placeholder="John" required autocomplete="given-name">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Last Name</label>
+              <div class="input-wrap">
+                <span class="icon">👤</span>
+                <input type="text" id="lname" placeholder="Doe" required autocomplete="family-name">
+              </div>
             </div>
           </div>
           <div class="form-group">
-            <label>Last Name</label>
+            <label>Email Address</label>
             <div class="input-wrap">
-              <span class="icon">👤</span>
-              <input type="text" id="lname" placeholder="Doe" required autocomplete="family-name">
+              <span class="icon">✉️</span>
+              <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
             </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Email Address</label>
-          <div class="input-wrap">
-            <span class="icon">✉️</span>
-            <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+          <div class="form-group">
+            <label>Password</label>
+            <div class="input-wrap">
+              <span class="icon">🔒</span>
+              <input type="password" id="password" placeholder="Create a strong password" required autocomplete="new-password">
+              <button type="button" class="pwd-toggle" id="pwd-toggle">👁</button>
+            </div>
+            <div class="pwd-strength"><div class="pwd-strength-bar" id="strength-bar"></div></div>
+            <div class="strength-label" id="strength-label" style="color:var(--muted)"></div>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <div class="input-wrap">
-            <span class="icon">🔒</span>
-            <input type="password" id="password" placeholder="Create a strong password" required autocomplete="new-password">
-            <button type="button" class="pwd-toggle" id="pwd-toggle">👁</button>
+          <div class="form-group">
+            <label>Confirm Password</label>
+            <div class="input-wrap">
+              <span class="icon">🔒</span>
+              <input type="password" id="confirm" placeholder="Repeat your password" required autocomplete="new-password">
+            </div>
           </div>
-          <div class="pwd-strength"><div class="pwd-strength-bar" id="strength-bar"></div></div>
-          <div class="strength-label" id="strength-label" style="color:var(--muted)"></div>
-        </div>
-        <div class="form-group">
-          <label>Confirm Password</label>
-          <div class="input-wrap">
-            <span class="icon">🔒</span>
-            <input type="password" id="confirm" placeholder="Repeat your password" required autocomplete="new-password">
-          </div>
-        </div>
 
-        <button type="submit" class="btn-submit" id="submit-btn">
-          <span class="btn-text">Create Free Account →</span>
-          <div class="spinner"></div>
-        </button>
-      </form>
+          <button type="submit" class="btn-submit" id="submit-btn">
+            <span class="btn-text">Create Free Account →</span>
+            <div class="spinner"></div>
+          </button>
+        </form>
 
-      <p class="terms">By creating an account you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>. StockAI is for educational purposes only — not financial advice.</p>
-      <div class="auth-switch">Already have an account? <a href="login.html">Sign in</a></div>
+        <p class="terms">By creating an account you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>. StockAI is for educational purposes only — not financial advice.</p>
+        <div class="auth-switch">Already have an account? <a href="login.html">Sign in</a></div>
+      </div>
     </div>
   </main>
 </div>
@@ -150,95 +254,89 @@ input.valid-field{border-color:var(--green)!important}
 <script>
 if(Auth.getSession()) window.location.href='dashboard.html';
 
-// Particle background
+/* ── Rich particle background ── */
 (function(){
-  const canvas=document.getElementById('bg-canvas');
-  const ctx=canvas.getContext('2d');
-  let W=window.innerWidth,H=window.innerHeight;
-  canvas.width=W;canvas.height=H;
-  const pts=Array.from({length:80},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:1+Math.random()*2}));
-  window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H});
+  const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
+  let W=canvas.width=innerWidth, H=canvas.height=innerHeight;
+  window.addEventListener('resize',()=>{ W=canvas.width=innerWidth; H=canvas.height=innerHeight; });
+  const COLS=['rgba(0,212,255,','rgba(0,255,136,','rgba(168,85,247,','rgba(0,85,255,'];
+  const pts=Array.from({length:90},()=>({
+    x:Math.random()*W,y:Math.random()*H,
+    vx:(Math.random()-.5)*.28,vy:(Math.random()-.5)*.28,
+    r:.8+Math.random()*1.8,c:COLS[Math.floor(Math.random()*COLS.length)]
+  }));
   function draw(){
     ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='rgba(5,11,31,1)';ctx.fillRect(0,0,W,H);
-    const g1=ctx.createRadialGradient(W*.8,H*.2,0,W*.8,H*.2,450);
-    g1.addColorStop(0,'rgba(0,255,136,0.08)');g1.addColorStop(1,'transparent');
-    ctx.fillStyle=g1;ctx.fillRect(0,0,W,H);
-    const g2=ctx.createRadialGradient(W*.15,H*.8,0,W*.15,H*.8,380);
-    g2.addColorStop(0,'rgba(0,102,255,0.1)');g2.addColorStop(1,'transparent');
-    ctx.fillStyle=g2;ctx.fillRect(0,0,W,H);
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+      if(d<125){ ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(0,212,255,${0.1*(1-d/125)})`;ctx.lineWidth=.5;ctx.stroke(); }
+    }
     pts.forEach(p=>{
       p.x+=p.vx;p.y+=p.vy;
-      if(p.x<0||p.x>W)p.vx*=-1;
-      if(p.y<0||p.y>H)p.vy*=-1;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle='rgba(0,212,255,0.35)';ctx.fill();
+      if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.c+'0.45)';ctx.fill();
     });
-    pts.forEach((a,i)=>pts.slice(i+1).forEach(b=>{
-      const d=Math.hypot(a.x-b.x,a.y-b.y);
-      if(d<110){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(0,212,255,${0.12*(1-d/110)})`;ctx.lineWidth=.5;ctx.stroke();}
-    }));
     requestAnimationFrame(draw);
   }
   draw();
 })();
 
-// Password strength
+/* ── 3D card tilt ── */
+(function(){
+  const card=document.getElementById('auth-card'); let raf;
+  document.addEventListener('mousemove',e=>{
+    cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(()=>{
+      const rect=card.getBoundingClientRect();
+      const dx=(e.clientX-(rect.left+rect.width/2))/(innerWidth/2);
+      const dy=(e.clientY-(rect.top+rect.height/2))/(innerHeight/2);
+      const rx=Math.max(-8,Math.min(8,dy*-6));
+      const ry=Math.max(-8,Math.min(8,dx*7));
+      card.style.transform=`perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(5px)`;
+      card.style.boxShadow=`${-ry*2}px ${rx*1}px 45px rgba(0,0,0,0.5),0 30px 80px rgba(0,0,0,0.55),0 0 ${35+Math.abs(dx)*25}px rgba(0,180,80,0.1)`;
+    });
+  });
+  document.addEventListener('mouseleave',()=>{ card.style.transform=''; card.style.boxShadow=''; });
+})();
+
+/* ── Password strength ── */
 document.getElementById('password').addEventListener('input',function(){
-  const v=this.value;
-  const bar=document.getElementById('strength-bar');
-  const lbl=document.getElementById('strength-label');
-  let score=0;
-  if(v.length>=8)score++;
-  if(/[A-Z]/.test(v))score++;
-  if(/[0-9]/.test(v))score++;
-  if(/[^A-Za-z0-9]/.test(v))score++;
-  const configs=[
-    {pct:'0%',color:'transparent',text:''},
-    {pct:'25%',color:'#ff4466',text:'Weak'},
-    {pct:'50%',color:'#ffa500',text:'Fair'},
-    {pct:'75%',color:'#ffd700',text:'Good'},
-    {pct:'100%',color:'#00ff88',text:'Strong'}
-  ];
-  const cfg=configs[score]||configs[0];
-  bar.style.width=cfg.pct;bar.style.background=cfg.color;
-  lbl.textContent=cfg.text;lbl.style.color=cfg.color;
+  const v=this.value,bar=document.getElementById('strength-bar'),lbl=document.getElementById('strength-label');
+  let s=0;
+  if(v.length>=8)s++;if(/[A-Z]/.test(v))s++;if(/[0-9]/.test(v))s++;if(/[^A-Za-z0-9]/.test(v))s++;
+  const cfgs=[{pct:'0%',color:'transparent',text:''},{pct:'25%',color:'#ff4466',text:'Weak'},{pct:'50%',color:'#ffa500',text:'Fair'},{pct:'75%',color:'#ffd700',text:'Good'},{pct:'100%',color:'#00ff88',text:'Strong'}];
+  const c=cfgs[s]||cfgs[0];
+  bar.style.width=c.pct;bar.style.background=c.color;lbl.textContent=c.text;lbl.style.color=c.color;
 });
 
-// Password toggle
 document.getElementById('pwd-toggle').addEventListener('click',function(){
   const inp=document.getElementById('password');
   inp.type=inp.type==='password'?'text':'password';
   this.textContent=inp.type==='password'?'👁':'🙈';
 });
 
-// Confirm password validation
 document.getElementById('confirm').addEventListener('input',function(){
   const pwd=document.getElementById('password').value;
   this.classList.toggle('valid-field',this.value===pwd&&this.value.length>0);
   this.classList.toggle('error-field',this.value!==pwd&&this.value.length>0);
 });
 
-// Submit
 document.getElementById('reg-form').addEventListener('submit',async function(e){
   e.preventDefault();
-  const errEl=document.getElementById('error-msg');
-  errEl.classList.remove('show');
+  const errEl=document.getElementById('error-msg');errEl.classList.remove('show');
   const fname=document.getElementById('fname').value.trim();
   const lname=document.getElementById('lname').value.trim();
   const email=document.getElementById('email').value.trim();
   const pwd=document.getElementById('password').value;
   const confirm=document.getElementById('confirm').value;
-
   if(pwd!==confirm){errEl.textContent='Passwords do not match.';errEl.classList.add('show');return;}
   if(pwd.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.classList.add('show');return;}
-
   const btn=document.getElementById('submit-btn');
   btn.classList.add('loading');
   await new Promise(r=>setTimeout(r,800));
   const result=Auth.register(`${fname} ${lname}`,email,pwd);
   btn.classList.remove('loading');
-  if(result.success){window.location.href='dashboard.html';}
+  if(result.success) window.location.href='dashboard.html';
   else{errEl.textContent=result.error;errEl.classList.add('show');}
 });
 </script>
