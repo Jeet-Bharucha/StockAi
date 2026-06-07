@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -6,17 +6,17 @@
 <title>Create Account — StockAI</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#00d4ff">
+<meta name="theme-color" content="#c084fc">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/effects.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#050b1f;--cyan:#00d4ff;--cyan2:#0055ff;
+  --bg:#07030f;--cyan:#c084fc;--cyan2:#9333ea;
   --green:#00ff88;--red:#ff4466;--gold:#ffd700;--purple:#a855f7;
   --text:#e2e8f0;--muted:#64748b;
-  --border:rgba(0,212,255,0.15);--border2:rgba(255,255,255,0.07);
+  --border:rgba(168,85,247,0.15);--border2:rgba(255,255,255,0.07);
   --card:rgba(255,255,255,0.04);--card2:rgba(255,255,255,0.07);
 }
 html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
@@ -25,7 +25,7 @@ html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);co
 .page{position:relative;z-index:10;min-height:100vh;display:flex;flex-direction:column}
 
 /* NAV */
-nav{padding:1.1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(24px);background:rgba(5,11,31,0.5)}
+nav{padding:1.1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(24px);background:rgba(7,3,15,0.5)}
 .logo{display:flex;align-items:center;gap:.55rem;text-decoration:none;color:inherit}
 .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem}
 .logo span{font-size:1.2rem;font-weight:900;letter-spacing:-.03em;background:linear-gradient(90deg,var(--cyan),#fff 70%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -45,7 +45,7 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 .auth-card{
   width:100%;
   background:rgba(8,14,36,0.84);
-  border:1px solid rgba(0,212,255,0.18);
+  border:1px solid rgba(168,85,247,0.18);
   border-radius:24px;padding:2.4rem;
   backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
   box-shadow:0 30px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.04),inset 0 1px 0 rgba(255,255,255,0.05);
@@ -55,7 +55,7 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 }
 .auth-card::before{
   content:'';position:absolute;top:0;left:12%;right:12%;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(0,255,136,0.7),rgba(0,212,255,0.6),transparent);
+  background:linear-gradient(90deg,transparent,rgba(0,255,136,0.7),rgba(168,85,247,0.6),transparent);
   border-radius:50%;opacity:0;transition:opacity .4s;z-index:2;
 }
 .auth-card:hover::before{opacity:1}
@@ -69,7 +69,7 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 .auth-header{text-align:center;margin-bottom:1.6rem;animation:fadeUpIn .5s .05s both}
 .auth-icon{
   width:58px;height:58px;
-  background:linear-gradient(135deg,rgba(0,200,100,0.35),rgba(0,212,255,0.2));
+  background:linear-gradient(135deg,rgba(0,200,100,0.35),rgba(168,85,247,0.2));
   border:1px solid rgba(0,255,136,0.3);
   border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin:0 auto 1rem;
   box-shadow:0 0 24px rgba(0,255,136,0.15);
@@ -96,13 +96,13 @@ label{display:block;font-size:.74rem;font-weight:700;color:var(--muted);margin-b
 .input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:.92rem;pointer-events:none;opacity:.4;z-index:2}
 input[type=email],input[type=password],input[type=text]{
   width:100%;padding:.72rem .9rem .72rem 2.5rem;
-  background:rgba(255,255,255,0.05);border:1px solid rgba(0,212,255,0.13);
+  background:rgba(255,255,255,0.05);border:1px solid rgba(168,85,247,0.13);
   border-radius:11px;color:var(--text);font-size:.9rem;font-family:'Inter',sans-serif;
   outline:none;transition:border-color .2s,background .2s,box-shadow .2s;
 }
 input[type=email]:focus,input[type=password]:focus,input[type=text]:focus{
-  border-color:var(--cyan);background:rgba(0,212,255,0.05);
-  box-shadow:0 0 0 3px rgba(0,212,255,0.12),0 0 20px rgba(0,212,255,0.06);
+  border-color:var(--cyan);background:rgba(168,85,247,0.05);
+  box-shadow:0 0 0 3px rgba(168,85,247,0.12),0 0 20px rgba(168,85,247,0.06);
 }
 input::placeholder{color:var(--muted);opacity:.55}
 input.error-field{border-color:var(--red)!important}
@@ -121,9 +121,9 @@ input.valid-field{border-color:var(--green)!important}
   border:none;border-radius:12px;color:#fff;font-size:.97rem;font-weight:800;cursor:pointer;
   font-family:'Inter',sans-serif;position:relative;overflow:hidden;
   transition:transform .2s,box-shadow .2s;
-  box-shadow:0 4px 22px rgba(0,85,255,0.38);letter-spacing:.01em;
+  box-shadow:0 4px 22px rgba(147,51,234,0.38);letter-spacing:.01em;
 }
-.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(0,85,255,0.52),0 0 60px rgba(0,212,255,0.14)}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(147,51,234,0.52),0 0 60px rgba(168,85,247,0.14)}
 .btn-submit:active{transform:translateY(0)}
 .btn-submit::after{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);transform:skewX(-20deg)}
 .btn-submit:hover::after{animation:shimmer .55s ease forwards}
@@ -153,7 +153,7 @@ input.valid-field{border-color:var(--green)!important}
 <!-- Background layers -->
 <div class="bg-orb bg-orb-1" style="background:radial-gradient(circle,rgba(0,200,100,0.15),transparent 70%)"></div>
 <div class="bg-orb bg-orb-2"></div>
-<div class="bg-orb bg-orb-3" style="background:radial-gradient(circle,rgba(0,212,255,0.1),transparent 70%)"></div>
+<div class="bg-orb bg-orb-3" style="background:radial-gradient(circle,rgba(168,85,247,0.1),transparent 70%)"></div>
 <div class="bg-grid"></div>
 <canvas id="bg-canvas"></canvas>
 
@@ -259,7 +259,7 @@ if(Auth.getSession()) window.location.href='dashboard.html';
   const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
   let W=canvas.width=innerWidth, H=canvas.height=innerHeight;
   window.addEventListener('resize',()=>{ W=canvas.width=innerWidth; H=canvas.height=innerHeight; });
-  const COLS=['rgba(0,212,255,','rgba(0,255,136,','rgba(168,85,247,','rgba(0,85,255,'];
+  const COLS=['rgba(168,85,247,','rgba(0,255,136,','rgba(168,85,247,','rgba(147,51,234,'];
   const pts=Array.from({length:90},()=>({
     x:Math.random()*W,y:Math.random()*H,
     vx:(Math.random()-.5)*.28,vy:(Math.random()-.5)*.28,
@@ -269,7 +269,7 @@ if(Auth.getSession()) window.location.href='dashboard.html';
     ctx.clearRect(0,0,W,H);
     for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
       const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
-      if(d<125){ ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(0,212,255,${0.1*(1-d/125)})`;ctx.lineWidth=.5;ctx.stroke(); }
+      if(d<125){ ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(168,85,247,${0.1*(1-d/125)})`;ctx.lineWidth=.5;ctx.stroke(); }
     }
     pts.forEach(p=>{
       p.x+=p.vx;p.y+=p.vy;

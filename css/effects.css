@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════
    StockAI — Global Visual Effects & Consistency Layer
    Shared across all pages for a unified premium look
    ═══════════════════════════════════════════════════════════ */
@@ -6,8 +6,8 @@
 /* ─── Custom Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px }
 ::-webkit-scrollbar-track { background: transparent }
-::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.45) }
+::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.2); border-radius: 4px }
+::-webkit-scrollbar-thumb:hover { background: rgba(168,85,247,0.45) }
 
 /* ─── Core Keyframes ─────────────────────────────────────── */
 @keyframes orbFloat1 { 0%,100%{ transform:translate(0,0) scale(1) } 50%{ transform:translate(-35px,55px) scale(1.04) } }
@@ -15,7 +15,7 @@
 @keyframes orbFloat3 { 0%,100%{ transform:translate(0,0) scale(1) } 50%{ transform:translate(-25px,-45px) scale(0.96) } }
 @keyframes shimmerSlide { 0%{ transform:translateX(-100%) skewX(-20deg) } 100%{ transform:translateX(250%) skewX(-20deg) } }
 @keyframes fadeUpIn { from{ opacity:0; transform:translateY(16px) } to{ opacity:1; transform:translateY(0) } }
-@keyframes logoPulse { 0%,100%{ box-shadow:0 0 16px rgba(0,212,255,0.35) } 50%{ box-shadow:0 0 30px rgba(0,212,255,0.65), 0 0 55px rgba(0,100,255,0.25) } }
+@keyframes logoPulse { 0%,100%{ box-shadow:0 0 16px rgba(168,85,247,0.35) } 50%{ box-shadow:0 0 30px rgba(168,85,247,0.65), 0 0 55px rgba(109,40,217,0.25) } }
 @keyframes cardLineSweep { 0%{ background-position:-200% 0 } 100%{ background-position:200% 0 } }
 @keyframes rotateSlow { from{ transform:rotateX(15deg) rotateY(0deg) } to{ transform:rotateX(15deg) rotateY(360deg) } }
 @keyframes pulse3d { 0%,100%{ opacity:.12 } 50%{ opacity:.22 } }
@@ -31,13 +31,13 @@
 }
 .bg-orb-1 {
   width: 700px; height: 700px;
-  background: radial-gradient(circle at center, rgba(0,70,255,0.22), transparent 70%);
+  background: radial-gradient(circle at center, rgba(109,40,217,0.22), transparent 70%);
   top: -200px; right: -150px;
   animation: orbFloat1 16s ease-in-out infinite;
 }
 .bg-orb-2 {
   width: 550px; height: 550px;
-  background: radial-gradient(circle at center, rgba(0,212,255,0.13), transparent 70%);
+  background: radial-gradient(circle at center, rgba(168,85,247,0.13), transparent 70%);
   bottom: -130px; left: -100px;
   animation: orbFloat2 19s ease-in-out infinite;
 }
@@ -52,8 +52,8 @@
 .bg-grid {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-image:
-    linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+    linear-gradient(rgba(168,85,247,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,85,247,0.025) 1px, transparent 1px);
   background-size: 64px 64px;
   -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 40%, #000 30%, transparent 100%);
   mask-image: radial-gradient(ellipse 85% 85% at 50% 40%, #000 30%, transparent 100%);
@@ -72,9 +72,9 @@
 }
 .shape-face {
   position: absolute; inset: 0;
-  border: 1px solid rgba(0,212,255,0.12);
+  border: 1px solid rgba(168,85,247,0.12);
   border-radius: 6px;
-  background: rgba(0,212,255,0.015);
+  background: rgba(168,85,247,0.015);
   animation: pulse3d 4s ease-in-out infinite;
 }
 .shape-face.f1 { transform: translateZ(90px) }
@@ -92,11 +92,11 @@
 .card-glow::before {
   content: '';
   position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.7), rgba(168,85,247,0.45), transparent);
+  background: linear-gradient(90deg, transparent, rgba(168,85,247,0.7), rgba(168,85,247,0.45), transparent);
   border-radius: 50%;
   opacity: 0; transition: opacity .3s; z-index: 1;
 }
-.card-glow:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,212,255,0.12) }
+.card-glow:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(168,85,247,0.12) }
 .card-glow:hover::before { opacity: 1 }
 
 /* ─── Logo Icon Pulse (add to any .logo-icon) ────────────── */
@@ -114,7 +114,7 @@
 
 /* ─── Gradient Number Text ───────────────────────────────── */
 .num-up {
-  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  background: linear-gradient(135deg, #00ff88, #c084fc);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 .num-down {
@@ -133,7 +133,7 @@
 
 /* ─── Input Focus Glow ───────────────────────────────────── */
 input:focus, select:focus {
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.13), 0 0 18px rgba(0,212,255,0.08) !important;
+  box-shadow: 0 0 0 3px rgba(168,85,247,0.13), 0 0 18px rgba(168,85,247,0.08) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -146,26 +146,26 @@ body { animation: pageFade .45s ease both }
 
 /* ─── Gradient text utility ──────────────────────────────── */
 .grad-text {
-  background: linear-gradient(120deg, #fff 20%, #00d4ff 60%, #a855f7 100%);
+  background: linear-gradient(120deg, #fff 20%, #c084fc 60%, #a855f7 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 .grad-text-cyan {
-  background: linear-gradient(90deg, #00d4ff, #0055ff);
+  background: linear-gradient(90deg, #c084fc, #9333ea);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 
 /* ─── Glassy panel base (any card/panel can use) ─────────── */
 .glass-panel {
-  background: rgba(8,16,40,0.7);
+  background: rgba(10,4,24,0.7);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(0,212,255,0.1);
+  border: 1px solid rgba(168,85,247,0.1);
   border-radius: 16px;
 }
 
 /* ─── Glow divider line ──────────────────────────────────── */
 .glow-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.35), rgba(168,85,247,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(168,85,247,0.35), rgba(168,85,247,0.2), transparent);
   border: none; margin: 1rem 0;
 }
 
@@ -178,8 +178,8 @@ body { animation: pageFade .45s ease both }
   transition: box-shadow .25s, border-color .25s;
 }
 .neon-border:hover {
-  box-shadow: 0 0 0 1px rgba(0,212,255,0.3), 0 8px 32px rgba(0,212,255,0.1);
-  border-color: rgba(0,212,255,0.3) !important;
+  box-shadow: 0 0 0 1px rgba(168,85,247,0.3), 0 8px 32px rgba(168,85,247,0.1);
+  border-color: rgba(168,85,247,0.3) !important;
 }
 
 /* ─── Subtle scanline texture overlay ───────────────────── */
@@ -220,6 +220,6 @@ button { transition: transform .15s, box-shadow .15s, background .18s, border-co
 /* ─── Number color classes ───────────────────────────────── */
 .txt-green { color: #00ff88 !important }
 .txt-red   { color: #ff4466 !important }
-.txt-cyan  { color: #00d4ff !important }
+.txt-cyan  { color: #c084fc !important }
 .txt-gold  { color: #fbbf24 !important }
 .txt-muted { color: #64748b !important }
