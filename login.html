@@ -6,17 +6,17 @@
 <title>Sign In — StockAI</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#c084fc">
+<meta name="theme-color" content="#00c9a7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/effects.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#07030f;--cyan:#c084fc;--cyan2:#9333ea;
-  --green:#00ff88;--red:#ff4466;--gold:#ffd700;--purple:#a855f7;
+  --bg:#0a0f1e;--cyan:#00c9a7;--cyan2:#0891b2;
+  --green:#00ff88;--red:#ff4466;--gold:#ffd700;--purple:#38bdf8;
   --text:#e2e8f0;--muted:#64748b;
-  --border:rgba(168,85,247,0.15);--border2:rgba(255,255,255,0.07);
+  --border:rgba(0,201,167,0.15);--border2:rgba(255,255,255,0.07);
   --card:rgba(255,255,255,0.04);--card2:rgba(255,255,255,0.07);
 }
 html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
@@ -25,7 +25,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 .page{position:relative;z-index:10;min-height:100vh;display:flex;flex-direction:column}
 
 /* NAV */
-nav{padding:1.1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(24px);background:rgba(7,3,15,0.5)}
+nav{padding:1.1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(24px);background:rgba(10,15,30,0.5)}
 .logo{display:flex;align-items:center;gap:.55rem;text-decoration:none;color:inherit}
 .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem}
 .logo span{font-size:1.2rem;font-weight:900;letter-spacing:-.03em;background:linear-gradient(90deg,var(--cyan),#fff 70%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -44,7 +44,7 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 .auth-card{
   width:100%;
   background:rgba(8,14,36,0.84);
-  border:1px solid rgba(168,85,247,0.18);
+  border:1px solid rgba(0,201,167,0.18);
   border-radius:24px;
   padding:2.5rem;
   backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
@@ -56,13 +56,13 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 }
 .auth-card::before{
   content:'';position:absolute;top:0;left:12%;right:12%;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(168,85,247,0.85),rgba(168,85,247,0.55),transparent);
+  background:linear-gradient(90deg,transparent,rgba(0,201,167,0.85),rgba(0,201,167,0.55),transparent);
   border-radius:50%;opacity:0;transition:opacity .4s;z-index:2;
 }
 .auth-card:hover::before{opacity:1}
 .auth-card::after{
   content:'';position:absolute;inset:0;border-radius:24px;
-  background:radial-gradient(ellipse at 50% -10%,rgba(109,40,217,0.12),transparent 60%);
+  background:radial-gradient(ellipse at 50% -10%,rgba(8,145,178,0.12),transparent 60%);
   pointer-events:none;z-index:0;
 }
 .auth-card>*{position:relative;z-index:1}
@@ -70,15 +70,15 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
 .auth-header{text-align:center;margin-bottom:2rem;animation:fadeUpIn .5s .05s both}
 .auth-icon{
   width:58px;height:58px;
-  background:linear-gradient(135deg,rgba(147,51,234,0.35),rgba(168,85,247,0.2));
-  border:1px solid rgba(168,85,247,0.3);
+  background:linear-gradient(135deg,rgba(8,145,178,0.35),rgba(0,201,167,0.2));
+  border:1px solid rgba(0,201,167,0.3);
   border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin:0 auto 1rem;
-  box-shadow:0 0 24px rgba(168,85,247,0.18);
+  box-shadow:0 0 24px rgba(0,201,167,0.18);
   animation:iconGlow 3.5s ease-in-out infinite;
 }
 .auth-header h1{
   font-size:1.75rem;font-weight:900;letter-spacing:-0.04em;margin-bottom:.4rem;
-  background:linear-gradient(135deg,#fff 40%,rgba(168,85,247,0.65));
+  background:linear-gradient(135deg,#fff 40%,rgba(0,201,167,0.65));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
 }
 .auth-header p{color:var(--muted);font-size:.88rem}
@@ -91,13 +91,13 @@ label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);margin-b
 .input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none;opacity:.4;z-index:2}
 input[type=email],input[type=password],input[type=text]{
   width:100%;padding:.75rem .9rem .75rem 2.6rem;
-  background:rgba(255,255,255,0.05);border:1px solid rgba(168,85,247,0.13);
+  background:rgba(255,255,255,0.05);border:1px solid rgba(0,201,167,0.13);
   border-radius:12px;color:var(--text);font-size:.92rem;font-family:'Inter',sans-serif;
   outline:none;transition:border-color .2s,background .2s,box-shadow .2s;
 }
 input[type=email]:focus,input[type=password]:focus,input[type=text]:focus{
-  border-color:var(--cyan);background:rgba(168,85,247,0.05);
-  box-shadow:0 0 0 3px rgba(168,85,247,0.12),0 0 20px rgba(168,85,247,0.06);
+  border-color:var(--cyan);background:rgba(0,201,167,0.05);
+  box-shadow:0 0 0 3px rgba(0,201,167,0.12),0 0 20px rgba(0,201,167,0.06);
 }
 input::placeholder{color:var(--muted);opacity:.55}
 
@@ -114,9 +114,9 @@ input::placeholder{color:var(--muted);opacity:.55}
   font-size:.97rem;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;
   position:relative;overflow:hidden;
   transition:transform .2s,box-shadow .2s;
-  box-shadow:0 4px 22px rgba(147,51,234,0.38);letter-spacing:.01em;
+  box-shadow:0 4px 22px rgba(8,145,178,0.38);letter-spacing:.01em;
 }
-.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(147,51,234,0.52),0 0 60px rgba(168,85,247,0.14)}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(8,145,178,0.52),0 0 60px rgba(0,201,167,0.14)}
 .btn-submit:active{transform:translateY(0)}
 .btn-submit::after{content:'';position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);transform:skewX(-20deg)}
 .btn-submit:hover::after{animation:shimmer .55s ease forwards}
@@ -125,7 +125,7 @@ input::placeholder{color:var(--muted);opacity:.55}
 .btn-submit.loading .spinner{display:block}
 
 .divider{display:flex;align-items:center;gap:1rem;margin:1.4rem 0;color:var(--muted);font-size:.78rem;animation:fadeUpIn .5s .18s both}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(168,85,247,0.2),transparent)}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(0,201,167,0.2),transparent)}
 
 .social-btns{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.4rem;animation:fadeUpIn .5s .22s both}
 .btn-social{
@@ -134,7 +134,7 @@ input::placeholder{color:var(--muted);opacity:.55}
   transition:background .2s,border-color .2s,transform .2s;font-family:'Inter',sans-serif;
   display:flex;align-items:center;justify-content:center;gap:.5rem;
 }
-.btn-social:hover{background:rgba(255,255,255,0.08);border-color:rgba(168,85,247,0.28);transform:translateY(-1px)}
+.btn-social:hover{background:rgba(255,255,255,0.08);border-color:rgba(0,201,167,0.28);transform:translateY(-1px)}
 
 .auth-switch{text-align:center;font-size:.84rem;color:var(--muted);animation:fadeUpIn .5s .26s both}
 .auth-switch a{color:var(--cyan);text-decoration:none;font-weight:700}
@@ -148,7 +148,7 @@ input::placeholder{color:var(--muted);opacity:.55}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes shimmer{0%{transform:translateX(-100%) skewX(-20deg)}100%{transform:translateX(250%) skewX(-20deg)}}
 @keyframes fadeUpIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-@keyframes iconGlow{0%,100%{box-shadow:0 0 20px rgba(168,85,247,0.2)}50%{box-shadow:0 0 34px rgba(168,85,247,0.5),0 0 60px rgba(109,40,217,0.18)}}
+@keyframes iconGlow{0%,100%{box-shadow:0 0 20px rgba(0,201,167,0.2)}50%{box-shadow:0 0 34px rgba(0,201,167,0.5),0 0 60px rgba(8,145,178,0.18)}}
 @keyframes rotateSlow{from{transform:rotateX(15deg) rotateY(0deg)}to{transform:rotateX(15deg) rotateY(360deg)}}
 @keyframes pulse3d{0%,100%{opacity:.1}50%{opacity:.2}}
 
@@ -248,7 +248,7 @@ if(lastEmail){ document.getElementById('email').value=lastEmail; document.getEle
   const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
   let W=canvas.width=innerWidth, H=canvas.height=innerHeight;
   window.addEventListener('resize',()=>{ W=canvas.width=innerWidth; H=canvas.height=innerHeight; });
-  const COLS=['rgba(168,85,247,','rgba(168,85,247,','rgba(0,255,136,','rgba(147,51,234,'];
+  const COLS=['rgba(0,201,167,','rgba(0,201,167,','rgba(0,255,136,','rgba(8,145,178,'];
   const pts=Array.from({length:90},()=>({
     x:Math.random()*W, y:Math.random()*H,
     vx:(Math.random()-.5)*.28, vy:(Math.random()-.5)*.28,
@@ -259,7 +259,7 @@ if(lastEmail){ document.getElementById('email').value=lastEmail; document.getEle
     ctx.clearRect(0,0,W,H);
     for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
       const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
-      if(d<125){ ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(168,85,247,${0.11*(1-d/125)})`;ctx.lineWidth=.5;ctx.stroke(); }
+      if(d<125){ ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(0,201,167,${0.11*(1-d/125)})`;ctx.lineWidth=.5;ctx.stroke(); }
     }
     pts.forEach(p=>{
       p.x+=p.vx; p.y+=p.vy;
@@ -284,7 +284,7 @@ if(lastEmail){ document.getElementById('email').value=lastEmail; document.getEle
       const rx=Math.max(-9,Math.min(9,dy*-7));
       const ry=Math.max(-9,Math.min(9,dx*8));
       card.style.transform=`perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(5px)`;
-      card.style.boxShadow=`${-ry*2}px ${rx*1}px 45px rgba(0,0,0,0.5),0 30px 80px rgba(0,0,0,0.55),0 0 ${35+Math.abs(dx)*25}px rgba(120,40,220,0.22)`;
+      card.style.boxShadow=`${-ry*2}px ${rx*1}px 45px rgba(0,0,0,0.5),0 30px 80px rgba(0,0,0,0.55),0 0 ${35+Math.abs(dx)*25}px rgba(0,160,185,0.22)`;
     });
   });
   document.addEventListener('mouseleave',()=>{ card.style.transform=''; card.style.boxShadow=''; });
