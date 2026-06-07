@@ -895,56 +895,81 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Stats
     const totalPL    = totalValue - totalCost;
     const totalPLPct = totalCost ? (totalPL / totalCost) * 100 : 0;
-    const best       = rows.length ? rows.reduce((a,b) => b.plPct > a.plPct ? b : a) : null;
-    const up         = totalPL >= 0;
+    const up    = totalPL >= 0;
+    const best  = rows.length ? rows.reduce((a,b) => b.plPct > a.plPct ? b : a) : null;
+    const worst = rows.length ? rows.reduce((a,b) => b.plPct < a.plPct ? b : a) : null;
 
-    const vc = (id, val, cls) => {
-      const el = document.getElementById(id); if (!el) return;
-      el.textContent = val;
-      if (cls !== undefined) el.className = 'psc-val ' + (cls ? 'up' : 'down');
-    };
-    vc('port-invested', '$' + _fmtD(totalCost));
-    vc('port-value',    '$' + _fmtD(totalValue));
-    vc('port-pl',       (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)), up);
-    vc('port-pct',      (up?'+':'-') + _fmtD(Math.abs(totalPLPct)) + '%', up);
-    vc('port-count',    rows.length);
+    // ── Big stat cards ────────────────────────────────────────────────────────
+    const setText = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+    const setHTML = (id, v) => { const el=document.getElementById(id); if(el) el.innerHTML=v; };
+
+    setText('port-invested', '$' + _fmtD(totalCost));
+    setText('port-value',    '$' + _fmtD(totalValue));
+    setText('port-count-sub', rows.length + ' position' + (rows.length !== 1 ? 's' : ''));
+
+    const plEl = document.getElementById('port-pl');
+    if (plEl) { plEl.textContent = (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)); plEl.className = 'pt-stat-val ' + (up?'up':'down'); }
+    setHTML('port-pl-badge', `<span class="pt-stat-badge ${up?'up':'down'}">${up?'▲':'▼'} ${up?'+':''}${_fmtD(totalPLPct)}%</span>`);
+
     if (best) {
+      const bEl = document.getElementById('port-best');
+      if (bEl) { bEl.textContent = best.symbol; bEl.className = 'pt-stat-val'; }
       const bUp = best.plPct >= 0;
-      vc('port-best', best.symbol);
-      const bSub = document.getElementById('port-best-sub');
-      if (bSub) { bSub.textContent = (bUp?'+':'-') + _fmtD(Math.abs(best.plPct)) + '%'; bSub.className='psc-sub '+(bUp?'up':'down'); }
+      setHTML('port-best-sub', `<span style="color:${bUp?'var(--green)':'var(--red)'}">${bUp?'+':''}${_fmtD(best.plPct)}% all-time</span>`);
     }
 
-    // Render table rows
+    // ── Quick Stats ───────────────────────────────────────────────────────────
+    setText('qs-positions', rows.length);
+    const withChg = rows.filter(r => r.chg24h !== null);
+    if (withChg.length) {
+      const avg = withChg.reduce((s,r) => s + r.chg24h, 0) / withChg.length;
+      const aUp = avg >= 0;
+      const aEl = document.getElementById('qs-avgday');
+      if (aEl) { aEl.textContent = (aUp?'+':'') + _fmtD(avg) + '%'; aEl.style.color = aUp?'var(--green)':'var(--red)'; }
+    }
+    if (worst) {
+      const wUp = worst.plPct >= 0;
+      const wEl = document.getElementById('qs-worst');
+      if (wEl) { wEl.textContent = worst.symbol; wEl.style.color = wUp?'var(--green)':'var(--red)'; }
+      const wpEl = document.getElementById('qs-worstpl');
+      if (wpEl) { wpEl.textContent = (wUp?'+':'') + _fmtD(worst.plPct) + '%'; wpEl.style.color = wUp?'var(--green)':'var(--red)'; }
+    }
+    const gainEl = document.getElementById('qs-gain');
+    if (gainEl) { gainEl.textContent = (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)); gainEl.style.color = up?'var(--green)':'var(--red)'; }
+
+    // ── Render table rows (PortfolioTracker style) ────────────────────────────
     listEl.innerHTML = rows.map(row => {
-      const up = row.pl >= 0;
-      const dayUp  = (row.chg24h ?? 0) >= 0;
-      const iconCls = _portIconCls(row);
+      const rUp       = row.pl >= 0;
+      const dayUp     = (row.chg24h ?? 0) >= 0;
+      const iconCls   = _portIconCls(row);
       const acctLabel = _acctLabels[row.accountType] || row.accountType;
-      const dayChgStr = row.chg24h !== null
-        ? `<div class="port-price-chg ${dayUp?'up':'down'}">${dayUp?'+':''}${_fmtD(row.chg24h)}%</div>`
-        : `<div class="port-price-chg" style="color:var(--muted)">—</div>`;
+      const dayBadge  = row.chg24h !== null
+        ? `<div class="port-price-chg ${dayUp?'up':'down'}">${dayUp?'▲':'▼'} ${Math.abs(row.chg24h).toFixed(2)}% today</div>`
+        : '';
+      const plSign = rUp ? '+' : '-';
       return `<div class="port-table-row new-cols">
-        <div class="port-icon ${iconCls}">${_portIconLabel(row)}</div>
-        <div>
-          <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
-          <div style="font-size:.7rem;color:var(--muted);margin-top:.1rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.name}</div>
-          <span class="port-acct-badge ${row.accountType}">${acctLabel}</span>
+        <div style="display:flex;align-items:center;gap:.7rem">
+          <div class="port-icon ${iconCls}">${row.symbol.slice(0,4)}</div>
+          <div>
+            <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
+            <div style="font-size:.68rem;color:var(--muted);margin-top:.07rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.name}</div>
+          </div>
         </div>
+        <span class="port-acct-badge ${row.accountType}" style="align-self:center">${acctLabel}</span>
         <span>${row.shares}</span>
         <span>$${_fmtD(row.buyPrice)}</span>
         <div>
           <div class="port-price-main">$${_fmtD(row.curPrice)}</div>
+          ${dayBadge}
         </div>
-        <span>${dayChgStr}</span>
-        <span>$${_fmtD(row.value)}</span>
-        <span class="${up?'up':'down'}" style="font-weight:600">
-          ${up?'+':'-'}$${_fmtD(Math.abs(row.pl))}<br>
-          <small style="font-size:.7rem;opacity:.8">${up?'+':'-'}${_fmtD(Math.abs(row.plPct))}%</small>
-        </span>
-        <div style="display:flex;flex-direction:column;gap:.3rem;align-items:center;justify-self:center">
-          <button class="port-edit-btn" onclick="window.openEditHolding(${row.id})" title="Edit">✎</button>
-          <button onclick="window.removeHolding(${row.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;line-height:1;padding:0" title="Remove">×</button>
+        <span style="font-weight:700">$${_fmtD(row.value)}</span>
+        <div>
+          <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">${plSign}$${_fmtD(Math.abs(row.pl))}</div>
+          <div style="font-size:.72rem;color:${rUp?'var(--green)':'var(--red)'}">+${_fmtD(Math.abs(row.plPct)).replace(/^-/,'')}%</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.32rem;align-items:center;justify-self:center">
+          <button class="port-act-btn edit" onclick="window.openEditHolding(${row.id})" title="Edit">✎</button>
+          <button class="port-act-btn del"  onclick="window.removeHolding(${row.id})"   title="Remove">🗑</button>
         </div>
       </div>`;
     }).join('');
@@ -989,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const color = colorMap[key] || '#64748b';
           const label = labelMap[key] || key;
           return `<div class="alloc-item">
-            <div class="alloc-row"><span class="alloc-name">${label}</span><span class="alloc-pct">${pct}%</span></div>
+            <div class="alloc-row"><span class="alloc-name">${label}</span><span class="alloc-val">${pct}% · $${_fmtD(val)}</span></div>
             <div class="alloc-bar-bg"><div class="alloc-bar-fill" style="width:${pct}%;background:${color}"></div></div>
           </div>`;
         }).join('')}
@@ -1004,6 +1029,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.loadPortfolioStock = function(sym) { loadStock(sym); if(window.switchTab) window.switchTab(null,'dashboard'); };
 
   window.refreshPortfolio = function() { renderPortfolio(); showToast('Portfolio refreshed'); };
+
+  window.toggleAddForm = function() {
+    const form = document.getElementById('port-add-form');
+    if (!form) return;
+    form.classList.toggle('open');
+    if (form.classList.contains('open')) document.getElementById('port-sym')?.focus();
+  };
 
   window.addHolding = function() {
     if (Auth.isGuest()) { showGuestModal(); return; }
@@ -1020,6 +1052,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ['port-sym','port-name','port-shares','port-price'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value = '';
     });
+    document.getElementById('port-add-form')?.classList.remove('open');
     renderPortfolio();
     showToast(`${sym} added to portfolio`);
   };

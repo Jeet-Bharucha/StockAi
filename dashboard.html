@@ -638,45 +638,81 @@ body.light .scr-select,.scr-input{background:#f8fafc}
   .filter-row{flex-direction:column;align-items:stretch}
   .scr-select,.scr-input{min-width:unset;width:100%}
 }
-/* ── Portfolio v2 ──────────────────────────────────────────────────────── */
-.port-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.63rem;flex-shrink:0;letter-spacing:-.01em;color:#fff;text-align:center;line-height:1.1}
+/* ── Portfolio v3 (PortfolioTracker style) ─────────────────────────────── */
+/* Big stat cards */
+.pt-stat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:1.4rem 1.5rem;position:relative;overflow:hidden;transition:.2s}
+.pt-stat-card:hover{border-color:rgba(255,255,255,.12)}
+.pt-stat-icon{position:absolute;top:1rem;right:1.1rem;font-size:1.6rem;opacity:.25;pointer-events:none}
+.pt-stat-label{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.55rem}
+.pt-stat-val{font-size:2rem;font-weight:900;letter-spacing:-.04em;line-height:1}
+.pt-stat-val.up{color:var(--green)}
+.pt-stat-val.down{color:var(--red)}
+.pt-stat-sub{font-size:.77rem;color:var(--muted);margin-top:.45rem}
+.pt-stat-badge{display:inline-flex;align-items:center;gap:.25rem;font-size:.78rem;font-weight:700;padding:.28rem .65rem;border-radius:20px;margin-top:.55rem}
+.pt-stat-badge.up{background:rgba(0,255,136,.12);color:var(--green)}
+.pt-stat-badge.down{background:rgba(255,68,102,.12);color:var(--red)}
+/* Icon chips */
+.port-icon{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.7rem;flex-shrink:0;letter-spacing:-.01em;color:#fff;text-align:center;line-height:1.15}
 .port-icon.stock {background:linear-gradient(135deg,#7c3aed,#9d4edd)}
 .port-icon.etf   {background:linear-gradient(135deg,#06b6d4,#0ea5e9)}
 .port-icon.crypto{background:linear-gradient(135deg,#f59e0b,#f97316)}
 .port-icon.roth  {background:linear-gradient(135deg,#10b981,#059669)}
 .port-icon.k401  {background:linear-gradient(135deg,#d97706,#b45309)}
 .port-icon.other {background:linear-gradient(135deg,#64748b,#475569)}
+/* Holdings table */
+.port-table-row.new-cols{grid-template-columns:2.1fr .65fr .65fr .72fr 1.15fr 1fr .95fr 58px}
+.port-table-head.new-cols{grid-template-columns:2.1fr .65fr .65fr .72fr 1.15fr 1fr .95fr 58px}
+/* Price cell */
+.port-price-main{font-weight:700;font-size:.9rem}
+.port-price-chg{display:inline-flex;align-items:center;gap:.22rem;font-size:.69rem;font-weight:700;padding:.18rem .45rem;border-radius:5px;margin-top:.28rem}
+.port-price-chg.up  {background:rgba(0,255,136,.1);color:var(--green)}
+.port-price-chg.down{background:rgba(255,68,102,.1);color:var(--red)}
+/* Action buttons */
+.port-act-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;font-size:.8rem;font-family:'Inter',sans-serif}
+.port-act-btn.edit:hover{color:var(--cyan);border-color:rgba(0,212,255,.4);background:rgba(0,212,255,.08)}
+.port-act-btn.del:hover {color:var(--red); border-color:rgba(255,68,102,.4);background:rgba(255,68,102,.08)}
+/* Allocation sidebar */
 .alloc-sidebar{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.1rem 1.2rem}
 .alloc-sidebar-title{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.9rem}
-.alloc-item{margin-bottom:.85rem}
+.alloc-item{margin-bottom:.8rem}
 .alloc-item:last-child{margin-bottom:0}
-.alloc-row{display:flex;align-items:center;justify-content:space-between;font-size:.78rem;margin-bottom:.28rem}
-.alloc-name{color:var(--text);font-weight:600}
-.alloc-pct{color:var(--muted);font-size:.72rem}
-.alloc-bar-bg{height:4px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
+.alloc-row{display:flex;align-items:center;justify-content:space-between;font-size:.77rem;margin-bottom:.3rem}
+.alloc-name{color:var(--text);font-weight:700}
+.alloc-val{color:var(--muted);font-size:.71rem}
+.alloc-bar-bg{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
 .alloc-bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
-.port-price-main{font-weight:600;font-size:.87rem}
-.port-price-chg{font-size:.7rem;margin-top:.1rem}
-.port-price-chg.up {color:var(--green)}
-.port-price-chg.down{color:var(--red)}
-.port-main-grid{display:grid;grid-template-columns:1fr 260px;gap:1.1rem;align-items:start}
-#port-stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:.7rem;margin-bottom:1rem}
-.port-table-row.new-cols{grid-template-columns:38px 1.9fr .7fr .65fr .7fr 1fr .85fr .9fr 48px}
-.port-table-head.new-cols{grid-template-columns:38px 1.9fr .7fr .65fr .7fr 1fr .85fr .9fr 48px}
-.port-acct-badge{display:inline-block;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:.1rem .4rem;border-radius:4px;margin-top:.18rem}
-.port-acct-badge.taxable{background:rgba(100,116,139,.18);color:#94a3b8}
-.port-acct-badge.roth_ira{background:rgba(16,185,129,.15);color:#34d399}
-.port-acct-badge.k401{background:rgba(217,119,6,.15);color:#fbbf24}
+/* Quick Stats panel */
+.quick-stats-panel{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.1rem 1.2rem;margin-top:1rem}
+.qs-title{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.9rem}
+.qs-row{display:flex;justify-content:space-between;align-items:center;padding:.42rem 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.8rem}
+.qs-row:last-child{border-bottom:none}
+.qs-label{color:var(--muted)}
+.qs-val{font-weight:700}
+/* Holdings header */
+.port-holdings-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem}
+.port-holdings-title{font-size:.88rem;font-weight:800;letter-spacing:.01em}
+.btn-add-holding{padding:.52rem 1.15rem;background:linear-gradient(135deg,#7c3aed,#9d4edd);border:none;border-radius:10px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s}
+.btn-add-holding:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,58,237,.4)}
+/* Add form toggle */
+#port-add-form{display:none;flex-wrap:wrap;gap:.55rem;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:.9rem 1.1rem;margin-bottom:.9rem}
+#port-add-form.open{display:flex}
+/* Account badge */
+.port-acct-badge{display:inline-block;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:.12rem .42rem;border-radius:4px;margin-top:.2rem}
+.port-acct-badge.taxable      {background:rgba(100,116,139,.18);color:#94a3b8}
+.port-acct-badge.roth_ira     {background:rgba(16,185,129,.15);color:#34d399}
+.port-acct-badge.k401         {background:rgba(217,119,6,.15);color:#fbbf24}
 .port-acct-badge.crypto_wallet{background:rgba(245,158,11,.15);color:#fcd34d}
-.port-acct-badge.other{background:rgba(100,116,139,.12);color:#94a3b8}
-.port-refresh-btn{padding:.42rem .85rem;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:var(--cyan);font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s;white-space:nowrap}
-.port-refresh-btn:hover{background:rgba(0,212,255,0.15)}
-.port-edit-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--muted);cursor:pointer;font-size:.72rem;padding:.25rem .5rem;transition:.15s;font-family:'Inter',sans-serif}
-.port-edit-btn:hover{color:var(--cyan);border-color:rgba(0,212,255,0.35)}
+.port-acct-badge.other        {background:rgba(100,116,139,.12);color:#94a3b8}
+/* Misc */
+.port-refresh-btn{padding:.42rem .85rem;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.2);border-radius:8px;color:var(--cyan);font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s;white-space:nowrap}
+.port-refresh-btn:hover{background:rgba(0,212,255,.15)}
 select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .6rem center}
+/* Layout */
+.port-main-grid{display:grid;grid-template-columns:1fr 270px;gap:1.2rem;align-items:start}
+#port-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.9rem;margin-bottom:1.1rem}
 @media(max-width:1200px){.port-main-grid{grid-template-columns:1fr}}
-@media(max-width:900px) {#port-stats-row{grid-template-columns:repeat(3,1fr)!important}}
-@media(max-width:560px) {#port-stats-row{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:900px) {#port-stats-row{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:560px) {#port-stats-row{grid-template-columns:1fr 1fr!important}}
 </style>
 </head>
 <body>
@@ -985,7 +1021,7 @@ select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;b
       <div class="view-header">
         <div>
           <div class="view-title">💼 My Portfolio</div>
-          <div class="view-subtitle">Real prices via Yahoo Finance &amp; CoinGecko — click any symbol to open its chart</div>
+          <div class="view-subtitle">Real-time prices · Stocks, ETFs, Crypto &amp; Retirement accounts</div>
         </div>
         <div style="display:flex;gap:.5rem;align-items:center">
           <button class="port-refresh-btn" onclick="refreshPortfolio()">⟳ Refresh</button>
@@ -993,101 +1029,116 @@ select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;b
         </div>
       </div>
 
-      <!-- 6-stat row -->
+      <!-- 4 big stat cards -->
       <div id="port-stats-row">
-        <div class="port-stat-card">
-          <div class="psc-label">Invested</div>
-          <div class="psc-val" id="port-invested">$0.00</div>
+        <div class="pt-stat-card">
+          <div class="pt-stat-icon">💰</div>
+          <div class="pt-stat-label">Total Invested</div>
+          <div class="pt-stat-val" id="port-invested">$0.00</div>
+          <div class="pt-stat-sub">Your cost basis</div>
         </div>
-        <div class="port-stat-card">
-          <div class="psc-label">Current Value</div>
-          <div class="psc-val" id="port-value">$0.00</div>
+        <div class="pt-stat-card">
+          <div class="pt-stat-icon">📊</div>
+          <div class="pt-stat-label">Current Value</div>
+          <div class="pt-stat-val" id="port-value">$0.00</div>
+          <div class="pt-stat-sub" id="port-count-sub">0 positions</div>
         </div>
-        <div class="port-stat-card">
-          <div class="psc-label">Total P&amp;L</div>
-          <div class="psc-val" id="port-pl">$0.00</div>
+        <div class="pt-stat-card">
+          <div class="pt-stat-icon">⚡</div>
+          <div class="pt-stat-label">Total Gain / Loss</div>
+          <div class="pt-stat-val" id="port-pl">$0.00</div>
+          <div id="port-pl-badge"></div>
         </div>
-        <div class="port-stat-card">
-          <div class="psc-label">Return</div>
-          <div class="psc-val" id="port-pct">0.00%</div>
-        </div>
-        <div class="port-stat-card">
-          <div class="psc-label">Best Performer</div>
-          <div class="psc-val" id="port-best" style="font-size:1.1rem">—</div>
-          <div class="psc-sub" id="port-best-sub"></div>
-        </div>
-        <div class="port-stat-card">
-          <div class="psc-label">Positions</div>
-          <div class="psc-val" id="port-count">0</div>
+        <div class="pt-stat-card">
+          <div class="pt-stat-icon">🏆</div>
+          <div class="pt-stat-label">Best Performer</div>
+          <div class="pt-stat-val" id="port-best" style="font-size:1.5rem;letter-spacing:-.02em">—</div>
+          <div class="pt-stat-sub" id="port-best-sub"></div>
         </div>
       </div>
 
-      <!-- Main grid: table + sidebar -->
+      <!-- Main grid: left=holdings, right=sidebar -->
       <div class="port-main-grid">
+
+        <!-- LEFT: holdings -->
         <div>
-          <!-- Add holding form -->
-          <div class="port-add-bar" style="margin-bottom:.9rem">
-            <input class="port-input" id="port-sym" placeholder="Symbol" style="width:82px">
-            <input class="port-input" id="port-name" placeholder="Name (opt.)" style="width:130px">
-            <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.001" step="any" style="width:90px">
-            <input class="port-input" id="port-price" placeholder="Buy Price $" type="number" min="0.01" step="any" style="width:115px">
-            <select class="port-input" id="port-type" style="width:100px">
+          <!-- Holdings header with + Add Holding button -->
+          <div class="port-holdings-hdr">
+            <span class="port-holdings-title">Holdings</span>
+            <button class="btn-add-holding" onclick="toggleAddForm()">+ Add Holding</button>
+          </div>
+
+          <!-- Collapsible add form -->
+          <div id="port-add-form">
+            <input class="port-input" id="port-sym" placeholder="Symbol" style="width:80px">
+            <input class="port-input" id="port-name" placeholder="Name (opt.)" style="width:120px">
+            <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.001" step="any" style="width:85px">
+            <input class="port-input" id="port-price" placeholder="Buy Price $" type="number" min="0.01" step="any" style="width:108px">
+            <select class="port-input" id="port-type" style="width:90px">
               <option value="stock">Stock</option>
               <option value="etf">ETF</option>
               <option value="crypto">Crypto</option>
             </select>
-            <select class="port-input" id="port-account" style="width:130px">
+            <select class="port-input" id="port-account" style="width:118px">
               <option value="taxable">Taxable</option>
               <option value="roth_ira">Roth IRA</option>
               <option value="k401">401(k)</option>
               <option value="crypto_wallet">Crypto Wallet</option>
               <option value="other">Other</option>
             </select>
-            <button class="btn-port-add" onclick="addHolding()">+ Add</button>
+            <button class="btn-port-add" onclick="addHolding()">Add</button>
           </div>
 
           <!-- Holdings table -->
           <div class="port-table-wrap">
             <div class="port-table-head new-cols">
-              <div></div>
-              <div>Symbol / Name</div>
+              <div>Asset</div>
+              <div>Account</div>
               <div>Shares</div>
               <div>Avg Cost</div>
-              <div>Price</div>
-              <div>Day Chg</div>
-              <div>Value</div>
-              <div>P&amp;L</div>
+              <div>Live Price</div>
+              <div>Total Value</div>
+              <div>Gain / Loss</div>
               <div></div>
             </div>
             <div id="port-list">
-              <div class="port-empty">No holdings yet — add your first position above.</div>
+              <div class="port-empty">No holdings yet — click "+ Add Holding" above.</div>
             </div>
           </div>
         </div>
 
-        <!-- Allocation sidebar -->
+        <!-- RIGHT: sidebar -->
         <div>
-          <div class="alloc-sidebar" id="port-alloc-sidebar">
+          <!-- Allocation -->
+          <div class="alloc-sidebar">
             <div class="alloc-sidebar-title">📊 Allocation</div>
-            <div id="port-alloc-list" style="color:var(--muted);font-size:.8rem">Add holdings to see breakdown</div>
+            <div id="port-alloc-list"><span style="color:var(--muted);font-size:.8rem">Add holdings to see breakdown</span></div>
           </div>
 
-          <!-- Keep analytics (donut) below allocation -->
+          <!-- Quick Stats -->
+          <div class="quick-stats-panel">
+            <div class="qs-title">⚡ Quick Stats</div>
+            <div class="qs-row"><span class="qs-label">Positions</span><span class="qs-val" id="qs-positions">0</span></div>
+            <div class="qs-row"><span class="qs-label">Avg day change</span><span class="qs-val" id="qs-avgday">—</span></div>
+            <div class="qs-row"><span class="qs-label">Worst performer</span><span class="qs-val" id="qs-worst">—</span></div>
+            <div class="qs-row"><span class="qs-label">Worst P&amp;L</span><span class="qs-val" id="qs-worstpl">—</span></div>
+            <div class="qs-row"><span class="qs-label">Unrealised gain</span><span class="qs-val" id="qs-gain">—</span></div>
+          </div>
+
+          <!-- Donut analytics -->
           <div class="port-analytics" id="port-analytics-wrap" style="margin-top:1rem">
             <div class="port-analytics-hdr">🍩 By Symbol</div>
             <div class="port-donut-wrap">
               <canvas id="port-donut" width="140" height="140"></canvas>
               <div id="port-legend" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.6rem"></div>
             </div>
-            <div>
-              <div class="port-mini-grid" id="port-mini-grid"></div>
-            </div>
+            <div><div class="port-mini-grid" id="port-mini-grid"></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Portfolio sparkline chart (full width below) -->
-      <div class="port-chart-wrap" style="margin-top:1rem">
+      <!-- Sparkline chart -->
+      <div class="port-chart-wrap" style="margin-top:1.2rem">
         <div class="port-chart-hdr">
           <span class="port-chart-title">📈 30-Day Portfolio Value</span>
         </div>
