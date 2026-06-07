@@ -1,44 +1,87 @@
-// ── Portfolio ─────────────────────────────────────────────────────────────
+// ── Portfolio — API-backed with in-memory cache ────────────────────────────
 const Portfolio = {
-  _key: 'stockai_portfolio',
+  _cache: null,    // in-memory cache populated by load()
+  _GUEST_KEY: 'stockai_portfolio_guest',
 
-  get() { return JSON.parse(localStorage.getItem(this._key) || '[]'); },
-  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+  _authHeader() {
+    const token = localStorage.getItem('stockai_jwt');
+    return { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
+  },
 
-  add(symbol, shares, buyPrice, accountType = 'taxable', assetType = 'stock', name = '') {
-    const list = this.get();
-    list.push({
-      id: Date.now(),
-      symbol: symbol.toUpperCase(),
-      shares: +shares,
-      buyPrice: +buyPrice,
-      accountType,
-      assetType,
-      name: name || symbol.toUpperCase(),
-      addedAt: Date.now()
+  _isGuest() {
+    return typeof Auth !== 'undefined' ? Auth.isGuest() : false;
+  },
+
+  // Sync read from cache (always call load() first in async contexts)
+  get() { return this._cache || []; },
+
+  // Fetch from API (or guest localStorage) and populate cache
+  async load() {
+    if (this._isGuest()) {
+      this._cache = JSON.parse(localStorage.getItem(this._GUEST_KEY) || '[]');
+      return this._cache;
+    }
+    try {
+      const r = await fetch('/api/user/portfolio', { headers: this._authHeader() });
+      if (r.ok) { this._cache = await r.json(); return this._cache; }
+    } catch(e) { console.warn('Portfolio.load failed:', e.message); }
+    // Fallback: return whatever is cached
+    if (!this._cache) this._cache = [];
+    return this._cache;
+  },
+
+  async add(symbol, shares, buyPrice, accountType = 'taxable', assetType = 'stock', name = '') {
+    if (this._isGuest()) {
+      const list = this.get();
+      list.push({ id: Date.now(), symbol: symbol.toUpperCase(), shares:+shares, buyPrice:+buyPrice, accountType, assetType, name: name||symbol.toUpperCase(), addedAt: Date.now() });
+      localStorage.setItem(this._GUEST_KEY, JSON.stringify(list));
+      this._cache = list;
+      return;
+    }
+    await fetch('/api/user/portfolio', {
+      method:  'POST',
+      headers: this._authHeader(),
+      body:    JSON.stringify({ symbol, shares:+shares, buyPrice:+buyPrice, accountType, assetType, name: name||symbol.toUpperCase() })
     });
-    this.save(list);
+    await this.load();
   },
 
-  update(id, data) {
-    const list = this.get().map(h => h.id === id ? { ...h, ...data } : h);
-    this.save(list);
+  async update(id, data) {
+    if (this._isGuest()) {
+      const list = this.get().map(h => String(h.id) === String(id) ? { ...h, ...data } : h);
+      localStorage.setItem(this._GUEST_KEY, JSON.stringify(list));
+      this._cache = list;
+      return;
+    }
+    await fetch(`/api/user/portfolio/${id}`, {
+      method:  'PUT',
+      headers: this._authHeader(),
+      body:    JSON.stringify(data)
+    });
+    await this.load();
   },
 
-  remove(id) {
-    this.save(this.get().filter(h => h.id !== id));
+  async remove(id) {
+    if (this._isGuest()) {
+      const list = this.get().filter(h => String(h.id) !== String(id));
+      localStorage.setItem(this._GUEST_KEY, JSON.stringify(list));
+      this._cache = list;
+      return;
+    }
+    await fetch(`/api/user/portfolio/${id}`, { method: 'DELETE', headers: this._authHeader() });
+    await this.load();
   },
 
   summary(quotes) {
     const holdings = this.get();
     let totalCost = 0, totalValue = 0;
     const rows = holdings.map(h => {
-      const q  = quotes[h.symbol] || {};
-      const px = q.price || h.buyPrice;
-      const cost  = h.shares * h.buyPrice;
-      const value = h.shares * px;
-      const pl    = value - cost;
-      const plPct = (pl / cost) * 100;
+      const q      = quotes[h.symbol] || {};
+      const px     = q.price || h.buyPrice;
+      const cost   = h.shares * h.buyPrice;
+      const value  = h.shares * px;
+      const pl     = value - cost;
+      const plPct  = (pl / cost) * 100;
       totalCost  += cost;
       totalValue += value;
       return { ...h, currentPrice: px, value, pl, plPct };

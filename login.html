@@ -296,7 +296,7 @@ document.getElementById('login-form').addEventListener('submit',async function(e
   const btn=document.getElementById('submit-btn'),errEl=document.getElementById('error-msg');
   btn.classList.add('loading'); errEl.classList.remove('show');
   await new Promise(r=>setTimeout(r,600));
-  const result=Auth.login(
+  const result = await Auth.login(
     document.getElementById('email').value.trim(),
     document.getElementById('password').value,
     document.getElementById('remember').checked
@@ -314,7 +314,7 @@ document.getElementById('pwd-toggle').addEventListener('click',function(){
 
 function guestLogin(){ Auth.loginAsGuest(); window.location.href='dashboard.html'; }
 function showInfo(){
-  alert('StockAI uses localStorage for accounts — no server required.\n\nCreate a free account to save your watchlist, portfolio, and price alerts.\n\nFor live market data, start the local server with: npm start');
+  alert('StockAI accounts are saved to MongoDB — your data syncs across every device and browser.\n\nFor live market data, make sure the server is running: npm start');
 }
 </script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>

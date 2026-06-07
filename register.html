@@ -334,7 +334,7 @@ document.getElementById('reg-form').addEventListener('submit',async function(e){
   const btn=document.getElementById('submit-btn');
   btn.classList.add('loading');
   await new Promise(r=>setTimeout(r,800));
-  const result=Auth.register(`${fname} ${lname}`,email,pwd);
+  const result = await Auth.register(`${fname} ${lname}`,email,pwd);
   btn.classList.remove('loading');
   if(result.success) window.location.href='dashboard.html';
   else{errEl.textContent=result.error;errEl.classList.add('show');}

@@ -2,6 +2,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
   if (!Auth.requireAuth()) return;
 
+  // Load watchlist and portfolio from API before anything renders
+  await Auth.loadWatchlist();
+
   const session = Auth.getSession();
   document.querySelectorAll('.user-name').forEach(el => el.textContent = session.name);
   document.querySelectorAll('.user-email').forEach(el => el.textContent = session.email);
@@ -422,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).join('');
   }
 
-  window.removeFromWL = function(sym) { Auth.removeFromWatchlist(sym); updateWatchlistUI(); renderWatchlistTab(); renderWatchlistMini(); };
+  window.removeFromWL = async function(sym) { await Auth.removeFromWatchlist(sym); updateWatchlistUI(); renderWatchlistTab(); renderWatchlistMini(); };
 
   // ── Watchlist tab ─────────────────────────────────────────────────────────
   async function renderWatchlistTab() {
@@ -453,12 +456,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
   }
 
-  window.addToWLFromInput = function() {
+  window.addToWLFromInput = async function() {
     if (Auth.isGuest()) { showGuestModal(); return; }
     const input = document.getElementById('wl-add-input');
     const sym = (input?.value||'').toUpperCase().trim();
     if (!sym) { showToast('Enter a stock symbol'); return; }
-    Auth.addToWatchlist(sym); if (input) input.value='';
+    await Auth.addToWatchlist(sym); if (input) input.value='';
     updateWatchlistUI(); renderWatchlistTab(); renderWatchlistMini();
     showToast(`${sym} added to watchlist`);
   };
@@ -885,6 +888,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function renderPortfolio() {
     initPortfolioHero();
+    await Portfolio.load();               // fetch from API (or guest localStorage)
     const holdings = Portfolio.get();
     const listEl   = document.getElementById('port-list');
     if (!listEl) return;
@@ -1153,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (form.classList.contains('open')) document.getElementById('port-sym')?.focus();
   };
 
-  window.addHolding = function() {
+  window.addHolding = async function() {
     if (Auth.isGuest()) { showGuestModal(); return; }
     const sym     = (document.getElementById('port-sym')?.value || '').toUpperCase().trim();
     const name    = (document.getElementById('port-name')?.value || '').trim();
@@ -1178,19 +1182,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       const hint = similar.length ? `\n\nDid you mean: ${similar.join(', ')}?` : '\n\nDouble-check the ticker symbol.';
       if (!confirm(`⚠️ "${sym}" not found in known tickers.${hint}\n\nAdd it anyway?`)) return;
     }
-    Portfolio.add(sym, sh, price, account, type, name);
+    await Portfolio.add(sym, sh, price, account, type, name);
     ['port-sym','port-name','port-shares','port-price'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value = '';
     });
     document.getElementById('port-add-form')?.classList.remove('open');
-    renderPortfolio();
+    await renderPortfolio();
     showToast(`${sym} added to portfolio`);
   };
 
-  window.removeHolding = function(id) {
+  window.removeHolding = async function(id) {
     if (!confirm('Remove this holding?')) return;
-    Portfolio.remove(id);
-    renderPortfolio();
+    await Portfolio.remove(id);
+    await renderPortfolio();
     showToast('Holding removed');
   };
 
@@ -1207,8 +1211,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('edit-hold-modal').classList.remove('hidden');
   };
 
-  window.saveEditHolding = function() {
-    const id      = +document.getElementById('edit-hold-id').value;
+  window.saveEditHolding = async function() {
+    const id      = document.getElementById('edit-hold-id').value; // keep as string (MongoDB ObjectId)
     const name    = document.getElementById('edit-hold-name').value.trim();
     const shares  = parseFloat(document.getElementById('edit-hold-shares').value);
     const price   = parseFloat(document.getElementById('edit-hold-price').value);
@@ -1217,9 +1221,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isNaN(shares) || shares <= 0 || isNaN(price) || price <= 0) {
       showToast('Invalid shares or price'); return;
     }
-    Portfolio.update(id, { shares, buyPrice: price, assetType: type, accountType: account, name: name || undefined });
+    await Portfolio.update(id, { shares, buyPrice: price, assetType: type, accountType: account, name: name || undefined });
     document.getElementById('edit-hold-modal').classList.add('hidden');
-    renderPortfolio();
+    await renderPortfolio();
     showToast('Holding updated');
   };
 
@@ -1538,9 +1542,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   searchInput.addEventListener('keydown',e=>{ if (e.key==='Enter'){ const q=searchInput.value.toUpperCase().trim(); if(q){searchDrop.classList.add('hidden');loadStock(q);} } });
 
   // ── Watchlist add (dashboard tab) ─────────────────────────────────────────
-  document.getElementById('btn-add-watch').addEventListener('click',()=>{
+  document.getElementById('btn-add-watch').addEventListener('click', async ()=>{
     if (Auth.isGuest()) { showGuestModal(); return; }
-    Auth.addToWatchlist(currentSymbol); updateWatchlistUI(); showToast(`${currentSymbol} added to watchlist`);
+    await Auth.addToWatchlist(currentSymbol); updateWatchlistUI(); showToast(`${currentSymbol} added to watchlist`);
   });
 
   // ── Logout / Sidebar ─────────────────────────────────────────────────────
