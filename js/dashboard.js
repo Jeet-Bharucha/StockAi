@@ -2,8 +2,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
   if (!Auth.requireAuth()) return;
 
-  // Load watchlist and portfolio from API before anything renders
-  await Auth.loadWatchlist();
+  // Load watchlist in background — never block dashboard init.
+  // If Render is sleeping the cold-start can take 30+ sec; awaiting it here
+  // would freeze ALL tab event listeners until the server wakes up.
+  Auth.loadWatchlist()
+    .then(() => { updateWatchlistUI(); renderWatchlistMini(); })
+    .catch(() => {});
 
   const session = Auth.getSession();
   document.querySelectorAll('.user-name').forEach(el => el.textContent = session.name);
