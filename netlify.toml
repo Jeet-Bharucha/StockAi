@@ -1,17 +1,17 @@
 [build]
   publish = "."
-  functions = "netlify/functions"
 
-# Route /api/* calls to Netlify Functions
+# Proxy ALL /api/* calls to the Render backend
+# This means Netlify serves the pages, Render handles all API logic
 [[redirects]]
-  from = "/api/portfolio-prices"
-  to   = "/.netlify/functions/portfolio-prices"
+  from   = "/api/*"
+  to     = "https://stockai-w3vm.onrender.com/api/:splat"
   status = 200
+  force  = true
 
-# Finnhub REST proxies — these require a real server.
-# On Netlify they fall back to simulated data (built into stockApi.js already).
-# If you want live Finnhub data on Netlify too, add more functions for each.
+# Proxy WebSocket upgrades to Render too
 [[redirects]]
-  from = "/api/*"
-  to   = "/.netlify/functions/:splat"
+  from   = "/ws"
+  to     = "https://stockai-w3vm.onrender.com/ws"
   status = 200
+  force  = true
