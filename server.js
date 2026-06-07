@@ -169,7 +169,7 @@ app.get('/api/status',  (req, res) => res.json({
   symbols: [...symbolClients.keys()]
 }));
 
-// ── Portfolio Prices (Yahoo Finance + CoinGecko) ──────────────────────────
+// ── Portfolio Prices (Finnhub + CoinGecko) ────────────────────────────────
 const CRYPTO_MAP_P = {
   BTC:'bitcoin', ETH:'ethereum', SOL:'solana', ADA:'cardano',
   XRP:'ripple', DOGE:'dogecoin', DOT:'polkadot', AVAX:'avalanche-2',
@@ -177,6 +177,26 @@ const CRYPTO_MAP_P = {
   BNB:'binancecoin', SHIB:'shiba-inu', UNI:'uniswap', ATOM:'cosmos',
 };
 
+// Finnhub quote — most reliable, uses the key already in .env
+async function fetchFinnhubPortfolioPrice(symbol) {
+  if (!FINNHUB_KEY) return { price: null, change24h: null };
+  try {
+    const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const data = await r.json();
+    // data.c = current price, data.pc = previous close, data.d = change, data.dp = % change
+    if (!data || !data.c || data.c === 0) return { price: null, change24h: null };
+    return {
+      price:     data.c,
+      change24h: data.dp ?? null,   // Finnhub gives % change directly
+      name:      symbol,
+    };
+  } catch {
+    return { price: null, change24h: null };
+  }
+}
+
+// Yahoo Finance fallback (works locally, may be blocked on cloud hosts)
 async function fetchYahooPortfolioPrice(symbol) {
   try {
     const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
@@ -186,14 +206,23 @@ async function fetchYahooPortfolioPrice(symbol) {
     });
     const data = await r.json();
     const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta) return { price: null, change24h: null };
-    const price     = meta.regularMarketPrice ?? null;
+    if (!meta || !meta.regularMarketPrice) return { price: null, change24h: null };
+    const price     = meta.regularMarketPrice;
     const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? null;
-    const change24h = price && prevClose ? ((price - prevClose) / prevClose) * 100 : null;
+    const change24h = prevClose ? ((price - prevClose) / prevClose) * 100 : null;
     return { price, change24h, name: meta.longName || meta.shortName || symbol };
   } catch {
     return { price: null, change24h: null };
   }
+}
+
+async function fetchStockPortfolioPrice(symbol) {
+  // Try Finnhub first (works everywhere — local + Netlify + any host)
+  const result = await fetchFinnhubPortfolioPrice(symbol);
+  if (result.price) return result;
+  // Fallback to Yahoo Finance
+  console.warn(`Finnhub returned no price for ${symbol}, trying Yahoo Finance...`);
+  return fetchYahooPortfolioPrice(symbol);
 }
 
 app.get('/api/portfolio-prices', async (req, res) => {
@@ -204,6 +233,7 @@ app.get('/api/portfolio-prices', async (req, res) => {
   const stockSyms  = list.filter(s => !CRYPTO_MAP_P[s]);
   const prices = {};
 
+  // Crypto → CoinGecko
   if (cryptoSyms.length) {
     try {
       const ids = cryptoSyms.map(s => CRYPTO_MAP_P[s]).join(',');
@@ -219,8 +249,9 @@ app.get('/api/portfolio-prices', async (req, res) => {
     } catch (e) { console.error('CoinGecko error:', e.message); }
   }
 
+  // Stocks/ETFs → Finnhub (with Yahoo fallback)
   if (stockSyms.length) {
-    const results = await Promise.all(stockSyms.map(s => fetchYahooPortfolioPrice(s)));
+    const results = await Promise.all(stockSyms.map(s => fetchStockPortfolioPrice(s)));
     stockSyms.forEach((sym, i) => { prices[sym] = results[i]; });
   }
 
