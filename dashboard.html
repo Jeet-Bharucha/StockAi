@@ -638,6 +638,45 @@ body.light .scr-select,.scr-input{background:#f8fafc}
   .filter-row{flex-direction:column;align-items:stretch}
   .scr-select,.scr-input{min-width:unset;width:100%}
 }
+/* ── Portfolio v2 ──────────────────────────────────────────────────────── */
+.port-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.63rem;flex-shrink:0;letter-spacing:-.01em;color:#fff;text-align:center;line-height:1.1}
+.port-icon.stock {background:linear-gradient(135deg,#7c3aed,#9d4edd)}
+.port-icon.etf   {background:linear-gradient(135deg,#06b6d4,#0ea5e9)}
+.port-icon.crypto{background:linear-gradient(135deg,#f59e0b,#f97316)}
+.port-icon.roth  {background:linear-gradient(135deg,#10b981,#059669)}
+.port-icon.k401  {background:linear-gradient(135deg,#d97706,#b45309)}
+.port-icon.other {background:linear-gradient(135deg,#64748b,#475569)}
+.alloc-sidebar{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.1rem 1.2rem}
+.alloc-sidebar-title{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.9rem}
+.alloc-item{margin-bottom:.85rem}
+.alloc-item:last-child{margin-bottom:0}
+.alloc-row{display:flex;align-items:center;justify-content:space-between;font-size:.78rem;margin-bottom:.28rem}
+.alloc-name{color:var(--text);font-weight:600}
+.alloc-pct{color:var(--muted);font-size:.72rem}
+.alloc-bar-bg{height:4px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
+.alloc-bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.port-price-main{font-weight:600;font-size:.87rem}
+.port-price-chg{font-size:.7rem;margin-top:.1rem}
+.port-price-chg.up {color:var(--green)}
+.port-price-chg.down{color:var(--red)}
+.port-main-grid{display:grid;grid-template-columns:1fr 260px;gap:1.1rem;align-items:start}
+#port-stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:.7rem;margin-bottom:1rem}
+.port-table-row.new-cols{grid-template-columns:38px 1.9fr .7fr .65fr .7fr 1fr .85fr .9fr 48px}
+.port-table-head.new-cols{grid-template-columns:38px 1.9fr .7fr .65fr .7fr 1fr .85fr .9fr 48px}
+.port-acct-badge{display:inline-block;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:.1rem .4rem;border-radius:4px;margin-top:.18rem}
+.port-acct-badge.taxable{background:rgba(100,116,139,.18);color:#94a3b8}
+.port-acct-badge.roth_ira{background:rgba(16,185,129,.15);color:#34d399}
+.port-acct-badge.k401{background:rgba(217,119,6,.15);color:#fbbf24}
+.port-acct-badge.crypto_wallet{background:rgba(245,158,11,.15);color:#fcd34d}
+.port-acct-badge.other{background:rgba(100,116,139,.12);color:#94a3b8}
+.port-refresh-btn{padding:.42rem .85rem;background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.2);border-radius:8px;color:var(--cyan);font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s;white-space:nowrap}
+.port-refresh-btn:hover{background:rgba(0,212,255,0.15)}
+.port-edit-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--muted);cursor:pointer;font-size:.72rem;padding:.25rem .5rem;transition:.15s;font-family:'Inter',sans-serif}
+.port-edit-btn:hover{color:var(--cyan);border-color:rgba(0,212,255,0.35)}
+select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .6rem center}
+@media(max-width:1200px){.port-main-grid{grid-template-columns:1fr}}
+@media(max-width:900px) {#port-stats-row{grid-template-columns:repeat(3,1fr)!important}}
+@media(max-width:560px) {#port-stats-row{grid-template-columns:repeat(2,1fr)!important}}
 </style>
 </head>
 <body>
@@ -946,74 +985,113 @@ body.light .scr-select,.scr-input{background:#f8fafc}
       <div class="view-header">
         <div>
           <div class="view-title">💼 My Portfolio</div>
-          <div class="view-subtitle">Click a symbol to open its chart — prices update live</div>
+          <div class="view-subtitle">Real prices via Yahoo Finance &amp; CoinGecko — click any symbol to open its chart</div>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="port-refresh-btn" onclick="refreshPortfolio()">⟳ Refresh</button>
+          <button class="btn-export" onclick="exportPortfolioCSV()">⬇ CSV</button>
         </div>
       </div>
 
-      <!-- Stats row -->
-      <div class="port-stats-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;align-items:end">
+      <!-- 6-stat row -->
+      <div id="port-stats-row">
         <div class="port-stat-card">
-          <div class="psc-label">Total Value</div>
+          <div class="psc-label">Invested</div>
+          <div class="psc-val" id="port-invested">$0.00</div>
+        </div>
+        <div class="port-stat-card">
+          <div class="psc-label">Current Value</div>
           <div class="psc-val" id="port-value">$0.00</div>
         </div>
         <div class="port-stat-card">
-          <div class="psc-label">Total Cost</div>
-          <div class="psc-val" id="port-cost">$0.00</div>
-        </div>
-        <div class="port-stat-card">
-          <div class="psc-label">Total P&L</div>
+          <div class="psc-label">Total P&amp;L</div>
           <div class="psc-val" id="port-pl">$0.00</div>
         </div>
         <div class="port-stat-card">
           <div class="psc-label">Return</div>
           <div class="psc-val" id="port-pct">0.00%</div>
         </div>
+        <div class="port-stat-card">
+          <div class="psc-label">Best Performer</div>
+          <div class="psc-val" id="port-best" style="font-size:1.1rem">—</div>
+          <div class="psc-sub" id="port-best-sub"></div>
+        </div>
+        <div class="port-stat-card">
+          <div class="psc-label">Positions</div>
+          <div class="psc-val" id="port-count">0</div>
+        </div>
       </div>
 
-      <!-- Portfolio chart -->
-      <div class="port-chart-wrap">
+      <!-- Main grid: table + sidebar -->
+      <div class="port-main-grid">
+        <div>
+          <!-- Add holding form -->
+          <div class="port-add-bar" style="margin-bottom:.9rem">
+            <input class="port-input" id="port-sym" placeholder="Symbol" style="width:82px">
+            <input class="port-input" id="port-name" placeholder="Name (opt.)" style="width:130px">
+            <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.001" step="any" style="width:90px">
+            <input class="port-input" id="port-price" placeholder="Buy Price $" type="number" min="0.01" step="any" style="width:115px">
+            <select class="port-input" id="port-type" style="width:100px">
+              <option value="stock">Stock</option>
+              <option value="etf">ETF</option>
+              <option value="crypto">Crypto</option>
+            </select>
+            <select class="port-input" id="port-account" style="width:130px">
+              <option value="taxable">Taxable</option>
+              <option value="roth_ira">Roth IRA</option>
+              <option value="k401">401(k)</option>
+              <option value="crypto_wallet">Crypto Wallet</option>
+              <option value="other">Other</option>
+            </select>
+            <button class="btn-port-add" onclick="addHolding()">+ Add</button>
+          </div>
+
+          <!-- Holdings table -->
+          <div class="port-table-wrap">
+            <div class="port-table-head new-cols">
+              <div></div>
+              <div>Symbol / Name</div>
+              <div>Shares</div>
+              <div>Avg Cost</div>
+              <div>Price</div>
+              <div>Day Chg</div>
+              <div>Value</div>
+              <div>P&amp;L</div>
+              <div></div>
+            </div>
+            <div id="port-list">
+              <div class="port-empty">No holdings yet — add your first position above.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Allocation sidebar -->
+        <div>
+          <div class="alloc-sidebar" id="port-alloc-sidebar">
+            <div class="alloc-sidebar-title">📊 Allocation</div>
+            <div id="port-alloc-list" style="color:var(--muted);font-size:.8rem">Add holdings to see breakdown</div>
+          </div>
+
+          <!-- Keep analytics (donut) below allocation -->
+          <div class="port-analytics" id="port-analytics-wrap" style="margin-top:1rem">
+            <div class="port-analytics-hdr">🍩 By Symbol</div>
+            <div class="port-donut-wrap">
+              <canvas id="port-donut" width="140" height="140"></canvas>
+              <div id="port-legend" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.6rem"></div>
+            </div>
+            <div>
+              <div class="port-mini-grid" id="port-mini-grid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Portfolio sparkline chart (full width below) -->
+      <div class="port-chart-wrap" style="margin-top:1rem">
         <div class="port-chart-hdr">
           <span class="port-chart-title">📈 30-Day Portfolio Value</span>
-          <button class="btn-export" onclick="exportPortfolioCSV()">⬇ Export CSV</button>
         </div>
         <canvas id="port-sparkline"></canvas>
-      </div>
-
-      <!-- Portfolio Analytics -->
-      <div class="port-analytics" id="port-analytics-wrap">
-        <div class="port-analytics-hdr">📊 Portfolio Analytics</div>
-        <div class="port-donut-wrap">
-          <canvas id="port-donut" width="160" height="160"></canvas>
-          <div id="port-legend" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.6rem"></div>
-        </div>
-        <div>
-          <div class="port-mini-grid" id="port-mini-grid"></div>
-        </div>
-      </div>
-
-      <!-- Add holding form -->
-      <div class="port-add-bar">
-        <input class="port-input" id="port-sym" placeholder="Symbol" style="width:90px">
-        <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.001" step="any" style="width:100px">
-        <input class="port-input" id="port-price" placeholder="Buy Price $" type="number" min="0.01" step="any" style="width:130px">
-        <button class="btn-port-add" onclick="addHolding()">+ Add Holding</button>
-        <span style="font-size:.75rem;color:var(--muted);margin-left:auto">Add a stock you own to track its live P&amp;L</span>
-      </div>
-
-      <!-- Holdings table -->
-      <div class="port-table-wrap">
-        <div class="port-table-head">
-          <div>Symbol</div>
-          <div>Shares</div>
-          <div>Buy Price</div>
-          <div>Current</div>
-          <div>Value</div>
-          <div>P&L</div>
-          <div></div>
-        </div>
-        <div id="port-list">
-          <div class="port-empty">No holdings yet — add your first position above.</div>
-        </div>
       </div>
     </div>
 
@@ -1245,6 +1323,54 @@ body.light .scr-select,.scr-input{background:#f8fafc}
   </div>
 </div>
 
+<!-- EDIT HOLDING MODAL -->
+<div class="modal-overlay hidden" id="edit-hold-modal">
+  <div class="modal" style="max-width:440px">
+    <button class="close-modal" onclick="document.getElementById('edit-hold-modal').classList.add('hidden')">✕</button>
+    <h3 style="margin-bottom:1.1rem">✏️ Edit Holding</h3>
+    <input type="hidden" id="edit-hold-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Symbol</label>
+        <input class="port-input" id="edit-hold-sym" disabled style="width:100%;opacity:.55">
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Name</label>
+        <input class="port-input" id="edit-hold-name" placeholder="Company name" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Shares</label>
+        <input class="port-input" id="edit-hold-shares" type="number" min="0.001" step="any" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Avg Buy Price</label>
+        <input class="port-input" id="edit-hold-price" type="number" min="0.01" step="any" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Asset Type</label>
+        <select class="port-input" id="edit-hold-type" style="width:100%">
+          <option value="stock">Stock</option>
+          <option value="etf">ETF</option>
+          <option value="crypto">Crypto</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Account</label>
+        <select class="port-input" id="edit-hold-account" style="width:100%">
+          <option value="taxable">Taxable</option>
+          <option value="roth_ira">Roth IRA</option>
+          <option value="k401">401(k)</option>
+          <option value="crypto_wallet">Crypto Wallet</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:1.2rem">
+      <button class="btn-modal-save" onclick="saveEditHolding()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- GUEST MODAL -->
 <div class="modal-overlay hidden" id="guest-modal">
   <div class="modal" style="text-align:center;max-width:400px">
@@ -1304,7 +1430,7 @@ function switchTab(e, name) {
 }
 
 // ── Modal close on overlay ────────────────────────────────────────────────
-['api-modal','guest-modal'].forEach(id => {
+['api-modal','guest-modal','edit-hold-modal'].forEach(id => {
   document.getElementById(id).addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
   });
@@ -1354,6 +1480,7 @@ document.addEventListener('keydown', function(e) {
     document.getElementById('shortcuts-modal')?.classList.add('hidden');
     document.getElementById('api-modal')?.classList.add('hidden');
     document.getElementById('guest-modal')?.classList.add('hidden');
+    document.getElementById('edit-hold-modal')?.classList.add('hidden');
     document.getElementById('search-dropdown')?.classList.add('hidden');
     if (StockChat._open) StockChat.toggle();
     window.endTour?.();

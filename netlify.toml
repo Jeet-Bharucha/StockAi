@@ -1,0 +1,17 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Route /api/* calls to Netlify Functions
+[[redirects]]
+  from = "/api/portfolio-prices"
+  to   = "/.netlify/functions/portfolio-prices"
+  status = 200
+
+# Finnhub REST proxies — these require a real server.
+# On Netlify they fall back to simulated data (built into stockApi.js already).
+# If you want live Finnhub data on Netlify too, add more functions for each.
+[[redirects]]
+  from = "/api/*"
+  to   = "/.netlify/functions/:splat"
+  status = 200

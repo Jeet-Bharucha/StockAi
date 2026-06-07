@@ -828,82 +828,265 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx.fillText(fmt(values[days-1]),W-4,H-4);
   }
 
-  // ── Portfolio ─────────────────────────────────────────────────────────────
+  // ── Portfolio v2 — real prices via Yahoo Finance + CoinGecko ─────────────
+  const _fmtD = v => Number(v).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+
+  function _portIconCls(h) {
+    if ((h.assetType || 'stock') === 'crypto') return 'crypto';
+    if ((h.assetType || 'stock') === 'etf')    return 'etf';
+    const acct = h.accountType || 'taxable';
+    if (acct === 'roth_ira') return 'roth';
+    if (acct === 'k401')     return 'k401';
+    return 'stock';
+  }
+
+  function _portIconLabel(h) {
+    return (h.assetType || 'stock').toUpperCase().slice(0, 4);
+  }
+
+  const _acctLabels = {
+    taxable:'Taxable', roth_ira:'Roth IRA', k401:'401(k)',
+    crypto_wallet:'Crypto', other:'Other'
+  };
+
   async function renderPortfolio() {
-    const quotes={}, holdings=Portfolio.get();
-    await Promise.all(holdings.map(async h=>{ const q=await StockAPI.getQuote(h.symbol); quotes[h.symbol]=q; }));
-    const s = Portfolio.summary(quotes);
-    const listEl = document.getElementById('port-list'); if (!listEl) return;
+    const holdings = Portfolio.get();
+    const listEl   = document.getElementById('port-list');
+    if (!listEl) return;
 
-    if (!s.rows.length) {
-      listEl.innerHTML='<div class="port-empty">No holdings yet — add your first position above.</div>';
-    } else {
-      listEl.innerHTML = s.rows.map(row=>{
-        const up=row.pl>=0;
-        return `<div class="port-table-row">
+    if (!holdings.length) {
+      listEl.innerHTML = '<div class="port-empty">No holdings yet — add your first position above.</div>';
+      ['port-invested','port-value','port-pl','port-pct','port-best','port-count'].forEach(id=>{
+        const el=document.getElementById(id); if(el){ el.textContent=id==='port-count'?'0':'—'; el.className='psc-val'; }
+      });
+      document.getElementById('port-alloc-list').innerHTML='<span style="color:var(--muted);font-size:.8rem">Add holdings to see breakdown</span>';
+      renderPortfolioChart();
+      renderPortfolioAnalytics();
+      return;
+    }
+
+    // Fetch live prices
+    listEl.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:1.5rem;text-align:center">⟳ Fetching live prices…</div>`;
+    const uniqueSyms = [...new Set(holdings.map(h=>h.symbol))];
+    let priceData = {};
+    try {
+      const r = await fetch(`/api/portfolio-prices?symbols=${uniqueSyms.join(',')}`);
+      if (r.ok) priceData = await r.json();
+    } catch(e) { console.warn('portfolio-prices fetch failed:', e.message); }
+
+    // Build rows with computed values
+    let totalCost=0, totalValue=0;
+    const rows = holdings.map(h => {
+      const pd       = priceData[h.symbol] || {};
+      const curPrice = pd.price ?? h.buyPrice;
+      const chg24h   = pd.change24h ?? null;
+      const cost     = h.shares * h.buyPrice;
+      const value    = h.shares * curPrice;
+      const pl       = value - cost;
+      const plPct    = cost ? (pl / cost) * 100 : 0;
+      totalCost  += cost;
+      totalValue += value;
+      return { ...h, curPrice, chg24h, cost, value, pl, plPct,
+               name: pd.name || h.name || h.symbol,
+               assetType: h.assetType || 'stock',
+               accountType: h.accountType || 'taxable' };
+    });
+
+    // Stats
+    const totalPL    = totalValue - totalCost;
+    const totalPLPct = totalCost ? (totalPL / totalCost) * 100 : 0;
+    const best       = rows.length ? rows.reduce((a,b) => b.plPct > a.plPct ? b : a) : null;
+    const up         = totalPL >= 0;
+
+    const vc = (id, val, cls) => {
+      const el = document.getElementById(id); if (!el) return;
+      el.textContent = val;
+      if (cls !== undefined) el.className = 'psc-val ' + (cls ? 'up' : 'down');
+    };
+    vc('port-invested', '$' + _fmtD(totalCost));
+    vc('port-value',    '$' + _fmtD(totalValue));
+    vc('port-pl',       (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)), up);
+    vc('port-pct',      (up?'+':'-') + _fmtD(Math.abs(totalPLPct)) + '%', up);
+    vc('port-count',    rows.length);
+    if (best) {
+      const bUp = best.plPct >= 0;
+      vc('port-best', best.symbol);
+      const bSub = document.getElementById('port-best-sub');
+      if (bSub) { bSub.textContent = (bUp?'+':'-') + _fmtD(Math.abs(best.plPct)) + '%'; bSub.className='psc-sub '+(bUp?'up':'down'); }
+    }
+
+    // Render table rows
+    listEl.innerHTML = rows.map(row => {
+      const up = row.pl >= 0;
+      const dayUp  = (row.chg24h ?? 0) >= 0;
+      const iconCls = _portIconCls(row);
+      const acctLabel = _acctLabels[row.accountType] || row.accountType;
+      const dayChgStr = row.chg24h !== null
+        ? `<div class="port-price-chg ${dayUp?'up':'down'}">${dayUp?'+':''}${_fmtD(row.chg24h)}%</div>`
+        : `<div class="port-price-chg" style="color:var(--muted)">—</div>`;
+      return `<div class="port-table-row new-cols">
+        <div class="port-icon ${iconCls}">${_portIconLabel(row)}</div>
+        <div>
           <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
-          <span>${row.shares}</span>
-          <span>$${row.buyPrice.toFixed(2)}</span>
-          <span>$${(row.currentPrice||0).toFixed(2)}</span>
-          <span>$${(row.value||0).toFixed(2)}</span>
-          <span class="psc-val ${up?'up':'down'}">${up?'+':''}${row.plPct.toFixed(1)}%<br><small style="font-size:.67rem;opacity:.7">${up?'+':'−'}$${Math.abs(row.pl).toFixed(2)}</small></span>
-          <button onclick="window.removeHolding(${row.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;line-height:1;padding:0 .2rem;justify-self:center">×</button>
-        </div>`;
-      }).join('');
-    }
+          <div style="font-size:.7rem;color:var(--muted);margin-top:.1rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.name}</div>
+          <span class="port-acct-badge ${row.accountType}">${acctLabel}</span>
+        </div>
+        <span>${row.shares}</span>
+        <span>$${_fmtD(row.buyPrice)}</span>
+        <div>
+          <div class="port-price-main">$${_fmtD(row.curPrice)}</div>
+        </div>
+        <span>${dayChgStr}</span>
+        <span>$${_fmtD(row.value)}</span>
+        <span class="${up?'up':'down'}" style="font-weight:600">
+          ${up?'+':'-'}$${_fmtD(Math.abs(row.pl))}<br>
+          <small style="font-size:.7rem;opacity:.8">${up?'+':'-'}${_fmtD(Math.abs(row.plPct))}%</small>
+        </span>
+        <div style="display:flex;flex-direction:column;gap:.3rem;align-items:center;justify-self:center">
+          <button class="port-edit-btn" onclick="window.openEditHolding(${row.id})" title="Edit">✎</button>
+          <button onclick="window.removeHolding(${row.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;line-height:1;padding:0" title="Remove">×</button>
+        </div>
+      </div>`;
+    }).join('');
 
-    const up=s.totalPL>=0;
-    // Animate counters instead of instantly setting values
-    if (typeof animateValue === 'function') {
-      animateValue(document.getElementById('port-value'), s.totalValue, {prefix:'$', decimals:2, duration:900});
-      animateValue(document.getElementById('port-cost'),  s.totalCost,  {prefix:'$', decimals:2, duration:900});
-      const plEl=document.getElementById('port-pl');
-      const pctEl=document.getElementById('port-pct');
-      if (plEl)  { plEl.className=`psc-val ${up?'up':'down'}`; animateValue(plEl, Math.abs(s.totalPL), {prefix:up?'+$':'-$', decimals:2, duration:900}); }
-      if (pctEl) { pctEl.className=`psc-val ${up?'up':'down'}`; animateValue(pctEl, Math.abs(s.totalPLPct), {prefix:up?'+':'-', suffix:'%', decimals:2, duration:900}); }
-    } else {
-      const vc=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-      vc('port-value',`$${s.totalValue.toFixed(2)}`);
-      vc('port-cost', `$${s.totalCost.toFixed(2)}`);
-      const plEl=document.getElementById('port-pl');
-      const pctEl=document.getElementById('port-pct');
-      if (plEl)  { plEl.textContent=`${up?'+':''}$${s.totalPL.toFixed(2)}`; plEl.className=`psc-val ${up?'up':'down'}`; }
-      if (pctEl) { pctEl.textContent=`${up?'+':''}${s.totalPLPct.toFixed(2)}%`; pctEl.className=`psc-val ${up?'up':'down'}`; }
-    }
-
+    renderAllocation(rows);
     renderPortfolioChart();
+    renderPortfolioAnalytics();
+  }
+
+  function renderAllocation(rows) {
+    const allocEl = document.getElementById('port-alloc-list');
+    if (!allocEl || !rows.length) return;
+
+    const totalValue = rows.reduce((s,r) => s + r.value, 0);
+    if (!totalValue) return;
+
+    // Group by assetType
+    const typeMap = { stock:'#7c3aed', etf:'#06b6d4', crypto:'#f59e0b' };
+    const typeLabels = { stock:'Stocks', etf:'ETFs', crypto:'Crypto' };
+    const byType = {};
+    rows.forEach(r => {
+      const t = r.assetType || 'stock';
+      byType[t] = (byType[t] || 0) + r.value;
+    });
+
+    // Group by account
+    const acctMap  = { taxable:'#64748b', roth_ira:'#10b981', k401:'#d97706', crypto_wallet:'#f59e0b', other:'#475569' };
+    const acctLabels= _acctLabels;
+    const byAcct = {};
+    rows.forEach(r => {
+      const a = r.accountType || 'taxable';
+      byAcct[a] = (byAcct[a] || 0) + r.value;
+    });
+
+    const renderGroup = (title, map, colorMap, labelMap) => {
+      const entries = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+      if (!entries.length) return '';
+      return `<div style="margin-bottom:.9rem">
+        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.55rem">${title}</div>
+        ${entries.map(([key,val])=>{
+          const pct = (val/totalValue*100).toFixed(1);
+          const color = colorMap[key] || '#64748b';
+          const label = labelMap[key] || key;
+          return `<div class="alloc-item">
+            <div class="alloc-row"><span class="alloc-name">${label}</span><span class="alloc-pct">${pct}%</span></div>
+            <div class="alloc-bar-bg"><div class="alloc-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    };
+
+    allocEl.innerHTML =
+      renderGroup('By Asset Type', byType, typeMap, typeLabels) +
+      renderGroup('By Account',    byAcct, acctMap, acctLabels);
   }
 
   window.loadPortfolioStock = function(sym) { loadStock(sym); if(window.switchTab) window.switchTab(null,'dashboard'); };
 
+  window.refreshPortfolio = function() { renderPortfolio(); showToast('Portfolio refreshed'); };
+
   window.addHolding = function() {
     if (Auth.isGuest()) { showGuestModal(); return; }
-    const sym=(document.getElementById('port-sym')?.value||'').toUpperCase().trim();
-    const sh=parseFloat(document.getElementById('port-shares')?.value);
-    const price=parseFloat(document.getElementById('port-price')?.value);
-    if (!sym||isNaN(sh)||sh<=0||isNaN(price)||price<=0) { showToast('Fill in symbol, shares, and buy price'); return; }
-    Portfolio.add(sym,sh,price);
-    document.getElementById('port-sym').value=''; document.getElementById('port-shares').value=''; document.getElementById('port-price').value='';
-    renderPortfolio(); showToast(`${sym} added to portfolio`);
+    const sym     = (document.getElementById('port-sym')?.value || '').toUpperCase().trim();
+    const name    = (document.getElementById('port-name')?.value || '').trim();
+    const sh      = parseFloat(document.getElementById('port-shares')?.value);
+    const price   = parseFloat(document.getElementById('port-price')?.value);
+    const type    = document.getElementById('port-type')?.value    || 'stock';
+    const account = document.getElementById('port-account')?.value || 'taxable';
+    if (!sym || isNaN(sh) || sh <= 0 || isNaN(price) || price <= 0) {
+      showToast('Fill in symbol, shares, and buy price'); return;
+    }
+    Portfolio.add(sym, sh, price, account, type, name);
+    ['port-sym','port-name','port-shares','port-price'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value = '';
+    });
+    renderPortfolio();
+    showToast(`${sym} added to portfolio`);
   };
 
-  window.removeHolding = function(id) { Portfolio.remove(id); renderPortfolio(); showToast('Holding removed'); };
+  window.removeHolding = function(id) {
+    if (!confirm('Remove this holding?')) return;
+    Portfolio.remove(id);
+    renderPortfolio();
+    showToast('Holding removed');
+  };
+
+  window.openEditHolding = function(id) {
+    const h = Portfolio.get().find(x => x.id === id);
+    if (!h) return;
+    document.getElementById('edit-hold-id').value      = h.id;
+    document.getElementById('edit-hold-sym').value     = h.symbol;
+    document.getElementById('edit-hold-name').value    = h.name    || h.symbol;
+    document.getElementById('edit-hold-shares').value  = h.shares;
+    document.getElementById('edit-hold-price').value   = h.buyPrice;
+    document.getElementById('edit-hold-type').value    = h.assetType   || 'stock';
+    document.getElementById('edit-hold-account').value = h.accountType || 'taxable';
+    document.getElementById('edit-hold-modal').classList.remove('hidden');
+  };
+
+  window.saveEditHolding = function() {
+    const id      = +document.getElementById('edit-hold-id').value;
+    const name    = document.getElementById('edit-hold-name').value.trim();
+    const shares  = parseFloat(document.getElementById('edit-hold-shares').value);
+    const price   = parseFloat(document.getElementById('edit-hold-price').value);
+    const type    = document.getElementById('edit-hold-type').value;
+    const account = document.getElementById('edit-hold-account').value;
+    if (isNaN(shares) || shares <= 0 || isNaN(price) || price <= 0) {
+      showToast('Invalid shares or price'); return;
+    }
+    Portfolio.update(id, { shares, buyPrice: price, assetType: type, accountType: account, name: name || undefined });
+    document.getElementById('edit-hold-modal').classList.add('hidden');
+    renderPortfolio();
+    showToast('Holding updated');
+  };
 
   // ── Export CSV ────────────────────────────────────────────────────────────
-  window.exportPortfolioCSV = function() {
+  window.exportPortfolioCSV = async function() {
     const holdings = Portfolio.get();
     if (!holdings.length) { showToast('No holdings to export'); return; }
-    const rows = [['Symbol','Shares','Buy Price','Current Price','Market Value','P&L $','P&L %']];
-    holdings.forEach(h=>{
-      const seed=StockAPI._seeds[h.symbol]||{}, current=seed.price||h.buyPrice;
-      const value=h.shares*current, pl=value-h.shares*h.buyPrice, plPct=(pl/(h.shares*h.buyPrice))*100;
-      rows.push([h.symbol,h.shares,h.buyPrice.toFixed(2),current.toFixed(2),value.toFixed(2),pl.toFixed(2),plPct.toFixed(2)+'%']);
-    });
-    const csv=rows.map(r=>r.join(',')).join('\n');
-    const a=document.createElement('a');
-    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-    a.download=`portfolio_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click(); showToast('Portfolio exported as CSV');
+    const uniqueSyms = [...new Set(holdings.map(h=>h.symbol))];
+    let priceData = {};
+    try {
+      const r = await fetch(`/api/portfolio-prices?symbols=${uniqueSyms.join(',')}`);
+      if (r.ok) priceData = await r.json();
+    } catch(e) {}
+    const header = ['Symbol','Name','Shares','Avg Buy Price','Current Price','Market Value','P&L $','P&L %','Asset Type','Account'];
+    const csvRows = [header, ...holdings.map(h => {
+      const pd     = priceData[h.symbol] || {};
+      const cur    = pd.price ?? h.buyPrice;
+      const value  = h.shares * cur;
+      const pl     = value - h.shares * h.buyPrice;
+      const plPct  = h.buyPrice ? (pl / (h.shares * h.buyPrice)) * 100 : 0;
+      return [h.symbol, h.name||h.symbol, h.shares, h.buyPrice.toFixed(2), cur.toFixed(2),
+              value.toFixed(2), pl.toFixed(2), plPct.toFixed(2)+'%',
+              h.assetType||'stock', h.accountType||'taxable'];
+    })];
+    const csv = csvRows.map(r=>r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `portfolio_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    showToast('Portfolio exported as CSV');
   };
 
   // ── Screener ──────────────────────────────────────────────────────────────
@@ -1226,7 +1409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('stockai:tab', async e=>{
     const tab=e.detail;
     if (tab==='watchlist')  renderWatchlistTab();
-    else if (tab==='portfolio') { renderPortfolio(); renderPortfolioAnalytics(); }
+    else if (tab==='portfolio') { renderPortfolio(); }
     else if (tab==='markets')   { marketsLoaded=true; renderMarketsTab(); }
     else if (tab==='news')      loadNews(currentSymbol);
     else if (tab==='trending')  { if(!trendingLoaded){trendingLoaded=true;renderTrending();} renderWatchlistMini(); renderAlerts(); }
@@ -1259,7 +1442,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadStock(_prefs.defaultStock || 'AAPL');
 
   renderPortfolio();
-  renderPortfolioAnalytics();
   loadNews(currentSymbol);
   renderAlerts();
   renderEarnings();

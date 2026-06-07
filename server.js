@@ -169,6 +169,64 @@ app.get('/api/status',  (req, res) => res.json({
   symbols: [...symbolClients.keys()]
 }));
 
+// ── Portfolio Prices (Yahoo Finance + CoinGecko) ──────────────────────────
+const CRYPTO_MAP_P = {
+  BTC:'bitcoin', ETH:'ethereum', SOL:'solana', ADA:'cardano',
+  XRP:'ripple', DOGE:'dogecoin', DOT:'polkadot', AVAX:'avalanche-2',
+  MATIC:'matic-network', LINK:'chainlink', LTC:'litecoin',
+  BNB:'binancecoin', SHIB:'shiba-inu', UNI:'uniswap', ATOM:'cosmos',
+};
+
+async function fetchYahooPortfolioPrice(symbol) {
+  try {
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(8000),
+    });
+    const data = await r.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta) return { price: null, change24h: null };
+    const price     = meta.regularMarketPrice ?? null;
+    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? null;
+    const change24h = price && prevClose ? ((price - prevClose) / prevClose) * 100 : null;
+    return { price, change24h, name: meta.longName || meta.shortName || symbol };
+  } catch {
+    return { price: null, change24h: null };
+  }
+}
+
+app.get('/api/portfolio-prices', async (req, res) => {
+  const { symbols } = req.query;
+  if (!symbols) return res.status(400).json({ error: 'symbols required' });
+  const list = symbols.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 50);
+  const cryptoSyms = list.filter(s =>  CRYPTO_MAP_P[s]);
+  const stockSyms  = list.filter(s => !CRYPTO_MAP_P[s]);
+  const prices = {};
+
+  if (cryptoSyms.length) {
+    try {
+      const ids = cryptoSyms.map(s => CRYPTO_MAP_P[s]).join(',');
+      const r = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      const data = await r.json();
+      for (const sym of cryptoSyms) {
+        const entry = data[CRYPTO_MAP_P[sym]];
+        if (entry) prices[sym] = { price: entry.usd, change24h: entry.usd_24h_change ?? null };
+      }
+    } catch (e) { console.error('CoinGecko error:', e.message); }
+  }
+
+  if (stockSyms.length) {
+    const results = await Promise.all(stockSyms.map(s => fetchYahooPortfolioPrice(s)));
+    stockSyms.forEach((sym, i) => { prices[sym] = results[i]; });
+  }
+
+  res.json(prices);
+});
+
 // ── Serve static frontend files ───────────────────────────────────────────
 app.use(express.static(path.join(__dirname)));
 

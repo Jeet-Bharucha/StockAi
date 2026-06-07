@@ -5,9 +5,23 @@ const Portfolio = {
   get() { return JSON.parse(localStorage.getItem(this._key) || '[]'); },
   save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
 
-  add(symbol, shares, buyPrice) {
+  add(symbol, shares, buyPrice, accountType = 'taxable', assetType = 'stock', name = '') {
     const list = this.get();
-    list.push({ id: Date.now(), symbol: symbol.toUpperCase(), shares: +shares, buyPrice: +buyPrice, addedAt: Date.now() });
+    list.push({
+      id: Date.now(),
+      symbol: symbol.toUpperCase(),
+      shares: +shares,
+      buyPrice: +buyPrice,
+      accountType,
+      assetType,
+      name: name || symbol.toUpperCase(),
+      addedAt: Date.now()
+    });
+    this.save(list);
+  },
+
+  update(id, data) {
+    const list = this.get().map(h => h.id === id ? { ...h, ...data } : h);
     this.save(list);
   },
 
