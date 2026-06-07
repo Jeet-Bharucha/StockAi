@@ -709,7 +709,18 @@ body.light .scr-select,.scr-input{background:#f8fafc}
 select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .6rem center}
 /* Layout */
 .port-main-grid{display:grid;grid-template-columns:1fr 270px;gap:1.2rem;align-items:start}
-#port-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.9rem;margin-bottom:1.1rem}
+/* ── PORTFOLIO HERO ──────────────────────────────────────────────────── */
+.port-hero{position:relative;background:linear-gradient(135deg,#060a1e 0%,#0c0f2e 45%,#060b1e 100%);border-radius:20px;padding:2rem 2rem 1.8rem;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,0.06)}
+.port-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 82% 25%,rgba(90,60,230,0.22),transparent 55%),radial-gradient(ellipse at 12%,rgba(0,180,255,0.12),transparent 50%);pointer-events:none}
+.port-hero-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.port-hero-deco{position:absolute;pointer-events:none}
+.port-hero-content{position:relative;z-index:1}
+.port-hero-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.8rem;margin-bottom:1.4rem}
+.port-hero-title{font-size:2.6rem;font-weight:900;letter-spacing:-.03em;color:#fff;line-height:1;text-transform:uppercase}
+.port-hero-sub{font-size:.8rem;color:rgba(100,116,139,.85);margin-top:.35rem}
+#port-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.9rem;margin-bottom:0}
+.port-hero .pt-stat-card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.09);backdrop-filter:blur(12px)}
+.port-hero .pt-stat-card:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)}
 @media(max-width:1200px){.port-main-grid{grid-template-columns:1fr}}
 @media(max-width:900px) {#port-stats-row{grid-template-columns:repeat(2,1fr)!important}}
 @media(max-width:560px) {#port-stats-row{grid-template-columns:1fr 1fr!important}}
@@ -1018,19 +1029,37 @@ select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;b
 
     <!-- ══════════ TAB: PORTFOLIO ══════════ -->
     <div class="tab-view" id="view-portfolio">
-      <div class="view-header">
-        <div>
-          <div class="view-title">💼 My Portfolio</div>
-          <div class="view-subtitle">Real-time prices · Stocks, ETFs, Crypto &amp; Retirement accounts</div>
-        </div>
-        <div style="display:flex;gap:.5rem;align-items:center">
-          <button class="port-refresh-btn" onclick="refreshPortfolio()">⟳ Refresh</button>
-          <button class="btn-export" onclick="exportPortfolioCSV()">⬇ CSV</button>
-        </div>
-      </div>
 
-      <!-- 4 big stat cards -->
-      <div id="port-stats-row">
+      <!-- ── Hero ── -->
+      <div class="port-hero">
+        <canvas id="port-hero-canvas" class="port-hero-canvas"></canvas>
+        <!-- Decorative icosahedra -->
+        <svg class="port-hero-deco" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="right:2%;top:-10%;width:220px;opacity:.18">
+          <polygon points="100,10 190,60 190,140 100,190 10,140 10,60" fill="none" stroke="rgba(120,100,255,0.8)" stroke-width="1"/>
+          <polygon points="100,40 165,75 165,125 100,160 35,125 35,75" fill="none" stroke="rgba(120,100,255,0.5)" stroke-width="0.8"/>
+          <line x1="100" y1="10" x2="100" y2="190" stroke="rgba(120,100,255,0.3)" stroke-width="0.5"/>
+          <line x1="10" y1="60" x2="190" y2="140" stroke="rgba(120,100,255,0.3)" stroke-width="0.5"/>
+          <line x1="190" y1="60" x2="10" y2="140" stroke="rgba(120,100,255,0.3)" stroke-width="0.5"/>
+        </svg>
+        <svg class="port-hero-deco" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" style="left:1%;bottom:-15%;width:160px;opacity:.12">
+          <polygon points="80,5 155,45 155,115 80,155 5,115 5,45" fill="none" stroke="rgba(0,180,255,0.9)" stroke-width="1"/>
+          <polygon points="80,30 125,55 125,105 80,130 35,105 35,55" fill="none" stroke="rgba(0,180,255,0.5)" stroke-width="0.7"/>
+          <line x1="80" y1="5" x2="80" y2="155" stroke="rgba(0,180,255,0.4)" stroke-width="0.5"/>
+          <line x1="5" y1="45" x2="155" y2="115" stroke="rgba(0,180,255,0.4)" stroke-width="0.5"/>
+        </svg>
+        <div class="port-hero-content">
+          <div class="port-hero-top">
+            <div>
+              <div class="port-hero-title">MY PORTFOLIO</div>
+              <div class="port-hero-sub">Real-time prices · Stocks, ETFs, Crypto &amp; Retirement accounts</div>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
+              <button class="port-refresh-btn" onclick="refreshPortfolio()">⟳ Refresh</button>
+              <button class="btn-export" onclick="exportPortfolioCSV()">⬇ CSV</button>
+            </div>
+          </div>
+          <!-- 4 big stat cards inside hero -->
+          <div id="port-stats-row">
         <div class="pt-stat-card">
           <div class="pt-stat-icon">💰</div>
           <div class="pt-stat-label">Total Invested</div>
@@ -1054,8 +1083,9 @@ select.port-input{appearance:none;-webkit-appearance:none;padding-right:1.6rem;b
           <div class="pt-stat-label">Best Performer</div>
           <div class="pt-stat-val" id="port-best" style="font-size:1.5rem;letter-spacing:-.02em">—</div>
           <div class="pt-stat-sub" id="port-best-sub"></div>
-        </div>
-      </div>
+        </div><!-- /port-stats-row -->
+        </div><!-- /port-hero-content -->
+      </div><!-- /port-hero -->
 
       <!-- Main grid: left=holdings, right=sidebar -->
       <div class="port-main-grid">

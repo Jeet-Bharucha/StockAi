@@ -849,7 +849,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     crypto_wallet:'Crypto', other:'Other'
   };
 
+  // ── Portfolio hero particle network ───────────────────────────────────────
+  let _heroAnimId = null;
+  function initPortfolioHero() {
+    const canvas = document.getElementById('port-hero-canvas'); if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const parent = canvas.parentElement;
+    function resize() { canvas.width = parent.offsetWidth; canvas.height = parent.offsetHeight; }
+    resize();
+    const pts = Array.from({length:45}, () => ({
+      x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+      vx: (Math.random()-.5)*.45, vy: (Math.random()-.5)*.45,
+    }));
+    if (_heroAnimId) cancelAnimationFrame(_heroAnimId);
+    function draw() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      pts.forEach(p => {
+        p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0||p.x>canvas.width)  p.vx*=-1;
+        if(p.y<0||p.y>canvas.height) p.vy*=-1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,1.8,0,Math.PI*2);
+        ctx.fillStyle='rgba(110,90,255,0.55)'; ctx.fill();
+      });
+      pts.forEach((a,i) => pts.slice(i+1).forEach(b => {
+        const d = Math.hypot(a.x-b.x, a.y-b.y);
+        if (d<130) {
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+          ctx.strokeStyle=`rgba(100,80,220,${0.18*(1-d/130)})`; ctx.lineWidth=.7; ctx.stroke();
+        }
+      }));
+      _heroAnimId = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
   async function renderPortfolio() {
+    initPortfolioHero();
     const holdings = Portfolio.get();
     const listEl   = document.getElementById('port-list');
     if (!listEl) return;
