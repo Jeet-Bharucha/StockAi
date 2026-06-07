@@ -135,3 +135,91 @@
 input:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(0,212,255,0.13), 0 0 18px rgba(0,212,255,0.08) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   GLOBAL CONSISTENCY — All Pages
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Universal page fade-in ─────────────────────────────── */
+@keyframes pageFade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+body { animation: pageFade .45s ease both }
+
+/* ─── Gradient text utility ──────────────────────────────── */
+.grad-text {
+  background: linear-gradient(120deg, #fff 20%, #00d4ff 60%, #a855f7 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.grad-text-cyan {
+  background: linear-gradient(90deg, #00d4ff, #0055ff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* ─── Glassy panel base (any card/panel can use) ─────────── */
+.glass-panel {
+  background: rgba(8,16,40,0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0,212,255,0.1);
+  border-radius: 16px;
+}
+
+/* ─── Glow divider line ──────────────────────────────────── */
+.glow-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.35), rgba(168,85,247,0.2), transparent);
+  border: none; margin: 1rem 0;
+}
+
+/* ─── Stat number animations ─────────────────────────────── */
+@keyframes countUp { from{opacity:0;transform:translateY(6px) scale(.95)} to{opacity:1;transform:none} }
+.stat-animate { animation: countUp .5s cubic-bezier(.22,1,.36,1) both }
+
+/* ─── Neon border glow on hover (for any element) ───────── */
+.neon-border {
+  transition: box-shadow .25s, border-color .25s;
+}
+.neon-border:hover {
+  box-shadow: 0 0 0 1px rgba(0,212,255,0.3), 0 8px 32px rgba(0,212,255,0.1);
+  border-color: rgba(0,212,255,0.3) !important;
+}
+
+/* ─── Subtle scanline texture overlay ───────────────────── */
+.scanlines::after {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  border-radius: inherit;
+}
+
+/* ─── Auth page card consistent style ───────────────────── */
+.auth-card-wrap {
+  transition: transform .12s ease;
+}
+
+/* ─── Smooth tab switching ───────────────────────────────── */
+@keyframes tabIn { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:none} }
+.tab-content-active { animation: tabIn .28s ease both }
+
+/* ─── Better button base ─────────────────────────────────── */
+button { transition: transform .15s, box-shadow .15s, background .18s, border-color .18s }
+
+/* ─── Tooltip-style hover text ───────────────────────────── */
+[title]:hover { cursor: help }
+
+/* ─── Loading skeleton shimmer ───────────────────────────── */
+@keyframes skeletonShimmer {
+  0%   { background-position: -400px 0 }
+  100% { background-position: 400px 0 }
+}
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%);
+  background-size: 800px 100%;
+  animation: skeletonShimmer 1.6s infinite linear;
+  border-radius: 6px;
+}
+
+/* ─── Number color classes ───────────────────────────────── */
+.txt-green { color: #00ff88 !important }
+.txt-red   { color: #ff4466 !important }
+.txt-cyan  { color: #00d4ff !important }
+.txt-gold  { color: #fbbf24 !important }
+.txt-muted { color: #64748b !important }

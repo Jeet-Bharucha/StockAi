@@ -953,6 +953,199 @@ select.port-input option{background:#0d1b30;color:#e2e8f0;padding:.4rem .6rem}
 /* ── Stock header badge: glow ────────────────────────────── */
 .stock-badge{transition:box-shadow .3s}
 .stock-header:hover .stock-badge{box-shadow:0 0 24px rgba(0,212,255,0.4)}
+
+/* ═══════════════════════════════════════════════════════════
+   PORTFOLIO — Premium UI v3
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Hero: richer gradient backdrop + animated shimmer border ── */
+.port-hero{
+  border:1px solid rgba(0,212,255,0.14);
+  background:linear-gradient(135deg,#060a1e 0%,#0a0d28 40%,#070b20 100%);
+  box-shadow:0 0 0 1px rgba(168,85,247,0.06), 0 24px 80px rgba(0,0,0,0.5),
+             inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.port-hero::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(135deg,rgba(0,212,255,0.05) 0%,transparent 45%,rgba(168,85,247,0.04) 100%);
+}
+
+/* ── Hero title: gradient text ── */
+.port-hero-title{
+  background:linear-gradient(120deg,#fff 20%,#00d4ff 60%,#a855f7 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 22px rgba(0,212,255,0.22));
+}
+
+/* ── Stat cards: entrance animation ── */
+@keyframes statCardIn{from{opacity:0;transform:translateY(22px) scale(.96)}to{opacity:1;transform:none}}
+#port-stats-row .pt-stat-card{
+  animation:statCardIn .5s cubic-bezier(.22,1,.36,1) both;
+  position:relative;overflow:hidden;
+  transition:border-color .25s,box-shadow .25s,transform .22s,background .22s;
+}
+#port-stats-row .pt-stat-card:nth-child(1){animation-delay:.04s}
+#port-stats-row .pt-stat-card:nth-child(2){animation-delay:.10s}
+#port-stats-row .pt-stat-card:nth-child(3){animation-delay:.16s}
+#port-stats-row .pt-stat-card:nth-child(4){animation-delay:.22s}
+
+/* Colored top accent line per card */
+#port-stats-row .pt-stat-card::before{
+  content:'';position:absolute;top:0;left:18%;right:18%;height:2px;
+  border-radius:2px;pointer-events:none;
+}
+#port-stats-row .pt-stat-card:nth-child(1)::before{background:linear-gradient(90deg,transparent,#00d4ff,transparent)}
+#port-stats-row .pt-stat-card:nth-child(2)::before{background:linear-gradient(90deg,transparent,#a855f7,transparent)}
+#port-stats-row .pt-stat-card:nth-child(3)::before{background:linear-gradient(90deg,transparent,#00ff88,transparent)}
+#port-stats-row .pt-stat-card:nth-child(4)::before{background:linear-gradient(90deg,transparent,#fbbf24,transparent)}
+
+/* Colored hover glow per card */
+#port-stats-row .pt-stat-card:nth-child(1):hover{border-color:rgba(0,212,255,.28);box-shadow:0 0 0 1px rgba(0,212,255,.1),0 12px 40px rgba(0,212,255,.12);transform:translateY(-3px)}
+#port-stats-row .pt-stat-card:nth-child(2):hover{border-color:rgba(168,85,247,.28);box-shadow:0 0 0 1px rgba(168,85,247,.1),0 12px 40px rgba(168,85,247,.12);transform:translateY(-3px)}
+#port-stats-row .pt-stat-card:nth-child(3):hover{border-color:rgba(0,255,136,.28);box-shadow:0 0 0 1px rgba(0,255,136,.1),0 12px 40px rgba(0,255,136,.12);transform:translateY(-3px)}
+#port-stats-row .pt-stat-card:nth-child(4):hover{border-color:rgba(251,191,36,.28);box-shadow:0 0 0 1px rgba(251,191,36,.1),0 12px 40px rgba(251,191,36,.12);transform:translateY(-3px)}
+
+/* Floating number glow */
+.pt-stat-val{text-shadow:0 0 30px rgba(255,255,255,0.06)}
+.pt-stat-val.up{text-shadow:0 0 20px rgba(0,255,136,0.3)}
+.pt-stat-val.down{text-shadow:0 0 20px rgba(255,68,102,0.3)}
+
+/* ── Holdings header ── */
+.port-holdings-title{
+  font-size:1.05rem!important;font-weight:900!important;
+  background:linear-gradient(90deg,#fff,rgba(0,212,255,0.85));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ── Filter tab bar: glassmorphism pill ── */
+#port-filter-tabs{
+  background:rgba(255,255,255,0.025);
+  border:1px solid rgba(0,212,255,0.1);
+  border-radius:12px;padding:.3rem .38rem;gap:.22rem;
+  backdrop-filter:blur(8px);
+}
+
+/* ── Add form: deeper glass ── */
+#port-add-form{
+  background:rgba(8,16,40,0.88)!important;
+  backdrop-filter:blur(20px)!important;
+  border-color:rgba(0,212,255,0.18)!important;
+  box-shadow:0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04)!important;
+}
+.port-input:focus{border-color:rgba(0,212,255,0.6)!important;box-shadow:0 0 0 3px rgba(0,212,255,0.08)!important}
+
+/* ── Holdings table: glass card + glow shadow ── */
+.port-table-wrap{
+  box-shadow:0 0 0 1px rgba(0,212,255,0.07),0 24px 60px rgba(0,0,0,0.3);
+  background:rgba(6,12,32,0.7);
+  backdrop-filter:blur(12px);
+}
+.port-table-head.new-cols{
+  background:rgba(255,255,255,0.03);
+  border-bottom:1px solid rgba(0,212,255,0.12);
+  letter-spacing:.08em;
+}
+
+/* ── Table row: stagger slide-in ── */
+@keyframes rowSlideIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+.port-table-row.new-cols{animation:rowSlideIn .32s cubic-bezier(.22,1,.36,1) both}
+.port-table-row.new-cols:nth-child(1) {animation-delay:.03s}
+.port-table-row.new-cols:nth-child(2) {animation-delay:.08s}
+.port-table-row.new-cols:nth-child(3) {animation-delay:.13s}
+.port-table-row.new-cols:nth-child(4) {animation-delay:.18s}
+.port-table-row.new-cols:nth-child(5) {animation-delay:.22s}
+.port-table-row.new-cols:nth-child(6) {animation-delay:.26s}
+.port-table-row.new-cols:nth-child(7) {animation-delay:.30s}
+.port-table-row.new-cols:nth-child(8) {animation-delay:.33s}
+.port-table-row.new-cols:nth-child(9) {animation-delay:.36s}
+.port-table-row.new-cols:nth-child(10){animation-delay:.38s}
+
+/* Row hover: left glow bar + gradient sweep */
+.port-table-row.new-cols{transition:background .18s,box-shadow .18s}
+.port-table-row.new-cols:hover{
+  background:linear-gradient(90deg,rgba(0,212,255,0.06),rgba(168,85,247,0.03),transparent)!important;
+  box-shadow:inset 3px 0 0 rgba(0,212,255,0.5);
+}
+
+/* ── Port icons: inner glow ── */
+.port-icon{transition:box-shadow .2s,transform .2s}
+.port-table-row.new-cols:hover .port-icon{transform:scale(1.06)}
+.port-icon.stock {box-shadow:0 0 16px rgba(124,58,237,0.5),inset 0 1px 0 rgba(255,255,255,0.15)}
+.port-icon.etf   {box-shadow:0 0 16px rgba(6,182,212,0.5),inset 0 1px 0 rgba(255,255,255,0.15)}
+.port-icon.crypto{box-shadow:0 0 16px rgba(245,158,11,0.5),inset 0 1px 0 rgba(255,255,255,0.15)}
+.port-icon.roth  {box-shadow:0 0 16px rgba(16,185,129,0.5),inset 0 1px 0 rgba(255,255,255,0.15)}
+.port-icon.k401  {box-shadow:0 0 16px rgba(217,119,6,0.5), inset 0 1px 0 rgba(255,255,255,0.15)}
+
+/* ── Allocation sidebar ── */
+.alloc-sidebar,.quick-stats-panel,.port-analytics{
+  position:relative;overflow:hidden;
+  transition:border-color .25s,box-shadow .25s;
+  background:rgba(6,12,32,0.65)!important;
+  backdrop-filter:blur(12px);
+}
+.alloc-sidebar::before,.quick-stats-panel::before,.port-analytics::before{
+  content:'';position:absolute;top:0;left:15%;right:15%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,212,255,0.35),transparent);
+  pointer-events:none;
+}
+.alloc-sidebar:hover,.quick-stats-panel:hover{
+  border-color:rgba(0,212,255,0.2)!important;
+  box-shadow:0 12px 40px rgba(0,0,0,0.25);
+}
+.alloc-sidebar-title,.qs-title{
+  background:linear-gradient(90deg,rgba(0,212,255,0.9),rgba(168,85,247,0.8));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+/* Allocation bars: gradient fill + glow */
+.alloc-bar-fill{
+  background:linear-gradient(90deg,#0055ff,#00d4ff)!important;
+  box-shadow:0 0 10px rgba(0,212,255,0.4);
+  transition:width .7s cubic-bezier(.22,1,.36,1)!important;
+}
+.alloc-bar-bg{height:6px!important;border-radius:4px!important;background:rgba(255,255,255,.05)!important}
+
+/* ── Quick stats rows ── */
+.qs-row{transition:background .15s;border-radius:6px;padding:.42rem .5rem!important}
+.qs-row:hover{background:rgba(0,212,255,0.05)}
+.qs-label{color:rgba(100,116,139,.9)!important}
+.qs-val{background:linear-gradient(90deg,#e2e8f0,rgba(0,212,255,0.9));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800!important}
+
+/* ── Refresh + CSV buttons ── */
+.port-refresh-btn{
+  background:rgba(0,212,255,0.07)!important;
+  border:1px solid rgba(0,212,255,0.2)!important;
+  transition:background .2s,box-shadow .2s,transform .15s!important;
+}
+.port-refresh-btn:hover{background:rgba(0,212,255,0.15)!important;transform:translateY(-1px)!important;box-shadow:0 4px 16px rgba(0,212,255,0.2)!important}
+.btn-export{
+  background:rgba(168,85,247,0.08)!important;
+  border:1px solid rgba(168,85,247,0.25)!important;
+  color:#c4b5fd!important;
+  transition:background .2s,box-shadow .2s,transform .15s!important;
+}
+.btn-export:hover{background:rgba(168,85,247,0.18)!important;transform:translateY(-1px)!important;box-shadow:0 4px 16px rgba(168,85,247,0.2)!important}
+
+/* ── btn-add-holding: shimmer ── */
+.btn-add-holding{position:relative;overflow:hidden}
+.btn-add-holding::after{
+  content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);
+  transform:skewX(-20deg);transition:none;pointer-events:none;
+}
+.btn-add-holding:hover::after{animation:btnShimmer .5s ease forwards}
+
+/* ── Act buttons: bigger tap targets on mobile ── */
+.port-act-btn{width:30px!important;height:30px!important;border-radius:8px!important}
+
+/* ── ALL-PAGE CONSISTENCY: tab view fade in ── */
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.tab-view>*:first-child{animation:viewIn .35s ease both}
+
+/* ── Dashboard cards: consistent glow border ── */
+.card,.alloc-sidebar,.quick-stats-panel,.port-table-wrap,.port-analytics{
+  border-color:rgba(0,212,255,0.1)!important;
+}
+
 </style>
 </head>
 <body>
