@@ -661,8 +661,8 @@ body.light .scr-select,.scr-input{background:#f8fafc}
 .port-icon.k401  {background:linear-gradient(135deg,#d97706,#b45309)}
 .port-icon.other {background:linear-gradient(135deg,#64748b,#475569)}
 /* Holdings table */
-.port-table-row.new-cols{grid-template-columns:2.1fr .65fr .65fr .72fr 1.15fr 1fr .95fr 58px}
-.port-table-head.new-cols{grid-template-columns:2.1fr .65fr .65fr .72fr 1.15fr 1fr .95fr 58px}
+.port-table-row.new-cols{grid-template-columns:2fr .6fr .85fr 1fr 1fr 1.05fr .7fr 52px}
+.port-table-head.new-cols{grid-template-columns:2fr .6fr .85fr 1fr 1fr 1.05fr .7fr 52px}
 /* Price cell */
 .port-price-main{font-weight:700;font-size:.9rem}
 .port-price-chg{display:inline-flex;align-items:center;gap:.22rem;font-size:.69rem;font-weight:700;padding:.18rem .45rem;border-radius:5px;margin-top:.28rem}
@@ -1534,8 +1534,9 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
           <div id="port-add-form">
             <input class="port-input" id="port-sym" placeholder="Symbol" style="width:80px">
             <input class="port-input" id="port-name" placeholder="Name (opt.)" style="width:120px">
-            <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.001" step="any" style="width:85px">
-            <input class="port-input" id="port-price" placeholder="Buy Price $" type="number" min="0.01" step="any" style="width:108px">
+            <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.0001" step="any" style="width:85px" oninput="updateBasisPreview()">
+            <input class="port-input" id="port-price" placeholder="Avg Cost / Share" type="number" min="0.0001" step="any" style="width:130px" oninput="updateBasisPreview()">
+            <div id="port-basis-preview" style="display:none;font-size:.75rem;color:var(--muted);padding:.35rem .65rem;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:7px;align-self:center;white-space:nowrap">Basis: <span id="port-basis-val" style="color:var(--cyan);font-weight:700">$0</span></div>
             <select class="port-input" id="port-type" style="width:90px">
               <option value="stock">Stock</option>
               <option value="etf">ETF</option>
@@ -1555,12 +1556,12 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
           <div class="port-table-wrap">
             <div class="port-table-head new-cols">
               <div>Asset</div>
-              <div>Account</div>
               <div>Shares</div>
               <div>Avg Cost</div>
-              <div>Live Price</div>
-              <div>Total Value</div>
-              <div>Gain / Loss</div>
+              <div>Cost Basis</div>
+              <div>Mkt Value</div>
+              <div>Total P/L</div>
+              <div>Return</div>
               <div></div>
             </div>
             <div id="port-list">
@@ -1856,8 +1857,8 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         <input class="port-input" id="edit-hold-shares" type="number" min="0.001" step="any" style="width:100%">
       </div>
       <div>
-        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Avg Buy Price</label>
-        <input class="port-input" id="edit-hold-price" type="number" min="0.01" step="any" style="width:100%">
+        <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Avg. Cost / Share</label>
+        <input class="port-input" id="edit-hold-price" type="number" min="0.0001" step="any" style="width:100%">
       </div>
       <div>
         <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Asset Type</label>
@@ -1929,6 +1930,21 @@ PORT=3001</pre>
 <script src="js/chat.js"></script>
 
 <script>
+// ── Cost basis live preview (add form) ───────────────────────────────────
+function updateBasisPreview() {
+  const shares  = parseFloat(document.getElementById('port-shares')?.value) || 0;
+  const price   = parseFloat(document.getElementById('port-price')?.value)  || 0;
+  const preview = document.getElementById('port-basis-preview');
+  const val     = document.getElementById('port-basis-val');
+  if (!preview || !val) return;
+  if (shares > 0 && price > 0) {
+    val.textContent = '$' + (shares * price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    preview.style.display = '';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(e, name) {
   if (e) e.preventDefault();

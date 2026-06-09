@@ -1041,45 +1041,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     listEl.innerHTML = filteredRows.map(row => {
       const rUp       = row.pl >= 0;
-      const dayUp     = (row.chg24h ?? 0) >= 0;
       const iconCls   = _portIconCls(row);
       const acctLabel = _acctLabels[row.accountType] || row.accountType;
-      const dayBadge  = row.chg24h !== null
-        ? `<div class="port-price-chg ${dayUp?'up':'down'}">${dayUp?'▲':'▼'} ${Math.abs(row.chg24h).toFixed(2)}% today</div>`
-        : '';
-      // Price source label so user knows if it's live, simulated, or missing
+      const allocPct  = totalValue > 0 ? ((row.value / totalValue) * 100).toFixed(1) : '0.0';
+      const plSign    = rUp ? '+' : '';
+      const sharesStr = row.shares % 1 === 0 ? row.shares : parseFloat(row.shares.toFixed(6));
+
       const srcBadge = row.priceSource === 'live'
-        ? `<div style="font-size:.58rem;color:var(--green);font-weight:700;margin-top:.1rem">⚡ LIVE</div>`
+        ? `<span style="font-size:.55rem;color:var(--green);font-weight:700;vertical-align:middle;margin-left:.3rem">⚡</span>`
         : row.priceSource === 'sim'
-        ? `<div style="font-size:.58rem;color:var(--gold);font-weight:700;margin-top:.1rem" title="Live price unavailable — using simulated data">~ SIM</div>`
-        : `<div style="font-size:.58rem;color:var(--red);font-weight:700;margin-top:.1rem" title="Could not fetch price — check ticker symbol">⚠ NO DATA</div>`;
-      const plSign = rUp ? '+' : '-';
-      // Warn if ticker looks wrong (common typos like APPL→AAPL)
-      const symWarn = (row.priceSource !== 'live' && row.symbol.length <= 5)
-        ? `<div style="font-size:.58rem;color:var(--red);margin-top:.05rem" title="Ticker not found — check spelling">⚠ check ticker</div>` : '';
+        ? `<span style="font-size:.55rem;color:var(--gold);font-weight:700;vertical-align:middle;margin-left:.3rem" title="Simulated price">~</span>`
+        : `<span style="font-size:.55rem;color:var(--red);font-weight:700;vertical-align:middle;margin-left:.3rem" title="Price unavailable">⚠</span>`;
+
       return `<div class="port-table-row new-cols">
-        <div style="display:flex;align-items:center;gap:.7rem">
+        <div style="display:flex;align-items:center;gap:.65rem;min-width:0">
           <div class="port-icon ${iconCls}">${row.symbol.slice(0,4)}</div>
-          <div>
-            <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
-            <div style="font-size:.68rem;color:var(--muted);margin-top:.07rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.name}</div>
-            ${symWarn}
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+              <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
+              <span class="port-acct-badge ${row.accountType}">${acctLabel}</span>
+            </div>
+            <div style="font-size:.67rem;color:var(--muted);margin-top:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${row.name}</div>
           </div>
         </div>
-        <span class="port-acct-badge ${row.accountType}" style="align-self:center">${acctLabel}</span>
-        <span>${row.shares}</span>
-        <span>$${_fmtD(row.buyPrice)}</span>
         <div>
-          <div class="port-price-main">$${_fmtD(row.curPrice)}</div>
-          ${dayBadge}
-          ${srcBadge}
+          <div style="font-weight:600">${sharesStr}</div>
+          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">${allocPct}% of port.</div>
         </div>
-        <span style="font-weight:700">$${_fmtD(row.value)}</span>
         <div>
-          <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">${plSign}$${_fmtD(Math.abs(row.pl))}</div>
-          <div style="font-size:.72rem;color:${rUp?'var(--green)':'var(--red)'}">+${_fmtD(Math.abs(row.plPct)).replace(/^-/,'')}%</div>
+          <div>$${_fmtD(row.buyPrice)}</div>
+          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">avg/share</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:.32rem;align-items:center;justify-self:center">
+        <div>
+          <div style="font-weight:600">$${_fmtD(row.cost)}</div>
+          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">invested</div>
+        </div>
+        <div>
+          <div style="font-weight:700">$${_fmtD(row.value)}${srcBadge}</div>
+          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">@ $${_fmtD(row.curPrice)}</div>
+        </div>
+        <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">
+          ${plSign}$${_fmtD(Math.abs(row.pl))}
+        </div>
+        <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">
+          ${plSign}${Math.abs(row.plPct).toFixed(2)}%
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.32rem;align-items:center">
           <button class="port-act-btn edit" onclick="window.openEditHolding(${row.id})" title="Edit">✎</button>
           <button class="port-act-btn del"  onclick="window.removeHolding(${row.id})"   title="Remove">🗑</button>
         </div>
