@@ -654,7 +654,7 @@ body.light .scr-select,.scr-input{background:#f8fafc}
 .pt-stat-badge.down{background:rgba(255,68,102,.12);color:var(--red)}
 /* Icon chips */
 .port-icon{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.7rem;flex-shrink:0;letter-spacing:-.01em;color:#fff;text-align:center;line-height:1.15}
-.port-icon.stock {background:linear-gradient(135deg,#7c3aed,#9d4edd)}
+.port-icon.stock {background:linear-gradient(135deg,#2563eb,#3b82f6)}
 .port-icon.etf   {background:linear-gradient(135deg,#06b6d4,#0ea5e9)}
 .port-icon.crypto{background:linear-gradient(135deg,#f59e0b,#f97316)}
 .port-icon.roth  {background:linear-gradient(135deg,#10b981,#059669)}
@@ -692,7 +692,7 @@ body.light .scr-select,.scr-input{background:#f8fafc}
 /* Holdings header */
 .port-holdings-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem}
 .port-holdings-title{font-size:.88rem;font-weight:800;letter-spacing:.01em}
-.btn-add-holding{padding:.52rem 1.15rem;background:linear-gradient(135deg,#7c3aed,#9d4edd);border:none;border-radius:10px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s}
+.btn-add-holding{padding:.52rem 1.15rem;background:linear-gradient(135deg,#0891b2,#00c9a7);border:none;border-radius:10px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:.2s}
 .btn-add-holding:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(6,182,212,.4)}
 /* Add form toggle */
 #port-add-form{display:none;flex-wrap:wrap;gap:.55rem;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:.9rem 1.1rem;margin-bottom:.9rem}
@@ -732,7 +732,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 .port-ftab:hover{background:rgba(255,255,255,0.06);color:var(--text)}
 .port-ftab.active{color:#fff;border-color:transparent}
 .port-ftab[data-filter="all"].active{background:rgba(100,116,139,0.25);color:var(--text)}
-.port-ftab[data-filter="stock"].active{background:rgba(6,182,212,0.3);border-color:rgba(6,182,212,0.5);color:#c4b5fd}
+.port-ftab[data-filter="stock"].active{background:rgba(59,130,246,0.25);border-color:rgba(59,130,246,0.5);color:#93c5fd}
 .port-ftab[data-filter="etf"].active{background:rgba(6,182,212,0.22);border-color:rgba(6,182,212,0.4);color:#67e8f9}
 .port-ftab[data-filter="crypto"].active{background:rgba(245,158,11,0.22);border-color:rgba(245,158,11,0.4);color:#fcd34d}
 .port-ftab[data-filter="roth_ira"].active{background:rgba(16,185,129,0.22);border-color:rgba(16,185,129,0.4);color:#6ee7b7}
@@ -1120,7 +1120,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 .btn-export{
   background:rgba(0,201,167,0.08)!important;
   border:1px solid rgba(0,201,167,0.25)!important;
-  color:#c4b5fd!important;
+  color:#00c9a7!important;
   transition:background .2s,box-shadow .2s,transform .15s!important;
 }
 .btn-export:hover{background:rgba(0,201,167,0.18)!important;transform:translateY(-1px)!important;box-shadow:0 4px 16px rgba(0,201,167,0.2)!important}
@@ -1145,6 +1145,45 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 .card,.alloc-sidebar,.quick-stats-panel,.port-table-wrap,.port-analytics{
   border-color:rgba(0,201,167,0.1)!important;
 }
+
+/* ══ FINAL POLISH PASS ══════════════════════════════════════ */
+
+/* Table header: no wrapping, smaller font for tight columns */
+.port-table-head.new-cols > div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.port-table-head.new-cols{font-size:.60rem!important;padding:.6rem 1.1rem}
+
+/* Add-form polish: label strip at top + tighter inputs */
+#port-add-form{
+  flex-direction:column!important;
+  gap:0!important;
+  padding:0!important;
+}
+#port-add-form::before{
+  content:'ADD HOLDING';
+  display:block;padding:.65rem 1.1rem .55rem;
+  font-size:.6rem;font-weight:800;letter-spacing:.12em;color:var(--cyan);
+  border-bottom:1px solid rgba(0,201,167,0.12);width:100%;box-sizing:border-box;
+}
+.port-add-inputs{display:flex;flex-wrap:wrap;gap:.5rem;padding:.8rem 1.1rem 1rem;align-items:center}
+
+/* Stat card: tighter label so number is more prominent */
+.pt-stat-label{font-size:.62rem!important;margin-bottom:.4rem!important}
+.pt-stat-val{font-size:1.85rem!important}
+
+/* Port hero: bolder section title */
+.port-hero-sub{color:rgba(148,163,184,.75)!important;font-size:.78rem!important;letter-spacing:.01em}
+
+/* Holdings header: more breathing room */
+.port-holdings-hdr{margin-bottom:1rem!important;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,.04)}
+
+/* Alloc sidebar: icon labels are emoji — give them room */
+.alloc-sidebar-title,.qs-title{font-size:.7rem!important;letter-spacing:.08em!important}
+
+/* Port icon: tighter box shadow for stock (blue glow) */
+.port-icon.stock{box-shadow:0 0 16px rgba(59,130,246,0.5),inset 0 1px 0 rgba(255,255,255,0.15)!important}
+
+/* Shimmer keyframe (referenced above) */
+@keyframes btnShimmer{0%{left:-60%}100%{left:120%}}
 
 </style>
 </head>
@@ -1457,11 +1496,11 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         <canvas id="port-hero-canvas" class="port-hero-canvas"></canvas>
         <!-- Decorative icosahedra -->
         <svg class="port-hero-deco" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="right:2%;top:-10%;width:220px;opacity:.18">
-          <polygon points="100,10 190,60 190,140 100,190 10,140 10,60" fill="none" stroke="rgba(120,100,255,0.8)" stroke-width="1"/>
-          <polygon points="100,40 165,75 165,125 100,160 35,125 35,75" fill="none" stroke="rgba(120,100,255,0.5)" stroke-width="0.8"/>
-          <line x1="100" y1="10" x2="100" y2="190" stroke="rgba(120,100,255,0.3)" stroke-width="0.5"/>
-          <line x1="10" y1="60" x2="190" y2="140" stroke="rgba(120,100,255,0.3)" stroke-width="0.5"/>
-          <line x1="190" y1="60" x2="10" y2="140" stroke="rgba(120,100,255,0.3)" stroke-width="0.5"/>
+          <polygon points="100,10 190,60 190,140 100,190 10,140 10,60" fill="none" stroke="rgba(0,201,167,0.8)" stroke-width="1"/>
+          <polygon points="100,40 165,75 165,125 100,160 35,125 35,75" fill="none" stroke="rgba(0,201,167,0.5)" stroke-width="0.8"/>
+          <line x1="100" y1="10" x2="100" y2="190" stroke="rgba(0,201,167,0.3)" stroke-width="0.5"/>
+          <line x1="10" y1="60" x2="190" y2="140" stroke="rgba(0,201,167,0.3)" stroke-width="0.5"/>
+          <line x1="190" y1="60" x2="10" y2="140" stroke="rgba(0,201,167,0.3)" stroke-width="0.5"/>
         </svg>
         <svg class="port-hero-deco" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" style="left:1%;bottom:-15%;width:160px;opacity:.12">
           <polygon points="80,5 155,45 155,115 80,155 5,115 5,45" fill="none" stroke="rgba(0,201,167,0.9)" stroke-width="1"/>
@@ -1532,24 +1571,26 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 
           <!-- Collapsible add form -->
           <div id="port-add-form">
-            <input class="port-input" id="port-sym" placeholder="Symbol" style="width:80px">
-            <input class="port-input" id="port-name" placeholder="Name (opt.)" style="width:120px">
-            <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.0001" step="any" style="width:85px" oninput="updateBasisPreview()">
-            <input class="port-input" id="port-price" placeholder="Avg Cost / Share" type="number" min="0.0001" step="any" style="width:130px" oninput="updateBasisPreview()">
-            <div id="port-basis-preview" style="display:none;font-size:.75rem;color:var(--muted);padding:.35rem .65rem;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:7px;align-self:center;white-space:nowrap">Basis: <span id="port-basis-val" style="color:var(--cyan);font-weight:700">$0</span></div>
-            <select class="port-input" id="port-type" style="width:90px">
-              <option value="stock">Stock</option>
-              <option value="etf">ETF</option>
-              <option value="crypto">Crypto</option>
-            </select>
-            <select class="port-input" id="port-account" style="width:118px">
-              <option value="taxable">Taxable</option>
-              <option value="roth_ira">Roth IRA</option>
-              <option value="k401">401(k)</option>
-              <option value="crypto_wallet">Crypto Wallet</option>
-              <option value="other">Other</option>
-            </select>
-            <button class="btn-port-add" onclick="addHolding()">Add</button>
+            <div class="port-add-inputs">
+              <input class="port-input" id="port-sym" placeholder="Ticker" style="width:72px">
+              <input class="port-input" id="port-name" placeholder="Name (opt.)" style="width:115px">
+              <input class="port-input" id="port-shares" placeholder="Shares" type="number" min="0.0001" step="any" style="width:82px" oninput="updateBasisPreview()">
+              <input class="port-input" id="port-price" placeholder="Avg Cost / Share" type="number" min="0.0001" step="any" style="width:130px" oninput="updateBasisPreview()">
+              <div id="port-basis-preview" style="display:none;font-size:.75rem;color:var(--muted);padding:.35rem .65rem;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:7px;align-self:center;white-space:nowrap">Basis: <span id="port-basis-val" style="color:var(--cyan);font-weight:700">$0</span></div>
+              <select class="port-input" id="port-type" style="width:88px">
+                <option value="stock">Stock</option>
+                <option value="etf">ETF</option>
+                <option value="crypto">Crypto</option>
+              </select>
+              <select class="port-input" id="port-account" style="width:118px">
+                <option value="taxable">Taxable</option>
+                <option value="roth_ira">Roth IRA</option>
+                <option value="k401">401(k)</option>
+                <option value="crypto_wallet">Crypto Wallet</option>
+                <option value="other">Other</option>
+              </select>
+              <button class="btn-port-add" onclick="addHolding()">+ Add</button>
+            </div>
           </div>
 
           <!-- Holdings table -->
