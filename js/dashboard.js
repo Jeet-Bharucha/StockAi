@@ -542,17 +542,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!bars2.length) throw new Error('no data');
 
       // Enable left price scale for the comparison stock
-      window._chart.applyOptions({ leftPriceScale:{ visible:true, borderColor:'rgba(168,85,247,0.3)', scaleMargins:{top:0.08,bottom:0.22} } });
+      window._chart.applyOptions({ leftPriceScale:{ visible:true, borderColor:'rgba(245,158,11,0.3)', scaleMargins:{top:0.08,bottom:0.22} } });
 
       compareSeries = window._chart.addLineSeries({
-        color:'#a855f7', lineWidth:2, priceLineVisible:false,
+        color:'#f59e0b', lineWidth:2, priceLineVisible:false,
         lastValueVisible:true, crosshairMarkerVisible:true, title:sym,
         priceScaleId:'left',
       });
       compareSeries.setData(bars2.map(b=>({time:b.time, value:b.close})));
 
       const leg = document.getElementById('compare-legend');
-      if (leg) leg.innerHTML = `<span><span class="cmp-dot" style="background:var(--cyan)"></span>${currentSymbol}</span><span><span class="cmp-dot" style="background:#a855f7"></span>${sym}</span>`;
+      if (leg) leg.innerHTML = `<span><span class="cmp-dot" style="background:var(--cyan)"></span>${currentSymbol}</span><span><span class="cmp-dot" style="background:#f59e0b"></span>${sym}</span>`;
       showToast(`Comparing ${currentSymbol} vs ${sym}`);
     } catch(_) {
       showToast(`No data for ${sym}`);
@@ -733,7 +733,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       value: h.shares * (quotes[h.symbol]?.price || h.buyPrice),
     }));
     const total = rows.reduce((a,r) => a+r.value, 0) || 1;
-    const colors = ['#00d4ff','#00ff88','#a855f7','#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24'];
+    const colors = ['#00d4ff','#00ff88','#60a5fa','#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24'];
     rows.forEach((r,i) => r.color = colors[i % colors.length]);
 
     // Draw donut
@@ -1106,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!totalValue) return;
 
     // Group by assetType
-    const typeMap = { stock:'#7c3aed', etf:'#06b6d4', crypto:'#f59e0b' };
+    const typeMap = { stock:'#3b82f6', etf:'#06b6d4', crypto:'#f59e0b' };
     const typeLabels = { stock:'Stocks', etf:'ETFs', crypto:'Crypto' };
     const byType = {};
     rows.forEach(r => {

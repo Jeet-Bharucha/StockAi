@@ -239,7 +239,7 @@ const ChartOverlays = {
 
   updateAll(chart, bars) {
     const active = [...this._active];
-    const colors = { 20: '#a855f7', 50: '#ffd700', 200: '#ff8c00' };
+    const colors = { 20: '#f59e0b', 50: '#ffd700', 200: '#ff8c00' };
     active.forEach(p => this.add(chart, bars, p, colors[p]));
   },
 
