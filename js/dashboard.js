@@ -890,7 +890,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     draw();
   }
 
-  async function renderPortfolio() {
+  async function renderPortfolio(silent = false) {
     initPortfolioHero();
     await Portfolio.load();               // fetch from API (or guest localStorage)
     const holdings = Portfolio.get();
@@ -908,8 +908,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Fetch live prices
-    listEl.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:1.5rem;text-align:center">⟳ Fetching live prices…</div>`;
+    // Fetch live prices (silent = skip loading spinner for background refresh)
+    if (!silent) listEl.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:1.5rem;text-align:center">⟳ Fetching live prices…</div>`;
     const uniqueSyms = [...new Set(holdings.map(h=>h.symbol))];
     let priceData = {};
     try {
@@ -1630,6 +1630,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderDailyBriefing();
 
   marketInterval = setInterval(updateMarket, 30000);
+
+  // Auto-refresh portfolio prices every 30 s (silent — no loading spinner)
+  setInterval(() => {
+    if (document.getElementById('view-portfolio')?.classList.contains('active')) {
+      renderPortfolio(true);
+    }
+  }, 30000);
 
   // Init tilt on static cards
   if (typeof initTilt === 'function') initTilt('[data-tilt]');
