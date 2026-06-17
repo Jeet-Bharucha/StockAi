@@ -12,9 +12,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
-    "@capacitor/android": "^7.6.6",
-    "@capacitor/cli": "^7.6.6",
-    "@capacitor/core": "^7.6.6",
     "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
@@ -25,6 +22,9 @@
     "ws": "^8.16.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^7.6.6",
+    "@capacitor/cli": "^7.6.6",
+    "@capacitor/core": "^7.6.6",
     "nodemon": "^3.1.0"
   }
 }
