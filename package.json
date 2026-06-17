@@ -11,11 +11,17 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "@capacitor/android": "^7.6.6",
+    "@capacitor/cli": "^7.6.6",
+    "@capacitor/core": "^7.6.6",
     "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.3",
+    "node-cron": "^4.3.0",
+    "nodemailer": "^9.0.1",
     "ws": "^8.16.0"
   },
   "devDependencies": {

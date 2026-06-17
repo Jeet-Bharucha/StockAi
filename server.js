@@ -6,6 +6,10 @@ const path     = require('path');
 const mongoose = require('mongoose');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const cron     = require('node-cron');
+const _anthropicMod = require('@anthropic-ai/sdk');
+const Anthropic = _anthropicMod.default || _anthropicMod;
+const { runMarketScan, runCryptoScan } = require('./alertEngine');
 
 const app    = express();
 const server = createServer(app);
@@ -13,10 +17,30 @@ const wss    = new WebSocket.Server({ server, path: '/ws' });
 
 app.use(express.json());
 
-const FINNHUB_KEY = process.env.FINNHUB_KEY;
-const MONGO_URI   = process.env.MONGO_URI;
-const JWT_SECRET  = process.env.JWT_SECRET || 'stockai_fallback_secret_change_me';
-const PORT        = process.env.PORT || 3001;
+const FINNHUB_KEY      = process.env.FINNHUB_KEY;
+const MONGO_URI        = process.env.MONGO_URI;
+const ALLOWED_EMAIL    = (process.env.ALLOWED_EMAIL || '').toLowerCase().trim();
+const SITE_PASSWORD    = process.env.SITE_PASSWORD || '';
+
+// ── Private-mode gate — only you can access this site ────────────────────────
+// Layer 1: HTTP Basic Auth on all HTML pages (browser shows a password popup)
+if (SITE_PASSWORD) {
+  app.use((req, res, next) => {
+    // Skip basic-auth for API routes (they use JWT instead)
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) return next();
+    const auth = req.headers.authorization || '';
+    if (auth.startsWith('Basic ')) {
+      const decoded = Buffer.from(auth.slice(6), 'base64').toString();
+      const pass = decoded.split(':').slice(1).join(':'); // handle colons in password
+      if (pass === SITE_PASSWORD) return next();
+    }
+    res.setHeader('WWW-Authenticate', 'Basic realm="StockAI — Private"');
+    res.status(401).send('Access denied');
+  });
+}
+const JWT_SECRET       = process.env.JWT_SECRET || 'stockai_fallback_secret_change_me';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const PORT             = process.env.PORT || 3001;
 
 // ── MongoDB connection ────────────────────────────────────────────────────
 if (MONGO_URI) {
@@ -73,6 +97,9 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
     const { name, email, password } = req.body;
     if (!name || !email || !password)
       return res.status(400).json({ error: 'Name, email, and password are required' });
+    // Layer 2: block registration for any email that isn't the owner's
+    if (ALLOWED_EMAIL && email.toLowerCase().trim() !== ALLOWED_EMAIL)
+      return res.status(403).json({ error: 'Registration is closed on this instance.' });
     if (password.length < 6)
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     if (await User.findOne({ email: email.toLowerCase() }))
@@ -92,6 +119,9 @@ app.post('/api/auth/login', dbRequired, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password)
       return res.status(400).json({ error: 'Email and password are required' });
+    // Layer 3: block login for anyone who isn't the owner
+    if (ALLOWED_EMAIL && email.toLowerCase().trim() !== ALLOWED_EMAIL)
+      return res.status(403).json({ error: 'Invalid email or password' }); // same message to avoid enumeration
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -363,17 +393,133 @@ app.get('/api/portfolio-prices', async (req, res) => {
   res.json(prices);
 });
 
+// ── Claude AI Stock Analysis ──────────────────────────────────────────────
+app.post('/api/ai-analysis', async (req, res) => {
+  if (!ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'AI analysis not configured — add ANTHROPIC_API_KEY to .env' });
+  }
+
+  const { symbol, price, prediction } = req.body;
+  if (!symbol || !prediction) {
+    return res.status(400).json({ error: 'symbol and prediction are required' });
+  }
+
+  const { signals = [], direction, confidence, support, resistance, atrPct, patterns = [], buyCount, sellCount, neutralCount } = prediction;
+
+  const signalLines = signals.map(s => `  • ${s.name}: ${s.value} → ${s.signal} (score ${s.score > 0 ? '+' : ''}${s.score})`).join('\n');
+  const patternLine = patterns.length
+    ? patterns.map(p => `${p.name} (${p.bull ? 'bullish' : 'bearish'})`).join(', ')
+    : 'None detected';
+
+  const prompt = `You are a professional quantitative analyst providing a real-time stock analysis briefing for ${symbol}.
+
+Current Data:
+  Price: $${price}
+  Signal: ${direction} — ${confidence}% confidence
+  Buy signals: ${buyCount} | Sell signals: ${sellCount} | Neutral: ${neutralCount}
+
+Technical Indicators:
+${signalLines}
+
+Key Levels:
+  Support: $${support} | Resistance: $${resistance}
+  ATR Volatility: ${atrPct}%
+
+Candlestick Patterns: ${patternLine}
+
+Respond with a JSON object (no markdown, no code fences) with exactly these four fields:
+{
+  "summary": "2–3 sentence professional assessment of the current technical setup and what it means for traders. Reference specific numbers.",
+  "key_drivers": ["driver 1", "driver 2", "driver 3"],
+  "risk": "One sentence on the primary risk to this view — be specific about price levels or conditions.",
+  "watch": "One sentence on the exact price level or indicator reading to watch for confirmation or invalidation."
+}`;
+
+  try {
+    const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 512,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const rawText = message.content[0]?.text || '';
+
+    // Extract JSON from the response
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Model did not return valid JSON');
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    // Validate expected fields exist
+    if (!parsed.summary) throw new Error('Missing summary field');
+
+    return res.json({
+      summary:     parsed.summary     || '',
+      key_drivers: Array.isArray(parsed.key_drivers) ? parsed.key_drivers : [],
+      risk:        parsed.risk        || '',
+      watch:       parsed.watch       || '',
+      model:       message.model
+    });
+  } catch (err) {
+    console.error('[AI Analysis]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Serve static frontend files ───────────────────────────────────────────
 app.use(express.static(path.join(__dirname)));
 
 // ── Start ─────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
+  const emailOk = !!(process.env.ALERT_GMAIL_USER && process.env.ALERT_GMAIL_PASS && process.env.ALERT_EMAIL_TO);
+  const smsOk   = !!(process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.ALERT_PHONE);
+
   console.log('');
   console.log('  📈  StockAI is running!');
   console.log(`  🌐  http://localhost:${PORT}`);
-  console.log(`  🔑  Finnhub key : ${FINNHUB_KEY ? '✅ set' : '❌ not set'}`);
-  console.log(`  🍃  MongoDB     : ${MONGO_URI   ? '✅ connecting…' : '❌ not set (add MONGO_URI to .env)'}`);
+  console.log(`  🔑  Finnhub key : ${FINNHUB_KEY       ? '✅ set' : '❌ not set'}`);
+  console.log(`  🍃  MongoDB     : ${MONGO_URI          ? '✅ connecting…' : '❌ not set (add MONGO_URI to .env)'}`);
   console.log(`  🔐  JWT secret  : ${process.env.JWT_SECRET ? '✅ set' : '⚠️  using fallback (set JWT_SECRET in .env)'}`);
+  console.log(`  🤖  Claude AI   : ${ANTHROPIC_API_KEY  ? '✅ set' : '⚠️  not set (add ANTHROPIC_API_KEY to .env for AI analysis)'}`);
+  console.log(`  📧  Email alerts: ${emailOk ? `✅ → ${process.env.ALERT_EMAIL_TO}` : '⚠️  not set (add ALERT_GMAIL_USER/PASS + ALERT_EMAIL_TO)'}`);
+  console.log(`  📱  SMS alerts  : ${smsOk   ? '✅ Twilio configured' : '➖  not set (optional — add TWILIO_SID/TOKEN/FROM + ALERT_PHONE)'}`);
   console.log('');
+
   if (FINNHUB_KEY) connectFinnhubWS();
+
+  // ── Alert Engine — Cron schedules ───────────────────────────────────────
+  if (FINNHUB_KEY) {
+    // Stocks + ETFs + IPOs: every 30 min during US market hours Mon–Fri (ET)
+    cron.schedule('*/30 9-16 * * 1-5', () => {
+      console.log('[Cron] ⏰ Market scan triggered');
+      runMarketScan().catch(e => console.error('[Cron] Market scan failed:', e.message));
+    }, { timezone: 'America/New_York' });
+
+    // Pre-market scan: Mon–Fri 8:00 AM ET (catches IPOs + early movers)
+    cron.schedule('0 8 * * 1-5', () => {
+      console.log('[Cron] ⏰ Pre-market scan triggered');
+      runMarketScan().catch(e => console.error('[Cron] Pre-market scan failed:', e.message));
+    }, { timezone: 'America/New_York' });
+
+    // After-hours scan: Mon–Fri 5:00 PM ET
+    cron.schedule('0 17 * * 1-5', () => {
+      console.log('[Cron] ⏰ After-hours scan triggered');
+      runMarketScan().catch(e => console.error('[Cron] After-hours scan failed:', e.message));
+    }, { timezone: 'America/New_York' });
+
+    // Crypto: every 2 hours, 24/7 (crypto markets never close)
+    cron.schedule('0 */2 * * *', () => {
+      console.log('[Cron] ⏰ Crypto scan triggered');
+      runCryptoScan().catch(e => console.error('[Cron] Crypto scan failed:', e.message));
+    });
+
+    console.log('  ⏰  Alert Engine: ✅ cron jobs scheduled');
+    console.log('       • Stocks/ETFs/IPOs: every 30 min (Mon–Fri 8AM–5PM ET)');
+    console.log('       • Crypto: every 2 hours, 24/7');
+    console.log('');
+  } else {
+    console.log('  ⏰  Alert Engine: ⚠️  disabled (FINNHUB_KEY not set)');
+    console.log('');
+  }
 });

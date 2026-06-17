@@ -1,0 +1,24 @@
+{
+  "appId": "com.stockai.app",
+  "appName": "StockAI",
+  "webDir": "www",
+  "server": {
+    "url": "https://YOUR-APP-NAME.onrender.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0a0e1a",
+    "buildOptions": {
+      "keystorePath": null,
+      "keystorePassword": null,
+      "keystoreAlias": null,
+      "keystoreAliasPassword": null
+    }
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

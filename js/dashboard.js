@@ -209,7 +209,87 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── AI Prediction ─────────────────────────────────────────────────────────
   function runAI() {
     if (currentBars.length < 50) return;
-    renderAI(AIPredictor.predict(currentBars));
+    const prediction = AIPredictor.predict(currentBars);
+    renderAI(prediction);
+    // Kick off Claude AI analysis in parallel — updates #ai-reasoning when done
+    const curPrice = currentBars[currentBars.length - 1].close;
+    fetchClaudeAnalysis(currentSymbol, curPrice, prediction);
+  }
+
+  async function fetchClaudeAnalysis(symbol, price, prediction) {
+    const reasonEl = document.getElementById('ai-reasoning');
+    if (!reasonEl) return;
+
+    // Show a subtle loading shimmer while Claude thinks
+    reasonEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:.55rem;padding:.25rem 0 .5rem">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--cyan);animation:aiPulse 1.2s ease-in-out infinite"></span>
+        <span style="font-size:.75rem;color:var(--muted);font-weight:600;letter-spacing:.06em">CLAUDE AI ANALYZING ${symbol}…</span>
+      </div>`;
+
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 18000);
+      let resp;
+      try {
+        resp = await fetch('/api/ai-analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol, price, prediction }),
+          signal: ctrl.signal
+        });
+      } finally { clearTimeout(timer); }
+
+      // 503 = API key not configured — show fallback badge immediately, no error noise
+      if (resp.status === 503) {
+        renderFallbackReasoning(prediction);
+        return;
+      }
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error(err.error || `HTTP ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      // ── Render Claude's analysis ──────────────────────────────────────
+      const driversHtml = Array.isArray(data.key_drivers) && data.key_drivers.length
+        ? `<ul class="claude-drivers">${data.key_drivers.map(d => `<li>${d}</li>`).join('')}</ul>`
+        : '';
+
+      const riskHtml = data.risk
+        ? `<div class="claude-risk"><span class="claude-label">⚠ RISK</span>${data.risk}</div>`
+        : '';
+
+      const watchHtml = data.watch
+        ? `<div class="claude-watch"><span class="claude-label">👁 WATCH</span>${data.watch}</div>`
+        : '';
+
+      reasonEl.innerHTML = `
+        <div class="claude-badge">✦ Claude AI</div>
+        <p class="claude-summary">${data.summary}</p>
+        ${driversHtml}
+        ${riskHtml}
+        ${watchHtml}`;
+
+    } catch (err) {
+      // Network error / timeout / parse failure — fall back gracefully
+      renderFallbackReasoning(prediction);
+      console.warn('[Claude AI] Fell back to local analysis:', err.message);
+    }
+  }
+
+  function renderFallbackReasoning(prediction) {
+    const reasonEl = document.getElementById('ai-reasoning');
+    if (!reasonEl) return;
+    const r = prediction || (currentBars.length >= 50 ? AIPredictor.predict(currentBars) : null);
+    if (!r) return;
+    reasonEl.innerHTML = `
+      <div class="ta-badge">⚙ Technical Analysis</div>
+      ${r.reasoning.map(l => `<p>${l}</p>`).join('')}`;
+  }
   }
 
   function renderAI(r) {

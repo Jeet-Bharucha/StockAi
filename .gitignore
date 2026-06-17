@@ -1,2 +1,11 @@
 .env
 node_modules/
+
+# Capacitor — Android build outputs (keep source, ignore build artifacts)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+
+# Capacitor www placeholder (rebuilt on cap sync)
+# www/ — keep this tracked so cap sync works on fresh clones
