@@ -34,7 +34,7 @@ if (SITE_PASSWORD) {
       const pass = decoded.split(':').slice(1).join(':'); // handle colons in password
       if (pass === SITE_PASSWORD) return next();
     }
-    res.setHeader('WWW-Authenticate', 'Basic realm="StockAI — Private"');
+    res.setHeader('WWW-Authenticate', 'Basic realm="StockAI"');
     res.status(401).send('Access denied');
   });
 }
