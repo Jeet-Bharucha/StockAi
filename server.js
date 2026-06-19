@@ -205,20 +205,23 @@ app.put('/api/user/watchlist', authMW, dbRequired, async (req, res) => {
 });
 
 // ── Finnhub WebSocket (one shared connection for the whole server) ─────────
-let finnhubWS   = null;
-let wsConnected = false;
+let finnhubWS      = null;
+let wsConnected    = false;
+let wsRetryDelay   = 10000;   // start at 10 s, backs off to 5 min on 429
+const WS_DELAY_MAX = 300000;  // cap at 5 minutes
 const symbolClients = new Map();
 
 function connectFinnhubWS() {
   if (!FINNHUB_KEY) {
-    console.warn('⚠️  FINNHUB_KEY not set — live WebSocket disabled, serving simulated data');
+    console.warn('⚠️  FINNHUB_KEY not set — live WebSocket disabled');
     return;
   }
-  console.log('🔌 Connecting to Finnhub WebSocket…');
+  console.log(`🔌 Connecting to Finnhub WebSocket… (retry delay ${wsRetryDelay/1000}s)`);
   finnhubWS = new WebSocket(`wss://ws.finnhub.io?token=${FINNHUB_KEY}`);
 
   finnhubWS.on('open', () => {
-    wsConnected = true;
+    wsConnected  = true;
+    wsRetryDelay = 10000; // reset backoff on successful connect
     console.log('✅ Finnhub WebSocket connected');
     broadcastToAll({ type: 'status', status: 'connected' });
     for (const symbol of symbolClients.keys()) finnhubSend('subscribe', symbol);
@@ -240,13 +243,24 @@ function connectFinnhubWS() {
   });
 
   finnhubWS.on('close', () => {
-    wsConnected = false;
-    console.log('🔴 Finnhub WS closed — reconnecting in 5 s…');
+    wsConnected  = false;
+    wsRetryDelay = Math.min(wsRetryDelay * 2, WS_DELAY_MAX); // exponential backoff
+    console.log(`🔴 Finnhub WS closed — reconnecting in ${wsRetryDelay/1000}s…`);
     broadcastToAll({ type: 'status', status: 'disconnected' });
-    setTimeout(connectFinnhubWS, 5000);
+    setTimeout(connectFinnhubWS, wsRetryDelay);
   });
 
-  finnhubWS.on('error', err => console.error('Finnhub WS error:', err.message));
+  // 429 = rate limited — back off hard
+  finnhubWS.on('unexpected-response', (req, res) => {
+    wsRetryDelay = Math.min(wsRetryDelay * 3, WS_DELAY_MAX);
+    console.warn(`⚠️  Finnhub WS rejected (HTTP ${res.statusCode}) — backing off ${wsRetryDelay/1000}s`);
+    finnhubWS.terminate();
+  });
+
+  finnhubWS.on('error', err => {
+    // suppress noisy ECONNRESET logs — close event will handle reconnect
+    if (!err.message.includes('ECONNRESET')) console.error('Finnhub WS error:', err.message);
+  });
 }
 
 function finnhubSend(type, symbol) {
