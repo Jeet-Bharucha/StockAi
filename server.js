@@ -109,30 +109,29 @@ app.get('/api/test-alert', async (req, res) => {
   }
 });
 
-// ── Force a test email (bypasses signal thresholds) ───────────────────────
+// ── Force a test email via Resend (bypasses signal thresholds) ───────────
 app.get('/api/test-email', async (req, res) => {
   if (!SITE_PASSWORD || req.query.key !== SITE_PASSWORD) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  const GMAIL_USER = process.env.ALERT_GMAIL_USER;
-  const GMAIL_PASS = process.env.ALERT_GMAIL_PASS;
+  const RESEND_KEY = process.env.RESEND_API_KEY;
   const ALERT_TO   = process.env.ALERT_EMAIL_TO;
-  if (!GMAIL_USER || !GMAIL_PASS || !ALERT_TO) {
-    return res.json({ ok: false, error: 'Email env vars not set', GMAIL_USER, ALERT_TO });
+  if (!RESEND_KEY || !ALERT_TO) {
+    return res.json({ ok: false, error: 'RESEND_API_KEY or ALERT_EMAIL_TO not set in Render env vars' });
   }
-  res.json({ ok: true, message: `Sending test email to ${ALERT_TO} — check Render logs in 30s` });
-  const nodemailer = require('nodemailer');
-  const transport = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
-  transport.sendMail({
-    from: `"StockAI Alerts" <${GMAIL_USER}>`,
-    to: ALERT_TO,
+  res.json({ ok: true, message: `Sending test email to ${ALERT_TO} — check inbox in 10s` });
+  const { Resend } = require('resend');
+  const resend = new Resend(RESEND_KEY);
+  resend.emails.send({
+    from: 'StockAI Alerts <onboarding@resend.dev>',
+    to: ALERT_TO.split(',').map(e => e.trim()).filter(Boolean),
     subject: '✅ StockAI — Email delivery test',
     html: `<div style="font-family:sans-serif;background:#0a0e1a;color:#f1f5f9;padding:32px;border-radius:12px">
       <h2 style="color:#00c9a7">StockAI ✅ Email is working!</h2>
       <p>Your automated alert system is configured correctly.</p>
       <p style="color:#6b7280;font-size:13px">Sent at ${new Date().toLocaleString('en-US',{timeZone:'America/New_York'})} ET</p>
     </div>`
-  }).then(() => console.log(`[TestEmail] ✅ Test email sent to ${ALERT_TO}`))
+  }).then(r => console.log(`[TestEmail] ✅ Sent to ${ALERT_TO}`, r?.data?.id || ''))
     .catch(e => console.error('[TestEmail] ❌ Failed:', e.message));
 });
 

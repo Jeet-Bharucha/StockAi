@@ -12,15 +12,14 @@
  * Configure via .env — see SETUP GUIDE at the bottom of this file.
  */
 
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const mongoose   = require('mongoose');
 
 // ── Environment config ────────────────────────────────────────────────────────
 const FINNHUB_KEY   = process.env.FINNHUB_KEY;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const GMAIL_USER    = process.env.ALERT_GMAIL_USER;
-const GMAIL_PASS    = process.env.ALERT_GMAIL_PASS;   // Gmail App Password (16 chars)
-const ALERT_TO      = process.env.ALERT_EMAIL_TO;     // Where to send alerts
+const RESEND_KEY    = process.env.RESEND_API_KEY;
+const ALERT_TO      = process.env.ALERT_EMAIL_TO;     // Where to send alerts (comma-separated)
 const TWILIO_SID    = process.env.TWILIO_SID;
 const TWILIO_TOKEN  = process.env.TWILIO_TOKEN;
 const TWILIO_FROM   = process.env.TWILIO_FROM;        // +1XXXXXXXXXX
@@ -439,22 +438,19 @@ function buildEmailHtml(alerts, scanLabel) {
 </div></body></html>`;
 }
 
-// ── Send email ────────────────────────────────────────────────────────────────
+// ── Send email via Resend (HTTPS API — works on Render free tier) ─────────────
 async function sendEmail(alerts, scanLabel) {
-  if (!GMAIL_USER || !GMAIL_PASS || !ALERT_TO) {
-    console.log('[AlertEngine] ⚠️  Email not configured (set ALERT_GMAIL_USER, ALERT_GMAIL_PASS, ALERT_EMAIL_TO in .env)');
+  if (!RESEND_KEY || !ALERT_TO) {
+    console.log('[AlertEngine] ⚠️  Email not configured (set RESEND_API_KEY and ALERT_EMAIL_TO in .env)');
     return false;
   }
   try {
-    const transport = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: GMAIL_USER, pass: GMAIL_PASS }
-    });
+    const resend = new Resend(RESEND_KEY);
 
-    const buys  = alerts.filter(a => ['STRONG_BUY','GOLDEN_CROSS'].includes(a.signalType));
-    const sells = alerts.filter(a => ['STRONG_SELL','DEATH_CROSS'].includes(a.signalType));
-    const ipos  = alerts.filter(a => a.signalType === 'IPO');
-    const movers= alerts.filter(a => a.signalType.startsWith('MAJOR_MOVER'));
+    const buys   = alerts.filter(a => ['STRONG_BUY','GOLDEN_CROSS'].includes(a.signalType));
+    const sells  = alerts.filter(a => ['STRONG_SELL','DEATH_CROSS'].includes(a.signalType));
+    const ipos   = alerts.filter(a => a.signalType === 'IPO');
+    const movers = alerts.filter(a => a.signalType.startsWith('MAJOR_MOVER'));
 
     let subject;
     if (alerts.length === 1) {
@@ -468,12 +464,14 @@ async function sendEmail(alerts, scanLabel) {
       subject = `🚨 StockAI: ${alerts.length} alerts — ${parts.join(', ')}`;
     }
 
-    await transport.sendMail({
-      from:    `"StockAI Alerts" <${GMAIL_USER}>`,
-      to:      ALERT_TO,
+    const toAddresses = ALERT_TO.split(',').map(e => e.trim()).filter(Boolean);
+    const { error } = await resend.emails.send({
+      from:    'StockAI Alerts <onboarding@resend.dev>',
+      to:      toAddresses,
       subject,
       html:    buildEmailHtml(alerts, scanLabel)
     });
+    if (error) throw new Error(error.message);
     console.log(`[AlertEngine] ✅ Email sent → ${ALERT_TO} | Subject: ${subject}`);
     return true;
   } catch (e) {
