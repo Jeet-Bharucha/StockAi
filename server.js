@@ -95,6 +95,20 @@ function dbRequired(req, res, next) {
 // ── Health check (used by UptimeRobot — no auth required) ────────────────
 app.get('/ping', (req, res) => res.send('ok'));
 
+// ── Manual alert test (owner-only, requires site password in query) ───────
+app.get('/api/test-alert', async (req, res) => {
+  if (!SITE_PASSWORD || req.query.key !== SITE_PASSWORD) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  res.json({ ok: true, message: 'Crypto scan started — check your email in ~60 seconds' });
+  try {
+    const { runCryptoScan } = require('./alertEngine');
+    await runCryptoScan();
+  } catch (e) {
+    console.error('[TestAlert] Error:', e.message);
+  }
+});
+
 // ── Auth routes ───────────────────────────────────────────────────────────
 app.post('/api/auth/register', dbRequired, async (req, res) => {
   try {
