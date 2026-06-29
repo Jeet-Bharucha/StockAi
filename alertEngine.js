@@ -74,14 +74,40 @@ async function fhGet(path) {
   return resp.json();
 }
 
+// CoinGecko IDs for crypto (free API, no key required)
+const COINGECKO_IDS = {
+  'BINANCE:BTCUSDT':  'bitcoin',
+  'BINANCE:ETHUSDT':  'ethereum',
+  'BINANCE:SOLUSDT':  'solana',
+  'BINANCE:XRPUSDT':  'ripple',
+  'BINANCE:BNBUSDT':  'binancecoin',
+  'BINANCE:DOGEUSDT': 'dogecoin',
+  'BINANCE:AVAXUSDT': 'avalanche-2',
+  'BINANCE:LINKUSDT': 'chainlink'
+};
+
+async function fetchCandlesCoinGecko(symbol, days = 220) {
+  const cgId = COINGECKO_IDS[symbol];
+  if (!cgId) throw new Error(`No CoinGecko ID for ${symbol}`);
+  const url = `https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${days}&interval=daily`;
+  const resp = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'Accept': 'application/json' } });
+  if (!resp.ok) throw new Error(`CoinGecko HTTP ${resp.status} — ${cgId}`);
+  const data = await resp.json();
+  if (!data.prices?.length) return null;
+  const volMap = new Map((data.total_volumes || []).map(([t, v]) => [Math.floor(t / 86400000), v]));
+  return data.prices
+    .map(([t, close]) => {
+      const day = Math.floor(t / 86400000);
+      return { close, open: close, high: close, low: close, volume: volMap.get(day) || 0, time: Math.floor(t / 1000) };
+    })
+    .sort((a, b) => a.time - b.time);
+}
+
 async function fetchCandles(symbol, days = 220) {
+  if (symbol.includes(':')) return fetchCandlesCoinGecko(symbol, days);
   const to   = Math.floor(Date.now() / 1000);
   const from = to - days * 86400;
-  const isCrypto = symbol.includes(':');
-  const endpoint = isCrypto
-    ? `/crypto/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}`
-    : `/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}`;
-  const data = await fhGet(endpoint);
+  const data = await fhGet(`/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}`);
   if (data.s !== 'ok' || !data.c?.length) return null;
   return data.c.map((close, i) => ({
     close, open: data.o[i], high: data.h[i], low: data.l[i],
