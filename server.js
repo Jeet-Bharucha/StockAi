@@ -120,25 +120,20 @@ app.get('/api/test-email', async (req, res) => {
   if (!GMAIL_USER || !GMAIL_PASS || !ALERT_TO) {
     return res.json({ ok: false, error: 'Email env vars not set', GMAIL_USER, ALERT_TO });
   }
-  try {
-    const nodemailer = require('nodemailer');
-    const transport = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
-    await transport.sendMail({
-      from: `"StockAI Alerts" <${GMAIL_USER}>`,
-      to: ALERT_TO,
-      subject: '✅ StockAI — Email delivery test',
-      html: `<div style="font-family:sans-serif;background:#0a0e1a;color:#f1f5f9;padding:32px;border-radius:12px">
-        <h2 style="color:#00c9a7">StockAI ✅ Email is working!</h2>
-        <p>Your automated alert system is configured correctly.</p>
-        <p style="color:#6b7280;font-size:13px">Sent at ${new Date().toLocaleString('en-US',{timeZone:'America/New_York'})} ET</p>
-      </div>`
-    });
-    console.log(`[TestEmail] ✅ Test email sent to ${ALERT_TO}`);
-    res.json({ ok: true, message: `Test email sent to ${ALERT_TO}` });
-  } catch (e) {
-    console.error('[TestEmail] ❌ Failed:', e.message);
-    res.json({ ok: false, error: e.message });
-  }
+  res.json({ ok: true, message: `Sending test email to ${ALERT_TO} — check Render logs in 30s` });
+  const nodemailer = require('nodemailer');
+  const transport = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
+  transport.sendMail({
+    from: `"StockAI Alerts" <${GMAIL_USER}>`,
+    to: ALERT_TO,
+    subject: '✅ StockAI — Email delivery test',
+    html: `<div style="font-family:sans-serif;background:#0a0e1a;color:#f1f5f9;padding:32px;border-radius:12px">
+      <h2 style="color:#00c9a7">StockAI ✅ Email is working!</h2>
+      <p>Your automated alert system is configured correctly.</p>
+      <p style="color:#6b7280;font-size:13px">Sent at ${new Date().toLocaleString('en-US',{timeZone:'America/New_York'})} ET</p>
+    </div>`
+  }).then(() => console.log(`[TestEmail] ✅ Test email sent to ${ALERT_TO}`))
+    .catch(e => console.error('[TestEmail] ❌ Failed:', e.message));
 });
 
 // ── Auth routes ───────────────────────────────────────────────────────────
