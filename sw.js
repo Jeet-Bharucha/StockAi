@@ -1,4 +1,4 @@
-const CACHE = 'stockai-v14';
+const CACHE = 'stockai-v15';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/dashboard.html', '/profile.html', '/404.html',

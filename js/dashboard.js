@@ -1166,8 +1166,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${plSign}${Math.abs(row.plPct).toFixed(2)}%
         </div>
         <div style="display:flex;flex-direction:column;gap:.32rem;align-items:center">
-          <button class="port-act-btn edit" onclick="window.openEditHolding(${row.id})" title="Edit">✎</button>
-          <button class="port-act-btn del"  onclick="window.removeHolding(${row.id})"   title="Remove">🗑</button>
+          <button class="port-act-btn edit" onclick="window.openEditHolding('${row.id}')" title="Edit">✎</button>
+          <button class="port-act-btn del"  onclick="window.removeHolding('${row.id}')"   title="Remove">🗑</button>
         </div>
       </div>`;
     }).join('');
@@ -1289,7 +1289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   window.openEditHolding = function(id) {
-    const h = Portfolio.get().find(x => x.id === id);
+    const h = Portfolio.get().find(x => String(x.id) === String(id));
     if (!h) return;
     document.getElementById('edit-hold-id').value      = h.id;
     document.getElementById('edit-hold-sym').value     = h.symbol;
