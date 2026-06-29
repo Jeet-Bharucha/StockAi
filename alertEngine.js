@@ -561,7 +561,7 @@ async function scanSymbol(symbol, assetType) {
 }
 
 // Rate-limited scan of an array of symbols
-async function scanBatch(symbols, assetType, delayMs = 600) {
+async function scanBatch(symbols, assetType, delayMs = 1500) {
   const alerts = [];
   for (const sym of symbols) {
     const result = await scanSymbol(sym, assetType);
