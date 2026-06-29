@@ -825,9 +825,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const legendEl = document.getElementById('port-legend');
     if (legendEl) legendEl.innerHTML = colored.map(r=>`
       <div class="port-legend-row">
-        <span style="width:10px;height:10px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
-        <span style="font-size:.76rem;color:var(--text)">${r.symbol}</span>
-        <span style="font-size:.74rem;color:var(--muted);margin-left:auto">${((r.value/total)*100).toFixed(1)}%</span>
+        <span class="port-legend-dot" style="background:${r.color}"></span>
+        <span class="port-legend-name">${r.symbol}</span>
+        <span class="port-legend-pct" style="color:${r.color}">${((r.value/total)*100).toFixed(1)}%</span>
       </div>`).join('');
 
     const gridEl = document.getElementById('port-mini-grid');
