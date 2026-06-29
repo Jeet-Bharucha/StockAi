@@ -43,9 +43,9 @@ const WATCHLIST = {
 };
 
 // Signal thresholds
-const CONFIDENCE_MIN  = 75;   // % confidence required to trigger strong signal
-const SIGNAL_MIN      = 4;    // minimum indicators agreeing (out of ~6)
-const MOVER_PCT       = 5;    // daily % change to flag as major mover
+const CONFIDENCE_MIN  = 62;   // % confidence required to trigger strong signal
+const SIGNAL_MIN      = 3;    // minimum indicators agreeing (out of ~6)
+const MOVER_PCT       = 3;    // daily % change to flag as major mover
 const ALERT_COOLDOWN  = 24;   // hours before same signal repeats for same symbol
 
 // ── MongoDB deduplication model ───────────────────────────────────────────────
@@ -664,7 +664,80 @@ async function runFullScan() {
   await runCryptoScan();
 }
 
-module.exports = { runMarketScan, runCryptoScan, runFullScan, WATCHLIST };
+/**
+ * runDailyDigest — always sends a market-close summary every trading day at 4PM ET.
+ * Scans the full watchlist, ranks every symbol by weighted score, and emails the
+ * top 5 strongest signals regardless of whether they hit the real-time thresholds.
+ * This ensures you get at least one email per trading day even in quiet markets.
+ */
+async function runDailyDigest() {
+  const label = 'Daily Market Digest — Top Signals @ Market Close';
+  console.log(`\n[AlertEngine] 📋 ${label} started at ${new Date().toISOString()}`);
+  if (!RESEND_KEY || !ALERT_TO) {
+    console.log('[AlertEngine] ⚠️  Digest skipped — email not configured');
+    return;
+  }
+  try {
+    const allSymbols = [
+      ...WATCHLIST.stocks.map(s => ({ sym: s, type: 'stock' })),
+      ...WATCHLIST.etfs.map(s =>   ({ sym: s, type: 'etf' })),
+      ...WATCHLIST.crypto.map(s => ({ sym: s, type: 'crypto' })),
+    ];
+
+    // Scan everything (no threshold check — collect ALL scores)
+    const scored = [];
+    for (const { sym, type } of allSymbols) {
+      try {
+        const bars = await fetchCandles(sym, 220);
+        if (!bars || bars.length < 60) continue;
+        const pred = TA.predict(bars);
+        if (!pred) continue;
+        const displaySymbol = sym.includes(':')
+          ? sym.split(':')[1].replace('USDT','') + '/USDT'
+          : sym;
+        const absScore = Math.abs(pred.weightedScore);
+        scored.push({ sym, displaySymbol, type, pred, absScore });
+      } catch (e) {
+        console.warn(`[Digest] ⚠️  ${sym}: ${e.message}`);
+      }
+      await new Promise(r => setTimeout(r, 1200));
+    }
+
+    // Sort by absolute weighted score, take top 5
+    scored.sort((a, b) => b.absScore - a.absScore);
+    const top5 = scored.slice(0, 5);
+
+    if (!top5.length) {
+      console.log('[AlertEngine] Digest: no data available, skipping email');
+      return;
+    }
+
+    const alerts = top5.map(({ sym, displaySymbol, type, pred }) => {
+      const signalType = pred.direction === 'UP'   ? 'STRONG_BUY'
+                       : pred.direction === 'DOWN'  ? 'STRONG_SELL'
+                       : 'STRONG_BUY'; // neutral → show as buy for digest
+      return {
+        symbol: sym, displaySymbol, assetType: type, signalType,
+        price:      pred.currentPrice,
+        change1d:   pred.change1d,
+        confidence: pred.confidence,
+        direction:  pred.direction,
+        signals:    pred.signals,
+        buyCount:   pred.buyCount,
+        sellCount:  pred.sellCount,
+        rsi:        pred.rsi,
+        name:       ''
+      };
+    });
+
+    await sendEmail(alerts, label);
+    console.log(`[AlertEngine] ✅ Daily digest sent — top ${top5.length} signals`);
+  } catch (e) {
+    console.error('[AlertEngine] Digest error:', e.message);
+  }
+}
+
+module.exports = { runMarketScan, runCryptoScan, runFullScan, runDailyDigest, WATCHLIST };
 
 /*
  * ════════════════════════════════════════════════════════════════════

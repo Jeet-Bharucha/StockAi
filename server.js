@@ -9,7 +9,7 @@ const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
 const _anthropicMod = require('@anthropic-ai/sdk');
 const Anthropic = _anthropicMod.default || _anthropicMod;
-const { runMarketScan, runCryptoScan } = require('./alertEngine');
+const { runMarketScan, runCryptoScan, runDailyDigest } = require('./alertEngine');
 
 const app    = express();
 const server = createServer(app);
@@ -572,9 +572,16 @@ server.listen(PORT, () => {
       runCryptoScan().catch(e => console.error('[Cron] Crypto scan failed:', e.message));
     });
 
+    // Daily digest: Mon–Fri 4:00 PM ET — always sends top 5 signals at market close
+    cron.schedule('0 16 * * 1-5', () => {
+      console.log('[Cron] ⏰ Daily digest triggered');
+      runDailyDigest().catch(e => console.error('[Cron] Daily digest failed:', e.message));
+    }, { timezone: 'America/New_York' });
+
     console.log('  ⏰  Alert Engine: ✅ cron jobs scheduled');
     console.log('       • Stocks/ETFs/IPOs: every 30 min (Mon–Fri 8AM–5PM ET)');
     console.log('       • Crypto: every 2 hours, 24/7');
+    console.log('       • Daily digest: Mon–Fri 4PM ET (always sends top 5)');
     console.log('');
   } else {
     console.log('  ⏰  Alert Engine: ⚠️  disabled (FINNHUB_KEY not set)');
