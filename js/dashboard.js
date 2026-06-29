@@ -794,103 +794,85 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── Portfolio Analytics (donut chart) ─────────────────────────────────────
-  async function renderPortfolioAnalytics() {
+  function renderPortfolioAnalytics(rows) {
     const canvas = document.getElementById('port-donut'); if (!canvas) return;
-    const holdings = Portfolio.get();
     const wrap = document.getElementById('port-analytics-wrap');
-    if (!holdings.length) { if (wrap) wrap.style.display='none'; return; }
+    if (!rows || !rows.length) { if (wrap) wrap.style.display='none'; return; }
     if (wrap) wrap.style.display='';
 
-    const quotes = {};
-    await Promise.all(holdings.map(async h => {
-      StockAPI._initSeed(h.symbol);
-      quotes[h.symbol] = StockAPI._simQuote(h.symbol);
-    }));
+    const total = rows.reduce((a,r) => a + r.value, 0) || 1;
+    const colors = ['#00d4ff','#00ff88','#60a5fa','#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#a78bfa','#fb923c'];
+    const colored = rows.map((r,i) => ({ ...r, color: colors[i % colors.length] }));
 
-    const rows = holdings.map(h => ({
-      sym: h.symbol,
-      value: h.shares * (quotes[h.symbol]?.price || h.buyPrice),
-    }));
-    const total = rows.reduce((a,r) => a+r.value, 0) || 1;
-    const colors = ['#00d4ff','#00ff88','#60a5fa','#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24'];
-    rows.forEach((r,i) => r.color = colors[i % colors.length]);
-
-    // Draw donut
+    // Draw donut using actual portfolio values (canvas is 140×140)
     const ctx = canvas.getContext('2d');
-    const cx = 80, cy = 80, R = 68, r = 38;
-    ctx.clearRect(0,0,160,160);
+    const CW = 140, CH = 140, cx = 70, cy = 70, R = 62, r2 = 34;
+    canvas.width = CW; canvas.height = CH;
+    ctx.clearRect(0,0,CW,CH);
     let angle = -Math.PI/2;
-    rows.forEach(row => {
+    colored.forEach(row => {
       const sweep = (row.value/total) * Math.PI * 2;
       ctx.beginPath(); ctx.moveTo(cx,cy);
       ctx.arc(cx,cy,R,angle,angle+sweep);
       ctx.closePath(); ctx.fillStyle = row.color; ctx.fill();
       angle += sweep;
     });
-    // Hole
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.beginPath(); ctx.arc(cx,cy,r2,0,Math.PI*2);
     ctx.fillStyle = '#060e1c'; ctx.fill();
-    // Center text
-    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 13px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign='center';
     ctx.fillText(`$${total>=1000?(total/1000).toFixed(1)+'K':total.toFixed(0)}`, cx, cy+4);
 
-    // Legend
     const legendEl = document.getElementById('port-legend');
-    if (legendEl) legendEl.innerHTML = rows.map(r=>`
+    if (legendEl) legendEl.innerHTML = colored.map(r=>`
       <div class="port-legend-row">
         <span style="width:10px;height:10px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>
-        <span style="font-size:.76rem;color:var(--text)">${r.sym}</span>
+        <span style="font-size:.76rem;color:var(--text)">${r.symbol}</span>
         <span style="font-size:.74rem;color:var(--muted);margin-left:auto">${((r.value/total)*100).toFixed(1)}%</span>
       </div>`).join('');
 
-    // Mini stats grid
     const gridEl = document.getElementById('port-mini-grid');
     if (gridEl) {
       const largest = [...rows].sort((a,b)=>b.value-a.value)[0];
-      const mostPL = holdings.map(h=>({
-        sym:h.symbol,
-        pl:((quotes[h.symbol]?.price||h.buyPrice)-h.buyPrice)*h.shares
-      })).sort((a,b)=>b.pl-a.pl)[0];
-
+      const mostPL  = [...rows].sort((a,b)=>b.pl-a.pl)[0];
       gridEl.innerHTML = `
-        <div class="port-mini"><div class="port-mini-lbl">Positions</div><div class="port-mini-val">${holdings.length}</div></div>
-        <div class="port-mini"><div class="port-mini-lbl">Largest Hold</div><div class="port-mini-val" style="color:var(--cyan)">${largest?.sym||'—'}</div></div>
-        <div class="port-mini"><div class="port-mini-lbl">Best Performer</div><div class="port-mini-val up">${mostPL?.pl>=0?mostPL?.sym:'—'}</div></div>
-        <div class="port-mini"><div class="port-mini-lbl">Diversification</div><div class="port-mini-val">${holdings.length>=5?'High':holdings.length>=3?'Medium':'Low'}</div></div>`;
+        <div class="port-mini"><div class="port-mini-lbl">Positions</div><div class="port-mini-val">${rows.length}</div></div>
+        <div class="port-mini"><div class="port-mini-lbl">Largest Hold</div><div class="port-mini-val" style="color:var(--cyan)">${largest?.symbol||'—'}</div></div>
+        <div class="port-mini"><div class="port-mini-lbl">Best Performer</div><div class="port-mini-val up">${mostPL?.pl>=0?mostPL?.symbol:'—'}</div></div>
+        <div class="port-mini"><div class="port-mini-lbl">Diversification</div><div class="port-mini-val">${rows.length>=5?'High':rows.length>=3?'Medium':'Low'}</div></div>`;
     }
   }
 
   // ── Portfolio sparkline ───────────────────────────────────────────────────
-  function renderPortfolioChart() {
+  function renderPortfolioChart(rows) {
     const canvas = document.getElementById('port-sparkline'); if (!canvas) return;
-    const holdings = Portfolio.get();
     const W = canvas.parentElement.clientWidth || 600, H = 80;
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0,0,W,H);
 
-    if (!holdings.length) {
+    if (!rows || !rows.length) {
       ctx.fillStyle='rgba(100,116,139,0.4)'; ctx.font='13px Inter'; ctx.textAlign='center';
       ctx.fillText('Add holdings to see portfolio chart',W/2,H/2+5); return;
     }
 
-    // Simulate 30 daily portfolio values
+    // Anchor start to actual cost basis and end to actual current value
+    const totalCost  = rows.reduce((a,r) => a + r.cost, 0);
+    const totalValue = rows.reduce((a,r) => a + r.value, 0);
+
+    // 30-day path interpolating from cost to current value with realistic noise
     const days = 30;
-    const values = Array.from({length:days},(_,i) => {
-      let total=0;
-      holdings.forEach(h => {
-        const seed = StockAPI._seeds[h.symbol]||{};
-        const base = seed.price||h.buyPrice;
-        // Deterministic pseudo-random walk per symbol
-        const noise = Math.sin(i*0.4+h.symbol.charCodeAt(0)*0.1)*0.018 + Math.cos(i*0.7+h.symbol.charCodeAt(1)*0.07)*0.012;
-        total += h.shares * base * (1+noise);
-      });
-      return total;
+    const values = Array.from({length: days}, (_, i) => {
+      const t = i / (days - 1);
+      const base = totalCost + (totalValue - totalCost) * t;
+      const noise = Math.sin(i * 0.8 + 1.3) * 0.022 + Math.cos(i * 1.4 + 0.5) * 0.014;
+      return base * (1 + noise);
     });
+    values[0] = totalCost;
+    values[days - 1] = totalValue;
 
     const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
     const pts = values.map((v,i)=>({ x:(i/(days-1))*W, y:H-4-((v-min)/range)*(H-10) }));
-    const isUp = values[days-1]>=values[0];
+    const isUp = totalValue >= totalCost;
     const color = isUp?'#00ff88':'#ff4466';
 
     const grad = ctx.createLinearGradient(0,0,0,H);
@@ -906,12 +888,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
     ctx.strokeStyle=color; ctx.lineWidth=2; ctx.shadowColor=color; ctx.shadowBlur=6; ctx.stroke(); ctx.shadowBlur=0;
 
-    // Start/end labels
     const fmt = v=>`$${v.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
     ctx.fillStyle='rgba(100,116,139,0.8)'; ctx.font='10px Inter'; ctx.textAlign='left';
-    ctx.fillText(fmt(values[0]),4,H-4);
+    ctx.fillText(fmt(totalCost),4,H-4);
     ctx.textAlign='right'; ctx.fillStyle=color;
-    ctx.fillText(fmt(values[days-1]),W-4,H-4);
+    ctx.fillText(fmt(totalValue),W-4,H-4);
   }
 
   // ── Portfolio v2 — real prices via Yahoo Finance + CoinGecko ─────────────
@@ -982,8 +963,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const el=document.getElementById(id); if(el){ el.textContent=id==='port-count'?'0':'—'; el.className='psc-val'; }
       });
       document.getElementById('port-alloc-list').innerHTML='<span style="color:var(--muted);font-size:.8rem">Add holdings to see breakdown</span>';
-      renderPortfolioChart();
-      renderPortfolioAnalytics();
+      renderPortfolioChart([]);
+      renderPortfolioAnalytics([]);
       return;
     }
 
@@ -1113,8 +1094,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!filteredRows.length) {
       listEl.innerHTML = `<div class="port-empty" style="padding:2rem 1rem;text-align:center;color:var(--muted)">No ${_portFilter === 'all' ? 'holdings' : _portFilter.replace('_',' ').replace('k401','401(k)')} found.</div>`;
       renderAllocation(rows);
-      renderPortfolioChart();
-      renderPortfolioAnalytics();
+      renderPortfolioChart(rows);
+      renderPortfolioAnalytics(rows);
       return;
     }
 
@@ -1165,16 +1146,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">
           ${plSign}${Math.abs(row.plPct).toFixed(2)}%
         </div>
-        <div style="display:flex;flex-direction:column;gap:.32rem;align-items:center">
-          <button class="port-act-btn edit" onclick="window.openEditHolding('${row.id}')" title="Edit">✎</button>
-          <button class="port-act-btn del"  onclick="window.removeHolding('${row.id}')"   title="Remove">🗑</button>
+        <div style="display:flex;gap:.3rem;align-items:center;justify-content:flex-end">
+          <button class="port-act-btn edit" onclick="window.openEditHolding('${row.id}')" title="Edit">✏</button>
+          <button class="port-act-btn del"  onclick="window.removeHolding('${row.id}')"   title="Delete">✕</button>
         </div>
       </div>`;
     }).join('');
 
     renderAllocation(rows);
-    renderPortfolioChart();
-    renderPortfolioAnalytics();
+    renderPortfolioChart(rows);
+    renderPortfolioAnalytics(rows);
   }
 
   function renderAllocation(rows) {

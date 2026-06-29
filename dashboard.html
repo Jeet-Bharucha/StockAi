@@ -669,9 +669,11 @@ body.light .scr-select,.scr-input{background:#f8fafc}
 .port-price-chg.up  {background:rgba(0,255,136,.1);color:var(--green)}
 .port-price-chg.down{background:rgba(255,68,102,.1);color:var(--red)}
 /* Action buttons */
-.port-act-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;font-size:.8rem;font-family:'Inter',sans-serif}
-.port-act-btn.edit:hover{color:var(--cyan);border-color:rgba(0,201,167,.4);background:rgba(0,201,167,.08)}
-.port-act-btn.del:hover {color:var(--red); border-color:rgba(255,68,102,.4);background:rgba(255,68,102,.08)}
+.port-act-btn{width:30px;height:30px;border-radius:8px;border:1px solid;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;font-size:.85rem;font-family:'Inter',sans-serif;font-weight:600}
+.port-act-btn.edit{color:var(--cyan);border-color:rgba(0,201,167,.35);background:rgba(0,201,167,.08)}
+.port-act-btn.edit:hover{background:rgba(0,201,167,.2);transform:scale(1.1)}
+.port-act-btn.del{color:var(--red);border-color:rgba(255,68,102,.35);background:rgba(255,68,102,.08)}
+.port-act-btn.del:hover{background:rgba(255,68,102,.2);transform:scale(1.1)}
 /* Allocation sidebar */
 .alloc-sidebar{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.1rem 1.2rem}
 .alloc-sidebar-title{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.9rem}
@@ -1136,6 +1138,8 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 
 /* ── Act buttons: bigger tap targets on mobile ── */
 .port-act-btn{width:30px!important;height:30px!important;border-radius:8px!important}
+.port-act-btn.edit{color:var(--cyan)!important;border-color:rgba(0,201,167,.35)!important;background:rgba(0,201,167,.08)!important}
+.port-act-btn.del{color:var(--red)!important;border-color:rgba(255,68,102,.35)!important;background:rgba(255,68,102,.08)!important}
 
 /* ── ALL-PAGE CONSISTENCY: tab view fade in ── */
 @keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
