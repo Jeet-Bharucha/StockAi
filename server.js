@@ -26,9 +26,9 @@ const SITE_PASSWORD    = process.env.SITE_PASSWORD || '';
 // Layer 1: HTTP Basic Auth on all HTML pages (browser shows a password popup)
 if (SITE_PASSWORD) {
   app.use((req, res, next) => {
-    // Skip basic-auth for API routes and PWA static assets
+    // Skip basic-auth for API routes, PWA static assets, and uptime monitors
     if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) return next();
-    if (['/manifest.json', '/sw.js', '/favicon.svg'].includes(req.path)) return next();
+    if (['/manifest.json', '/sw.js', '/favicon.svg', '/ping'].includes(req.path)) return next();
     const auth = req.headers.authorization || '';
     if (auth.startsWith('Basic ')) {
       const decoded = Buffer.from(auth.slice(6), 'base64').toString();
@@ -91,6 +91,9 @@ function dbRequired(req, res, next) {
     return res.status(503).json({ error: 'Database not connected' });
   next();
 }
+
+// ── Health check (used by UptimeRobot — no auth required) ────────────────
+app.get('/ping', (req, res) => res.send('ok'));
 
 // ── Auth routes ───────────────────────────────────────────────────────────
 app.post('/api/auth/register', dbRequired, async (req, res) => {
