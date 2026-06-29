@@ -290,7 +290,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="ta-badge">⚙ Technical Analysis</div>
       ${r.reasoning.map(l => `<p>${l}</p>`).join('')}`;
   }
-  }
 
   function renderAI(r) {
     const vc = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
