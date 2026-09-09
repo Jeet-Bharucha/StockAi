@@ -5,13 +5,13 @@
 # This means Netlify serves the pages, Render handles all API logic
 [[redirects]]
   from   = "/api/*"
-  to     = "https://stockai-w3vm.onrender.com/api/:splat"
+  to     = "https://stockai-main.onrender.com/api/:splat"
   status = 200
   force  = true
 
 # Proxy WebSocket upgrades to Render too
 [[redirects]]
   from   = "/ws"
-  to     = "https://stockai-w3vm.onrender.com/ws"
+  to     = "https://stockai-main.onrender.com/ws"
   status = 200
   force  = true
