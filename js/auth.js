@@ -26,34 +26,50 @@ const Auth = {
   // ── Register / Login ───────────────────────────────────────────────────
   async register(name, email, password) {
     try {
-      const r    = await fetch('/api/auth/register', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name, email, password })
-      });
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 55000);
+      let r;
+      try {
+        r = await fetch('/api/auth/register', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ name, email, password }),
+          signal:  ctrl.signal
+        });
+      } finally { clearTimeout(timer); }
       const data = await r.json();
       if (!r.ok) return { success: false, error: data.error || 'Registration failed' };
       this._saveSession(data.token, data.user);
       return { success: true, user: data.user };
     } catch(e) {
-      return { success: false, error: 'Cannot reach server — make sure it is running.' };
+      if (e.name === 'AbortError')
+        return { success: false, error: 'Server is waking up — please wait 30 seconds and try again.' };
+      return { success: false, error: 'Cannot reach server. Check your connection and try again.' };
     }
   },
 
   async login(email, password, remember = true) {
     try {
-      const r    = await fetch('/api/auth/login', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, password })
-      });
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 55000);
+      let r;
+      try {
+        r = await fetch('/api/auth/login', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ email, password }),
+          signal:  ctrl.signal
+        });
+      } finally { clearTimeout(timer); }
       const data = await r.json();
       if (!r.ok) return { success: false, error: data.error || 'Login failed' };
       this._saveSession(data.token, data.user, remember);
       localStorage.setItem('stockai_last_email', email);
       return { success: true, user: data.user };
     } catch(e) {
-      return { success: false, error: 'Cannot reach server — make sure it is running.' };
+      if (e.name === 'AbortError')
+        return { success: false, error: 'Server is waking up — please wait 30 seconds and try again.' };
+      return { success: false, error: 'Cannot reach server. Check your connection and try again.' };
     }
   },
 
