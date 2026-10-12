@@ -1,4 +1,4 @@
-// Dashboard — Finnhub-powered with simulation fallback
+// Dashboard — verified prices; no fabricated chart or ticker values
 document.addEventListener('DOMContentLoaded', async () => {
   if (!Auth.requireAuth()) return;
 
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const wsBadge = document.getElementById('ws-badge');
   function setWsStatus(state) {
     if (!wsBadge) return;
-    const map = { connected:{text:'⚡ LIVE',cls:'ws-live'}, disconnected:{text:'○ Simulated',cls:'ws-sim'}, error:{text:'⚠ WS Error',cls:'ws-error'}, connecting:{text:'… Connecting',cls:'ws-conn'} };
+    const map = { connected:{text:'● STREAM LIVE',cls:'ws-live'}, disconnected:{text:'○ STREAM OFFLINE',cls:'ws-sim'}, error:{text:'⚠ STREAM ERROR',cls:'ws-error'}, connecting:{text:'… CONNECTING',cls:'ws-conn'} };
     const cfg = map[state] || map.disconnected;
     wsBadge.textContent = cfg.text; wsBadge.className = `ws-badge ${cfg.cls}`;
   }
@@ -125,14 +125,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Candles
     showChartLoader(true);
     try { currentBars = await StockAPI.getCandles(symbol,'D',365); }
-    catch (_) { currentBars = StockAPI._simCandles(symbol,365); }
+    catch (e) {
+      console.warn('Chart unavailable:', e.message);
+      currentBars = [];
+    }
     window.fullBars = currentBars;
 
-    if (currentBars.length) {
-      candleSeries.setData(currentBars);
-      volumeSeries.setData(volData(currentBars));
-      chart.timeScale().fitContent();
-    }
+    candleSeries.setData(currentBars);
+    volumeSeries.setData(currentBars.length ? volData(currentBars) : []);
+    if (currentBars.length) chart.timeScale().fitContent();
     showChartLoader(false);
     if (typeof StockChat !== 'undefined') StockChat.setContext(symbol, currentBars);
 
@@ -147,7 +148,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (location.host && StockAPI._wsStatus === 'connected') {
       StockAPI.subscribeSymbol(symbol, onWSTrade);
     } else {
-      simInterval = setInterval(onSimTick, 2000);
+      // Streaming unavailable: keep the last verified quote, never simulate trades.
+      simInterval = null;
     }
   }
 
@@ -409,7 +411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       qDir.textContent = r.direction==='UP'?'▲ BULLISH':r.direction==='DOWN'?'▼ BEARISH':'● NEUTRAL';
       qDir.className = `ai-dir-badge ${r.direction==='UP'?'up':r.direction==='DOWN'?'down':'neutral'}`;
     }
-    vc('quick-conf-text',`Confidence: ${r.confidence}%`);
+    vc('quick-conf-text',`Indicator score: ${r.confidence}% (not probability)`);
     vc('q-buy',r.buyCount); vc('q-sell',r.sellCount); vc('q-neutral',r.neutralCount);
   }
 
