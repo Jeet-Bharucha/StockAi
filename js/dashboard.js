@@ -15,6 +15,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const avatarEl = document.querySelector('.user-avatar');
   if (avatarEl) avatarEl.textContent = session.name[0].toUpperCase();
 
+  const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+  const safeExternalLink = value => {
+    try {
+      const url = new URL(value, location.origin);
+      return ['https:','http:'].includes(url.protocol) ? escapeHTML(url.href) : '#';
+    } catch (_) { return '#'; }
+  };
+
   let currentSymbol = 'AAPL';
   let verifiedPrevClose = null;
   let chart = null;
@@ -1078,7 +1088,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
               <span class="port-acct-badge ${row.accountType}">${acctLabel}</span>
             </div>
-            <div style="font-size:.67rem;color:var(--muted);margin-top:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${row.name}</div>
+            <div style="font-size:.67rem;color:var(--muted);margin-top:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${escapeHTML(row.name)}</div>
           </div>
         </div>
         <div>
@@ -1410,14 +1420,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!articles.length) { container.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:2rem;text-align:center;grid-column:1/-1">No news available</div>'; return; }
     container.innerHTML = articles.map((a,i)=>{
       const emoji = NEWS_EMOJIS[i%NEWS_EMOJIS.length];
-      const imgContent = a.image
-        ? `<img src="${a.image}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${emoji}'">`
+      const imgContent = a.image && safeExternalLink(a.image) !== '#'
+        ? `<img src="${safeExternalLink(a.image)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${emoji}'">`
         : emoji;
-      return `<a class="news-card" href="${a.url}" target="_blank" rel="noopener">
+      return `<a class="news-card" href="${safeExternalLink(a.url)}" target="_blank" rel="noopener noreferrer">
         <div class="news-card-img">${imgContent}</div>
         <div class="news-card-body">
-          <div class="news-card-source">${a.source}</div>
-          <div class="news-card-headline">${a.headline}</div>
+          <div class="news-card-source">${escapeHTML(a.source)}</div>
+          <div class="news-card-headline">${escapeHTML(a.headline)}</div>
           <div class="news-card-meta">
             <span>${NewsAPI.timeAgo(a.datetime)}</span>
             <span class="news-card-tag">${newsMode==='stock'?(sym||'Stock'):'Markets'}</span>
