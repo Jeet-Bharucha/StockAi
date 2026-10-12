@@ -1072,18 +1072,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     listEl.innerHTML = filteredRows.map(row => {
-      const rUp       = row.pl >= 0;
+      const rUp       = (row.pl ?? 0) >= 0;
       const iconCls   = _portIconCls(row);
       const acctLabel = _acctLabels[row.accountType] || row.accountType;
       const allocPct  = totalValue > 0 ? ((row.value / totalValue) * 100).toFixed(1) : '0.0';
-      const plSign    = rUp ? '+' : '';
+      const plSign    = rUp ? '+' : '-';
       const sharesStr = row.shares % 1 === 0 ? row.shares : parseFloat(row.shares.toFixed(6));
 
-      const srcBadge = row.priceSource === 'live'
-        ? `<span style="font-size:.55rem;color:var(--green);font-weight:700;vertical-align:middle;margin-left:.3rem">⚡</span>`
-        : row.priceSource === 'sim'
-        ? `<span style="font-size:.55rem;color:var(--gold);font-weight:700;vertical-align:middle;margin-left:.3rem" title="Simulated price">~</span>`
-        : `<span style="font-size:.55rem;color:var(--red);font-weight:700;vertical-align:middle;margin-left:.3rem" title="Price unavailable">⚠</span>`;
+      const srcBadge=row.priceSource==='live'
+        ? '<span style="color:var(--green);margin-left:.3rem" title="Provider quote">●</span>'
+        : '<span style="color:var(--gold);margin-left:.3rem" title="Cost basis; no live price">⚠ cost</span>';
+      const rowPL=row.pl===null?'—':plSign+'$'+_fmtD(Math.abs(row.pl));
+      const rowReturn=row.plPct===null?'—':plSign+Math.abs(row.plPct).toFixed(2)+'%';
 
       return `<div class="port-table-row new-cols">
         <div style="display:flex;align-items:center;gap:.65rem;min-width:0">
@@ -1110,13 +1110,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div>
           <div style="font-weight:700">$${_fmtD(row.value)}${srcBadge}</div>
-          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">@ $${_fmtD(row.curPrice)}</div>
+          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">${row.priceSource==='live'?'@ $'+_fmtD(row.curPrice):'unpriced · cost basis'}</div>
         </div>
         <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">
-          ${plSign}$${_fmtD(Math.abs(row.pl))}
+          ${rowPL}
         </div>
         <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">
-          ${plSign}${Math.abs(row.plPct).toFixed(2)}%
+          ${rowReturn}
         </div>
         <div style="display:flex;gap:.3rem;align-items:center;justify-content:flex-end">
           <button class="port-act-btn edit" onclick="window.openEditHolding('${row.id}')" title="Edit">✏</button>
