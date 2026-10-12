@@ -266,7 +266,7 @@ Auth.getSiteConfig().then(cfg => {
   const notice = document.getElementById('instance-notice');
   if (cfg.mode === 'private') {
     notice.style.display = 'block';
-    notice.textContent = '🔒 Private StockAI: this address accepts only the owner's account. Public accounts must use the separate public deployment.';
+    notice.textContent = "🔒 Private StockAI: this address accepts only the owner's account. Public accounts must use the separate public deployment.";
     
   }
 });
