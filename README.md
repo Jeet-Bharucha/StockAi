@@ -108,7 +108,10 @@ Open [http://localhost:3001](http://localhost:3001)
 | `ALERT_GMAIL_PASS` | No | Gmail App Password (16 chars) |
 | `ALERT_EMAIL_TO` | No | Where to receive alerts |
 | `SITE_PASSWORD` | No | HTTP Basic Auth gate (private mode) |
-| `ALLOWED_EMAIL` | No | Restrict login to one email (private mode) |
+| `ALLOWED_EMAIL` | Private only | Restrict login to the owner's email (private mode) |
+| `SITE_URL` | Password recovery | Exact https:// origin of the deployment's login pages (no path) |
+| `RESEND_FROM_EMAIL` | Password recovery | Verified email sender address in Resend; use with RESEND_API_KEY |
+| `RESEND_API_KEY` | Password recovery | Resend API key; keep private in the host environment |
 
 ---
 
@@ -181,6 +184,62 @@ suspended, or renamed, the Netlify site can still load but sign-in will fail.
 The `/ping` route is for liveness monitoring; `/api/health` is the database
 readiness check. Optional UptimeRobot checks can use `/ping` to keep a free
 service warm when allowed by the hosting plan.
+
+---
+
+## Owner login versus public user login
+
+**Do not point a public Netlify website at the private Render backend.**
+The existing `netlify.toml` proxies public frontend API requests to
+`https://stockai-main.onrender.com`, which is the private backend if it has
+`ALLOWED_EMAIL` set. In that configuration, **every other user's login is denied
+even when their password is right**.
+
+For two actual websites, deploy the *same GitHub repository* to two independent
+backend services (both can use MongoDB Atlas but must use their own secrets):
+
+| Setting | Private Render backend | Public Render backend |
+|---|---|---|
+| `SITE_PASSWORD` | Set a strong owner-only Basic Auth password | Unset |
+| `ALLOWED_EMAIL` | Set your exact MongoDB account email | Unset |
+| `JWT_SECRET` | Strong unique random string | Different strong random string |
+| `MONGO_URI` | Use existing database to preserve your account | May share Atlas with userId isolation |
+| `SITE_URL` | The private service HTTPS origin | The public website's HTTPS origin |
+
+**On Netlify**, replace the URLs in `netlify.toml`'s `/api/*` and `/ws`
+redirects with the **public** Render backend URL. Do not point these at the
+private instance. Redeploy Netlify after that change. Each site will display
+its effective `/api/auth/config` mode as private or public.
+
+### Existing account recovery
+
+- If the account was registered using StockAI's **old localStorage-only
+  login**, it is **not** automatically in MongoDB. You must create a MongoDB
+  account on the right deployment. Old browser-only portfolio information
+  is not auto-migrated, to prevent moving someone else's data.
+- If the account exists in MongoDB but you can't remember its password, use
+  `forgot-password.html` once recovery is configured: set `SITE_URL`,
+  `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` privately in Render and verify
+  the sender domain/account with Resend. A reset email has a 30-minute,
+  one-time-use token; changing the password invalidates existing logins.
+- `SITE_PASSWORD` (the browser's HTTP Basic Auth popup) is a **different
+  password** from your MongoDB **StockAI account password**. Do not paste
+  either value or your MongoDB URI into GitHub or chat.
+- Each site has its own login UI and private/public notice. The browser
+  alone cannot override backend `ALLOWED_EMAIL`. Never remove
+  `ALLOWED_EMAIL` from the private service to solve public login errors.
+- When changing your profile or password, the updated data now goes to
+  MongoDB rather than an obsolete `stockai_users` browser array.
+- "Sign Out Everywhere" invalidates stored JWT sessions; alert/chat/notification
+  data in browser storage is scoped per logged-in account.
+
+**Public launch security:** Account sign-up is still username/password-only,
+without email confirmation; add an email verification requirement before
+allowing untrusted public users or accepting sensitive data. Do not expose
+billable provider API keys to public browsers.
+
+Run `npm test` for auth and account-route regression tests after installing
+dependencies.
 
 ---
 
