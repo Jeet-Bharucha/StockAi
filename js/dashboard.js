@@ -1350,132 +1350,87 @@ document.addEventListener('DOMContentLoaded', async () => {
     'DIS','UBER','LYFT','SPOT','SNAP','TWTR','PINS','RBLX','HOOD','MA',
   ];
 
-  function _scrRSI(sym, period=14) {
-    try {
-      const bars = StockAPI._simCandles(sym, period + 5);
-      if (bars.length < period + 1) return 50;
-      let gains=0, losses=0;
-      for (let i=bars.length-period; i<bars.length; i++) {
-        const d = bars[i].close - bars[i-1].close;
-        if (d>0) gains+=d; else losses-=d;
-      }
-      const avgG=gains/period, avgL=losses/period;
-      return avgL===0 ? 100 : Math.round(100 - 100/(1+avgG/avgL));
-    } catch { return 50; }
-  }
-
-  function _scrMktCap(price, sym) {
-    const largeBase = { AAPL:3200, MSFT:3100, NVDA:2200, GOOGL:2100, AMZN:1900, META:1300, TSLA:800, V:550, MA:450, JPM:550 };
-    if (largeBase[sym]) return largeBase[sym];
-    if (price > 300) return 80 + Math.random()*120;
-    if (price > 100) return 15 + Math.random()*70;
-    return 2 + Math.random()*12;
+  function verifiedRSI(bars) {
+    if (!Array.isArray(bars) || bars.length < 30) return null;
+    const values = AIPredictor.rsi(bars.map(bar => bar.close));
+    const last = values[values.length - 1];
+    return Number.isFinite(last) ? Math.round(last) : null;
   }
 
   window.runScreener = async function() {
-    const grid = document.getElementById('scr-results'); if (!grid) return;
-    grid.innerHTML = Array.from({length:10},()=>`
-      <div class="scr-card" style="pointer-events:none">
-        <div class="scr-card-inner"><div class="scr-card-front">
-          <div class="scr-badge" style="background:rgba(255,255,255,0.05)"></div>
-          <div class="scr-info">
-            <div class="skel" style="width:55px;height:.82em;margin-bottom:.4rem"></div>
-            <div class="skel" style="width:130px;height:.7em;margin-bottom:.3rem"></div>
-            <div class="skel" style="width:80px;height:.65em"></div>
-          </div>
-          <div class="scr-metrics">
-            <div class="skel" style="width:65px;height:.9em;margin-bottom:.35rem"></div>
-            <div class="skel" style="width:50px;height:.75em"></div>
-          </div>
-        </div></div>
-      </div>`).join('');
-
-    const sectorBtn = document.querySelector('.schip.active');
-    const sector    = sectorBtn ? sectorBtn.dataset.val : '';
-    const perf      = document.getElementById('scr-perf')?.value || '';
-    const rsiFilter = document.getElementById('scr-rsi')?.value || '';
-    const mktCapF   = document.getElementById('scr-mktcap')?.value || '';
-    const minPx     = parseFloat(document.getElementById('scr-min')?.value) || 0;
-    const maxPx     = parseFloat(document.getElementById('scr-max')?.value) || Infinity;
-    const sortBy    = document.getElementById('scr-sort')?.value || 'chg-desc';
-
-    // Fetch quotes + compute RSI for all symbols in parallel
-    const results = (await Promise.all(SCREENER_SYMS.map(async sym => {
-      try {
-        StockAPI._initSeed(sym);
-        const info    = StockAPI.getCompanyInfo(sym);
-        const q       = await StockAPI.getQuote(sym);
-        const rsi     = _scrRSI(sym);
-        const mktCap  = _scrMktCap(q.price, sym);
-        const hi52    = +(q.price * (1.08 + Math.random()*0.28)).toFixed(2);
-        const lo52    = +(q.price * (0.62 + Math.random()*0.24)).toFixed(2);
-        const vol     = +(q.price * (800000 + Math.random()*5e6) / 1e6).toFixed(1);
-        return { sym, name:info.name||sym, sector:info.sector||'Unknown', price:q.price, changePct:q.changePct, volume:q.volume||0, rsi, mktCap, hi52, lo52, vol };
-      } catch { return null; }
-    }))).filter(Boolean);
-
-    let filtered = results;
-    if (sector)              filtered = filtered.filter(r => (r.sector||'').toLowerCase().includes(sector.toLowerCase()));
-    if (perf==='gainers')    filtered = filtered.filter(r => r.changePct > 0);
-    if (perf==='losers')     filtered = filtered.filter(r => r.changePct < 0);
-    if (perf==='big')        filtered = filtered.filter(r => Math.abs(r.changePct) >= 2);
-    if (rsiFilter==='oversold')    filtered = filtered.filter(r => r.rsi < 30);
-    if (rsiFilter==='neutral')     filtered = filtered.filter(r => r.rsi >= 30 && r.rsi <= 70);
-    if (rsiFilter==='overbought')  filtered = filtered.filter(r => r.rsi > 70);
-    if (mktCapF==='large')   filtered = filtered.filter(r => r.mktCap >= 100);
-    if (mktCapF==='mid')     filtered = filtered.filter(r => r.mktCap >= 10 && r.mktCap < 100);
-    if (mktCapF==='small')   filtered = filtered.filter(r => r.mktCap < 10);
-    filtered = filtered.filter(r => r.price >= minPx && r.price <= maxPx);
-
-    const sorters = {
-      'chg-desc':   (a,b)=>b.changePct-a.changePct,
-      'chg-asc':    (a,b)=>a.changePct-b.changePct,
-      'price-desc': (a,b)=>b.price-a.price,
-      'price-asc':  (a,b)=>a.price-b.price,
-      'rsi-desc':   (a,b)=>b.rsi-a.rsi,
-      'rsi-asc':    (a,b)=>a.rsi-b.rsi,
-      'vol-desc':   (a,b)=>b.volume-a.volume,
+    const grid=document.getElementById('scr-results'); if (!grid) return;
+    const meta=document.getElementById('scr-meta');
+    const sector=document.querySelector('.schip.active')?.dataset.val || '';
+    const perf=document.getElementById('scr-perf')?.value || '';
+    const rsiFilter=document.getElementById('scr-rsi')?.value || '';
+    const capFilter=document.getElementById('scr-mktcap')?.value || '';
+    const sort=document.getElementById('scr-sort')?.value || 'chg-desc';
+    const minPrice=Number(document.getElementById('scr-min')?.value)||0;
+    const maxPrice=Number(document.getElementById('scr-max')?.value)||Infinity;
+    const needsRSI=!!rsiFilter || sort.startsWith('rsi');
+    const needsCap=!!capFilter;
+    grid.innerHTML='<div class="scr-empty">⟳ Requesting provider data. Historical filters can take longer.</div>';
+    const symbols=[...new Set(SCREENER_SYMS)].slice(0,30);
+    const results=[];
+    let cursor=0;
+    const tasks=Array.from({length:6},async()=>{
+      while(cursor<symbols.length){
+        const sym=symbols[cursor++];
+        try {
+          const q=await StockAPI.getQuote(sym);
+          const info=StockAPI.getCompanyInfo(sym);
+          let rsi=null, cap=null;
+          if(needsRSI){
+            try { rsi=verifiedRSI(await StockAPI.getCandles(sym,'D',365)); }
+            catch(_) {}
+          }
+          if(needsCap){
+            try {
+              const p=await StockAPI.getCompanyProfile(sym);
+              if(Number.isFinite(p.marketCap)&&p.marketCap>0)cap=p.marketCap/1000;
+            }catch(_){}
+          }
+          results.push({sym,name:info.name||sym,sector:info.sector||'Unknown',
+            price:q.price,changePct:q.changePct,rsi,cap});
+        }catch(_) {}
+      }
+    });
+    await Promise.all(tasks);
+    let filtered=results.filter(r=>r.price>=minPrice && r.price<=maxPrice);
+    if(sector) filtered=filtered.filter(r=>r.sector.toLowerCase().includes(sector.toLowerCase()));
+    if(perf==='gainers') filtered=filtered.filter(r=>r.changePct>0);
+    if(perf==='losers') filtered=filtered.filter(r=>r.changePct<0);
+    if(perf==='big') filtered=filtered.filter(r=>Math.abs(r.changePct)>=2);
+    if(rsiFilter==='oversold') filtered=filtered.filter(r=>r.rsi!==null && r.rsi<30);
+    if(rsiFilter==='neutral') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>=30 && r.rsi<=70);
+    if(rsiFilter==='overbought') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>70);
+    if(capFilter==='large') filtered=filtered.filter(r=>r.cap!==null && r.cap>=100);
+    if(capFilter==='mid') filtered=filtered.filter(r=>r.cap!==null && r.cap>=10 && r.cap<100);
+    if(capFilter==='small') filtered=filtered.filter(r=>r.cap!==null && r.cap<10);
+    const sorters={
+      'chg-desc':(x,y)=>y.changePct-x.changePct,
+      'chg-asc':(x,y)=>x.changePct-y.changePct,
+      'price-desc':(x,y)=>y.price-x.price,
+      'price-asc':(x,y)=>x.price-y.price,
+      'rsi-desc':(x,y)=>(y.rsi??-1)-(x.rsi??-1),
+      'rsi-asc':(x,y)=>(x.rsi??101)-(y.rsi??101)
     };
-    filtered.sort(sorters[sortBy] || sorters['chg-desc']);
-
-    const metaEl = document.getElementById('scr-meta');
-    if (metaEl) metaEl.textContent = `${filtered.length} of ${results.length} stocks match your filters`;
-
-    if (!filtered.length) { grid.innerHTML='<div class="scr-empty">No stocks match — try broadening your filters.</div>'; return; }
-
-    const rsiCls = v => v < 30 ? 'rsi-low' : v > 70 ? 'rsi-high' : 'rsi-mid';
-    const rsiLabel = v => v < 30 ? '😱 Oversold' : v > 70 ? '🔥 Overbought' : '⚖ Neutral';
-
-    grid.innerHTML = filtered.map(r => {
-      const up = r.changePct >= 0;
-      const capStr = r.mktCap >= 1000 ? `$${(r.mktCap/1000).toFixed(1)}T` : `$${r.mktCap.toFixed(0)}B`;
-      return `<div class="scr-card" data-tilt data-tilt-max="8" data-tilt-scale="1.02"
-          onclick="window.selectSearch('${r.sym}');switchTab(null,'dashboard')">
-        <div class="scr-card-inner">
-          <div class="scr-card-front">
-            <div class="scr-badge">${r.sym.slice(0,2)}</div>
-            <div class="scr-info">
-              <div class="scr-sym">${r.sym}</div>
-              <div class="scr-name">${r.name}</div>
-              <div class="scr-sector">${r.sector}</div>
-              <span class="scr-rsi-badge ${rsiCls(r.rsi)}">RSI ${r.rsi} · ${rsiLabel(r.rsi)}</span>
-            </div>
-            <div class="scr-metrics">
-              <div class="scr-price">$${r.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-              <div class="scr-chg ${up?'up':'down'}">${up?'+':''}${r.changePct.toFixed(2)}%</div>
-            </div>
-          </div>
-          <div class="scr-card-back">
-            <div class="scr-back-row"><span class="scr-back-label">Mkt Cap</span><span class="scr-back-val">${capStr}</span></div>
-            <div class="scr-back-row"><span class="scr-back-label">Volume</span><span class="scr-back-val">${r.vol}M</span></div>
-            <div class="scr-back-row"><span class="scr-back-label">52W High</span><span class="scr-back-val" style="color:var(--green)">$${r.hi52}</span></div>
-            <div class="scr-back-row"><span class="scr-back-label">52W Low</span><span class="scr-back-val" style="color:var(--red)">$${r.lo52}</span></div>
-          </div>
-        </div>
-      </div>`;
+    filtered.sort(sorters[sort] || sorters['chg-desc']);
+    if(meta)meta.textContent=filtered.length+' matches from '+results.length+' verified quotes · scanning '+symbols.length+' tracked stocks · no estimated metrics';
+    if(!filtered.length){
+      grid.innerHTML='<div class="scr-empty">No verified quotes match these filters. Try fewer filters or refresh later.</div>';
+      return;
+    }
+    grid.innerHTML=filtered.map(r=>{
+      const up=r.changePct>=0;
+      const cap=r.cap===null?'Not available':(r.cap>=1000?'$'+(r.cap/1000).toFixed(2)+'T':'$'+r.cap.toFixed(1)+'B');
+      const rsi=r.rsi===null?'Not loaded':String(r.rsi);
+      return '<button type="button" class="pro-screener-result" onclick="window.selectSearch(\''+r.sym+'\');switchTab(null,\'dashboard\')">'+
+        '<span class="pro-scr-symbol">'+r.sym+'<small>'+r.name+'</small></span>'+
+        '<span class="pro-scr-price">$'+r.price.toFixed(2)+'<small>'+r.sector+'</small></span>'+
+        '<span class="pro-scr-change '+(up?'up':'down')+'">'+(up?'+':'')+r.changePct.toFixed(2)+'%<small>Session change</small></span>'+
+        '<span class="pro-scr-metrics">RSI '+rsi+'<small>Cap '+cap+'</small></span></button>';
     }).join('');
-    if (typeof initTilt==='function') initTilt('[data-tilt]', grid);
-    if (typeof animateCardsIn==='function') animateCardsIn('.scr-card', grid);
   };
 
   // ── Earnings Calendar ─────────────────────────────────────────────────────
