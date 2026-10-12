@@ -7,6 +7,7 @@ const StockAPI = {
   _ws: null,
   _wsSubs: {},    // symbol → callback
   _wsStatus: 'disconnected',
+  _reconnectTimer: null,
 
   // ── WebSocket (connect to our own server) ─────────────────────────────────
   connectWS() {
@@ -16,7 +17,9 @@ const StockAPI = {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url   = `${proto}//${location.host}/ws`;
 
-    this._ws = new WebSocket(url);
+    // Never open duplicate sockets when network events fire close/retry together.
+    if (this._ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this._ws.readyState)) return;
+    try { this._ws = new WebSocket(url); } catch (_) { this._scheduleReconnect(); return; }
 
     this._ws.onopen = () => {
       // Re-subscribe any pending symbols
@@ -42,13 +45,21 @@ const StockAPI = {
     this._ws.onclose = () => {
       this._wsStatus = 'disconnected';
       document.dispatchEvent(new CustomEvent('stockai:ws', { detail: 'disconnected' }));
-      // Reconnect after 5 s
-      setTimeout(() => this.connectWS(), 5000);
+      this._scheduleReconnect();
     };
 
     this._ws.onerror = () => {
       document.dispatchEvent(new CustomEvent('stockai:ws', { detail: 'error' }));
     };
+  },
+
+  _scheduleReconnect() {
+    if (this._reconnectTimer) return;
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      if (!document.hidden && navigator.onLine !== false) this.connectWS();
+      else this._scheduleReconnect();
+    }, 5000);
   },
 
   _wsSend(type, symbol) {
@@ -74,13 +85,14 @@ const StockAPI = {
   },
 
   // ── REST (hits our /api/* proxy) ──────────────────────────────────────────
-  // 6-second hard timeout so a sleeping Render server falls back to simulated
-  // data quickly instead of hanging the whole tab for 30-60 seconds.
-  async _get(path, timeoutMs = 6000) {
+  // Render free services can need ~50 seconds to wake. Never fabricate prices.
+  async _get(path, timeoutMs = 55000) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
       const res  = await fetch(path, { signal: ctrl.signal });
+      if (!(res.headers.get('content-type') || '').includes('application/json'))
+        throw new Error('Market data API returned an unexpected response');
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       return data;
@@ -97,19 +109,20 @@ const StockAPI = {
 
     try {
       const d = await this._get(`/api/quote?symbol=${symbol}`);
-      if (!d.c) throw new Error('no data');
+      if (typeof d.c !== 'number' || !Number.isFinite(d.c) || d.c <= 0)
+        throw new Error('No verified quote available for ' + symbol);
       const result = {
         symbol, live: true,
         price:     d.c,
-        change:    +d.d.toFixed(2),
-        changePct: +d.dp.toFixed(2),
+        change:    Number.isFinite(d.d) ? +d.d.toFixed(2) : 0,
+        changePct: Number.isFinite(d.dp) ? +d.dp.toFixed(2) : 0,
         high: d.h, low: d.l, open: d.o, prevClose: d.pc,
         volume: null
       };
       this._cache[key] = { ts: Date.now(), data: result };
       return result;
-    } catch (_) {
-      return this._simQuote(symbol);
+    } catch (error) {
+      throw new Error('Verified quote unavailable for ' + symbol + ': ' + error.message);
     }
   },
 
@@ -130,8 +143,8 @@ const StockAPI = {
       }));
       this._cache[key] = { ts: Date.now(), data: bars };
       return bars;
-    } catch (_) {
-      return this._simCandles(symbol, days);
+    } catch (error) {
+      throw new Error('Historical candles unavailable for ' + symbol + ': ' + error.message);
     }
   },
 
@@ -167,8 +180,12 @@ const StockAPI = {
       { name: 'Oil (USO)', symbol: 'USO' },
     ];
     const results = await Promise.all(etfs.map(async e => {
-      const q = await this.getQuote(e.symbol);
-      return { name: e.name, symbol: e.symbol, price: q.price, change: q.change, changePct: q.changePct };
+      try {
+        const q = await this.getQuote(e.symbol);
+        return { name: e.name, symbol: e.symbol, price: q.price, change: q.change, changePct: q.changePct, available: true };
+      } catch (_) {
+        return { name: e.name, symbol: e.symbol, available: false };
+      }
     }));
     return results;
   },
