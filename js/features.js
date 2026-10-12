@@ -4,8 +4,7 @@ const Portfolio = {
   _GUEST_KEY: 'stockai_portfolio_guest',
 
   _authHeader() {
-    const token = localStorage.getItem('stockai_jwt');
-    return { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
+    return Auth._authHeader();
   },
 
   _isGuest() {
