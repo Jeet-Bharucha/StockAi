@@ -182,10 +182,10 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
     // A public /api request must never be able to claim the private owner's
     // email, even if the account does not yet exist in MongoDB.
     if (ALLOWED_EMAIL) {
-      const ownerKey = process.env.OWNER_SETUP_KEY || '';
-      const presented = req.get('X-StockAI-Owner-Setup-Key') || '';
-      if (!ownerKey || ownerKey.length < 24 || presented.length !== ownerKey.length ||
-          !require('node:crypto').timingSafeEqual(Buffer.from(presented), Buffer.from(ownerKey))) {
+      const ownerKey = Buffer.from(process.env.OWNER_SETUP_KEY || '');
+      const presented = Buffer.from(req.get('X-StockAI-Owner-Setup-Key') || '');
+      if (ownerKey.length < 24 || presented.length !== ownerKey.length ||
+          !require('node:crypto').timingSafeEqual(presented, ownerKey)) {
         return res.status(403).json({
           error: 'Private account setup requires the owner setup key configured in Render.',
           code: 'OWNER_SETUP_REQUIRED'
