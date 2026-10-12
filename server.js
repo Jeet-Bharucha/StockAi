@@ -213,7 +213,7 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
     const hashed = await bcrypt.hash(password, 12);
     const user   = await User.create({ name: name.trim(), email: normalizedEmail, password: hashed });
     const token  = signAccessToken(user);
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
   } catch(e) {
     console.error('Register:', e.message);
     res.status(500).json({ error: 'Server error — try again' });
@@ -233,7 +233,7 @@ app.post('/api/auth/login', dbRequired, async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid email or password' });
     const token = signAccessToken(user);
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
   } catch(e) {
     console.error('Login:', e.message);
     res.status(500).json({ error: 'Server error — try again' });
