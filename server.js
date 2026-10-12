@@ -499,7 +499,7 @@ app.get('/api/portfolio-prices', async (req, res) => {
 });
 
 // ── Claude AI Stock Analysis ──────────────────────────────────────────────
-app.post('/api/ai-analysis', async (req, res) => {
+app.post('/api/ai-analysis', authMW, async (req, res) => {
   if (!ANTHROPIC_API_KEY) {
     return res.status(503).json({ error: 'AI analysis not configured — add ANTHROPIC_API_KEY to .env' });
   }
