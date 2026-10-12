@@ -1,6 +1,7 @@
-const CACHE = 'stockai-v18';
+const CACHE = 'stockai-v19';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
+  '/forgot-password.html', '/reset-password.html',
   '/dashboard.html', '/profile.html', '/404.html',
   '/css/effects.css',
   '/js/auth.js', '/js/dashboard.js', '/js/stockApi.js',
