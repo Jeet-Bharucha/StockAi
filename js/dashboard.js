@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (avatarEl) avatarEl.textContent = session.name[0].toUpperCase();
 
   let currentSymbol = 'AAPL';
+  let verifiedPrevClose = null;
   let chart = null;
   let candleSeries = null;
   let volumeSeries = null;
@@ -76,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    verifiedPrevClose = null;
 
     // Update UI chrome
     document.getElementById('current-symbol').textContent = symbol;
@@ -162,12 +164,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkAlertsForPrice(currentSymbol, close);
   }
 
-  function updatePriceDisplay(price, prevPrice) {
-    const change = price - prevPrice, changePct = prevPrice?(change/prevPrice)*100:0, up = change>=0;
-    document.getElementById('stock-price').textContent = `$${price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-    const chgEl = document.getElementById('stock-change');
-    chgEl.textContent = `${up?'+':''}${change.toFixed(2)} (${up?'+':''}${changePct.toFixed(2)}%)`;
-    chgEl.className = `stock-change ${up?'up':'down'}`;
+  function updatePriceDisplay(price) {
+    if(!Number.isFinite(price)||price<=0)return;
+    document.getElementById('stock-price').textContent='$'+price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const el=document.getElementById('stock-change');
+    if(!Number.isFinite(verifiedPrevClose)||verifiedPrevClose<=0){
+      el.textContent='Previous close unavailable';
+      return;
+    }
+    const change=price-verifiedPrevClose,percent=(change/verifiedPrevClose)*100;
+    const up=change>=0;
+    el.textContent=(up?'+':'')+change.toFixed(2)+' ('+(up?'+':'')+percent.toFixed(2)+'%)';
+    el.className='stock-change '+(up?'up':'down');
   }
 
   async function refreshQuote() {
@@ -177,6 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const q = await StockAPI.getQuote(symbol);
       if (currentSymbol !== symbol) return;
       const up = q.changePct >= 0;
+      verifiedPrevClose = q.prevClose > 0 ? q.prevClose : null;
       document.getElementById('stock-price').textContent = fmt(q.price);
       const change = document.getElementById('stock-change');
       change.textContent = (up?'+':'') + q.change.toFixed(2) + ' (' + (up?'+':'') + q.changePct.toFixed(2) + '%)';
