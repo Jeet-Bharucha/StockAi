@@ -436,16 +436,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Market strip ──────────────────────────────────────────────────────────
   async function updateMarket() {
-    const data = await StockAPI.getMarketOverview();
     const el = document.getElementById('market-overview');
     if (!el) return;
+    let data;
+    try { data = await StockAPI.getMarketOverview(); }
+    catch (e) { el.textContent='Market overview is currently unavailable.';return; }
     el.innerHTML = data.map(m => {
-      const up = m.changePct>=0;
-      return `<div class="market-card ${up?'up':'down'}" onclick="window.selectSearch('${m.symbol||m.name}')">
-        <div class="market-name">${m.name}</div>
-        <div class="market-price">${(m.price||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-        <div class="market-change">${up?'+':''}${(m.changePct||0).toFixed(2)}%</div>
-      </div>`;
+      const valid = m.available && Number.isFinite(m.price);
+      const up = valid && m.changePct>=0;
+      const price = valid ? '$' + m.price.toFixed(2) : '—';
+      const pct = valid ? (up?'+':'') + m.changePct.toFixed(2) + '%' : 'Quote unavailable';
+      return `<div class="market-card ${valid ? (up?'up':'down') : ''}" onclick="window.selectSearch('${m.symbol}')">
+        <div class="market-name">${m.name}</div><div class="market-price">${price}</div>
+        <div class="market-change">${pct}</div></div>`;
     }).join('');
   }
 
@@ -669,24 +672,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Ticker Tape ──────────────────────────────────────────────────────────
   async function renderTickerTape() {
     const inner = document.getElementById('ticker-inner'); if (!inner) return;
-    const syms = ['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','JPM','V','SPY','QQQ','GLD','BTC-USD','NFLX','AMD'];
-    const quotes = await Promise.all(syms.map(async s => {
-      try { StockAPI._initSeed(s); const q = StockAPI._simQuote(s); return { sym:s, price:q.price, pct:q.changePct }; }
-      catch { return null; }
-    }));
-    const valid = quotes.filter(Boolean);
-    const mkItem = q => {
-      const up = q.pct >= 0;
-      return `<span class="ticker-item"><b>${q.sym}</b> $${q.price.toFixed(2)} <span style="color:${up?'var(--green)':'var(--red)'}">${up?'+':''}${q.pct.toFixed(2)}%</span></span>`;
-    };
-    const html = valid.map(mkItem).join('');
-    inner.innerHTML = html + html; // duplicate for seamless loop
-    // Adjust animation duration to content width
-    const totalW = inner.scrollWidth / 2;
-    inner.style.animation = 'none';
-    inner.style.width = (totalW * 2) + 'px';
-    inner.offsetHeight; // reflow
-    inner.style.animation = `ticker ${Math.max(20, totalW / 60)}s linear infinite`;
+    const syms = ['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','JPM','V','SPY','QQQ','GLD'];
+    const quotes = (await Promise.all(syms.map(async sym => {
+      try { const q=await StockAPI.getQuote(sym);return {sym,price:q.price,pct:q.changePct}; }
+      catch (_) { return null; }
+    }))).filter(Boolean);
+    if (!quotes.length) { inner.textContent='Verified market ticker unavailable · check back shortly.'; inner.style.animation='none'; return; }
+    const html=quotes.map(q=> {
+      const up=q.pct>=0;
+      return `<span class="ticker-item"><b>${q.sym}</b> $${q.price.toFixed(2)}
+        <span style="color:${up?'var(--green)':'var(--red)'}">${up?'+':''}${q.pct.toFixed(2)}%</span></span>`;
+    }).join('');
+    inner.innerHTML=html+html;
+    const totalW=inner.scrollWidth/2;
+    inner.style.animation='none';
+    inner.style.width=(totalW*2)+'px';
+    void inner.offsetHeight;
+    inner.style.animation=`ticker ${Math.max(30,totalW/45)}s linear infinite`;
   }
 
   // ── Notification Center ───────────────────────────────────────────────────
