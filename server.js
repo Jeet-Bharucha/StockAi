@@ -176,14 +176,21 @@ app.get('/api/test-email', async (req, res) => {
     .catch(e => console.error('[TestEmail] ❌ Failed:', e.message));
 });
 
+function normalizeAccountEmail(value) {
+  if (typeof value !== 'string' || value.length > 254) return null;
+  const email = value.trim().toLowerCase();
+  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) ? email : null;
+}
+
 // ── Auth routes ───────────────────────────────────────────────────────────
 app.post('/api/auth/register', dbRequired, async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
-    if (!name || !email || !password)
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    const normalizedEmail = normalizeAccountEmail(email);
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 80 || !normalizedEmail)
+      return res.status(400).json({ error: 'A valid name (up to 80 characters) and email are required' });
     // Layer 2: block registration for any email that isn't the owner's
-    if (ALLOWED_EMAIL && String(email).toLowerCase().trim() !== ALLOWED_EMAIL)
+    if (ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
       return res.status(403).json({ error: 'Registration is restricted to the owner on this private instance.', code: 'PRIVATE_ACCESS_ONLY' });
     // A public /api request must never be able to claim the private owner's
     // email, even if the account does not yet exist in MongoDB.
@@ -200,10 +207,10 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
     }
     if (typeof password !== 'string' || password.length < 8 || password.length > 128)
       return res.status(400).json({ error: 'Password must be 8–128 characters' });
-    if (await User.findOne({ email: email.toLowerCase() }))
+    if (await User.findOne({ email: normalizedEmail }))
       return res.status(400).json({ error: 'An account with that email already exists' });
     const hashed = await bcrypt.hash(password, 12);
-    const user   = await User.create({ name: name.trim(), email: String(email).trim().toLowerCase(), password: hashed });
+    const user   = await User.create({ name: name.trim(), email: normalizedEmail, password: hashed });
     const token  = signAccessToken(user);
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch(e) {
@@ -215,12 +222,13 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
 app.post('/api/auth/login', dbRequired, async (req, res) => {
   try {
     const { email, password } = req.body || {};
-    if (!email || !password)
+    const normalizedEmail = normalizeAccountEmail(email);
+    if (!normalizedEmail || typeof password !== 'string')
       return res.status(400).json({ error: 'Email and password are required' });
     // Layer 3: block login for anyone who isn't the owner
     if (ALLOWED_EMAIL && String(email).toLowerCase().trim() !== ALLOWED_EMAIL)
       return res.status(403).json({ error: 'This is the private owner-only instance. Use the public website for other accounts.', code: 'PRIVATE_ACCESS_ONLY' });
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid email or password' });
     const token = signAccessToken(user);
