@@ -929,7 +929,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!listEl) return;
 
     if (!holdings.length) {
-      listEl.innerHTML = '<div class="port-empty">No holdings yet — add your first position above.</div>';
+      listEl.innerHTML = Portfolio.lastError
+        ? '<div class="port-empty" style="color:var(--gold)">Your saved holdings could not be loaded. They have NOT been deleted. Please retry after the API responds.</div>'
+        : '<div class="port-empty">No holdings yet — add your first position above.</div>';
       ['port-invested','port-value','port-pl','port-pct','port-best','port-count'].forEach(id=>{
         const el=document.getElementById(id); if(el){ el.textContent=id==='port-count'?'0':'—'; el.className='psc-val'; }
       });
@@ -954,28 +956,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pd      = priceData[h.symbol] || {};
       const hasLive = pd.price != null && pd.price > 0;
 
-      // Price source priority: 1) live API price  2) simulated market price  3) avg cost (last resort)
-      let curPrice, priceSource;
-      if (hasLive) {
-        curPrice    = pd.price;
-        priceSource = 'live';
-      } else {
-        // Use simulated price so gain/loss reflects market movement, NOT avg cost
-        try {
-          StockAPI._initSeed(h.symbol);
-          curPrice    = StockAPI._simQuote(h.symbol).price;
-          priceSource = 'sim';
-        } catch(e) {
-          curPrice    = h.buyPrice;
-          priceSource = 'cost';
-        }
-      }
+      // No fabricated quotes: temporary cost-basis estimate when price is missing.
+      const curPrice=hasLive ? pd.price : h.buyPrice;
+      const priceSource=hasLive ? 'live' : 'cost';
 
       const chg24h = hasLive ? (pd.change24h ?? null) : null;
       const cost   = h.shares * h.buyPrice;
       const value  = h.shares * curPrice;
-      const pl     = value - cost;
-      const plPct  = cost ? (pl / cost) * 100 : 0;
+      const pl     = hasLive ? value - cost : null;
+      const plPct  = hasLive && cost ? (pl / cost) * 100 : null;
       totalCost  += cost;
       totalValue += value;
       return { ...h, curPrice, chg24h, priceSource, cost, value, pl, plPct,
