@@ -11,6 +11,13 @@ A full-stack real-time stock market dashboard with AI analysis, automated alerts
 ## Features
 
 ### Real-Time Market Data
+- Historical OHLCV for charts and stock/ETF alert scans now uses Yahoo Finance chart data
+  (through a server-side adapter), because Finnhub's `/stock/candle` can return HTTP 403
+  for subscriptions without candle access.
+- Finnhub remains in place for quotes, profiles, IPOs, and the live WebSocket feed.
+- The Yahoo chart endpoint is unofficial and can be rate-limited or change.
+  If historical data is unavailable, the API returns an error rather than
+  fabricating OHLCV candles. Use a licensed historical-data provider for production.
 - Live price feeds via Finnhub WebSocket for stocks, ETFs, and crypto
 - Interactive candlestick charts with volume overlays
 - Real-time price tickers with % change indicators
