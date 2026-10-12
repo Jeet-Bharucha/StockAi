@@ -1,4 +1,4 @@
-const CACHE = 'stockai-v17';
+const CACHE = 'stockai-v18';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/dashboard.html', '/profile.html', '/404.html',
@@ -29,13 +29,30 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Always network-first for API calls and external resources
-  if (url.pathname.startsWith('/api/') || url.hostname !== location.hostname) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  // Never cache login/API responses; an old HTML error must not masquerade as
+  // a successful authentication response after the backend is redeployed.
+  if (e.request.method !== 'GET') return;
+  if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
+    e.respondWith(fetch(e.request));
     return;
   }
 
-  // Cache-first for everything else
+  // Prefer the current deployed login pages and auth JS. Fall back to the
+  // offline cache for page navigation only when the network is unavailable.
+  if (e.request.mode === 'navigate' || url.pathname === '/js/auth.js') {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then(cache => cache.put(e.request, copy));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Cache-first for immutable/static assets
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;

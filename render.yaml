@@ -1,0 +1,22 @@
+# Restore or manage the StockAI Node backend on Render.
+# MONGO_URI and FINNHUB_KEY must be provided in Render's environment settings.
+# Never commit connection strings, database credentials, or API keys.
+services:
+  - type: web
+    name: stockai-main
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /ping
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: MONGO_URI
+        sync: false
+      - key: FINNHUB_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

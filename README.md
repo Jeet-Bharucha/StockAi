@@ -70,7 +70,7 @@ A full-stack real-time stock market dashboard with AI analysis, automated alerts
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20.19+ (Node.js 22 recommended; required by Mongoose 9)
 - MongoDB Atlas account (free tier works)
 - Finnhub API key (free at [finnhub.io](https://finnhub.io))
 
@@ -138,14 +138,42 @@ Edit `WATCHLIST` in `alertEngine.js` to customise.
 
 ---
 
-## Deployment
+## Deployment and login troubleshooting
 
-Deploy free on [Render.com](https://render.com):
-- Build: `npm install`
-- Start: `node server.js`
-- Add env vars in Render dashboard
+The Express backend is expected at `https://stockai-main.onrender.com`. It handles
+`/api/auth/login` and connects to MongoDB Atlas. **Static hosting alone cannot
+authenticate users.** If you serve the HTML on Netlify, `netlify.toml` proxies
+`/api/*` requests to that Render backend. When the Render service is missing,
+suspended, or renamed, the Netlify site can still load but sign-in will fail.
 
-Use [UptimeRobot](https://uptimerobot.com) (free) to ping every 5 min and keep alerts running 24/7.
+### Check the existing service before creating another
+
+1. Open `https://stockai-main.onrender.com/ping`. A plain `ok` means Node is
+   running, **not** that login can access the database.
+2. Open `https://stockai-main.onrender.com/api/health`. Expect HTTP 200 with
+   `{"service":"stockai","ok":true,"database":"connected"}`. A JSON HTTP 503
+   means the backend is running but MongoDB is not ready. HTML, 404, or DNS
+   errors mean the backend/deployment or proxy needs attention.
+3. In the existing Render service, review **Events** and **Logs**, then check
+   **Environment** for `MONGO_URI`, `JWT_SECRET`, and `FINNHUB_KEY`.
+   Verify MongoDB Atlas is active, credentials are still valid, and its
+   Network Access rules permit the Render service. Do **not** post these
+   secrets publicly or commit them in Git.
+4. If the service is gone, recreate it using `render.yaml` or deploy a Node
+   web service with Build `npm ci`, Start `npm start`, and Node 22.
+   Enter secret values privately in Render. **Use the original MongoDB Atlas
+   database to keep existing accounts and portfolios.** A brand-new database
+   cannot contain your old users.
+5. If the Render hostname changes, update the `/api/*` target in
+   `netlify.toml` and redeploy Netlify. Its frontend and backend must point
+   at the same active API. For a direct Render deployment no proxy is needed.
+6. Run `npm test` to verify the login transport error handling. The login
+   and registration pages now show API/database readiness with a **Retry**
+   control. A fresh service worker takes precedence over old cached pages.
+
+The `/ping` route is for liveness monitoring; `/api/health` is the database
+readiness check. Optional UptimeRobot checks can use `/ping` to keep a free
+service warm when allowed by the hosting plan.
 
 ---
 
