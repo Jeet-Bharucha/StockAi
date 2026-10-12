@@ -23,7 +23,7 @@ const Portfolio = {
     }
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const timer = setTimeout(() => ctrl.abort(), 55000);
       let r;
       try { r = await fetch('/api/user/portfolio', { headers: this._authHeader(), signal: ctrl.signal }); }
       finally { clearTimeout(timer); }
