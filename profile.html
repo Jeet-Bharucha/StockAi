@@ -314,7 +314,7 @@ main{animation:pageFadeIn .5s ease both}
           </div>
           <div class="form-group">
             <label>New Password</label>
-            <input class="form-input" type="password" id="pwd-new" placeholder="New password (min 6 chars)" oninput="checkPwd()">
+            <input class="form-input" type="password" id="pwd-new" placeholder="New password (min 8 chars)" oninput="checkPwd()">
           </div>
         </div>
         <div class="form-group" style="margin-bottom:1rem">
@@ -416,9 +416,9 @@ main{animation:pageFadeIn .5s ease both}
         <div class="danger-row">
           <div class="danger-info">
             <div class="danger-label">Sign Out Everywhere</div>
-            <div class="danger-sub">Clears your session from this browser. You'll need to log back in. Your data is preserved.</div>
+            <div class="danger-sub">Invalidates all account sessions and signs you out of this browser. Your data is preserved.</div>
           </div>
-          <button class="btn-danger" onclick="Auth.logout()">Sign Out</button>
+          <button class="btn-danger" onclick="signOutEverywhere()">Sign Out Everywhere</button>
         </div>
 
         <div class="danger-row">
@@ -465,6 +465,7 @@ main{animation:pageFadeIn .5s ease both}
     <p id="danger-body">This action is irreversible.</p>
     <p style="font-size:.8rem;color:var(--red);margin-bottom:.7rem;text-align:center" id="danger-type-hint">Type your <strong>name</strong> below to confirm:</p>
     <input class="modal-confirm-input" type="text" id="danger-confirm-input" placeholder="" oninput="checkDangerInput()">
+    <input class="modal-confirm-input" type="password" id="danger-password" autocomplete="current-password" placeholder="Current account password" style="display:none;margin-top:.7rem">
     <div class="modal-actions">
       <button class="btn-modal-confirm" id="danger-confirm-btn" onclick="executeDanger()">Confirm</button>
       <button class="btn-modal-cancel" onclick="closeModal('danger-modal')">Cancel</button>
@@ -517,9 +518,26 @@ if (session.isGuest) {
 })();
 
 // ── Load profile data ──────────────────────────────────────────────────────
-function loadProfile() {
-  const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
-  const user  = users.find(u => u.id === session.userId) || {};
+async function loadProfile() {
+  let user = {};
+  try {
+    const [r] = await Promise.all([
+      fetch('/api/user/profile', { headers: Auth._authHeader(), cache: 'no-store' }),
+      Auth.loadWatchlist(),
+      Portfolio.load()
+    ]);
+    if (!r.ok) throw new Error('Could not load account from MongoDB');
+    user = await r.json();
+    session.name = user.name;
+    session.email = user.email;
+    const raw = localStorage.getItem('stockai_session');
+    if (raw) {
+      const stored = JSON.parse(raw);
+      stored.name = user.name;
+      stored.email = user.email;
+      localStorage.setItem('stockai_session', JSON.stringify(stored));
+    }
+  } catch (e) { showToast('Unable to load the latest account details', true); }
 
   // Avatar & name
   const initial = (session.name || '?')[0].toUpperCase();
@@ -532,7 +550,7 @@ function loadProfile() {
   document.getElementById('edit-email').value = session.email;
 
   // Joined date
-  const created = user.created || session.token || Date.now();
+  const created = user.created ? new Date(user.created).getTime() : Date.now();
   const joined  = new Date(created).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const days    = Math.max(1, Math.floor((Date.now()-created)/(864e5)));
   document.getElementById('profile-joined').textContent  = `📅 Joined ${joined}`;
@@ -547,7 +565,7 @@ function loadProfile() {
   // Stats
   const wl    = Auth.getWatchlist();
   const port  = Portfolio.get();
-  const alerts = JSON.parse(localStorage.getItem('stockai_alerts')||'[]');
+  const alerts = PriceAlerts.get();
   document.getElementById('stat-wl').textContent     = wl.length;
   document.getElementById('stat-port').textContent   = port.length;
   document.getElementById('stat-alerts').textContent = alerts.length;
@@ -563,7 +581,7 @@ function loadPrefs() {
   if (prefs.sessionDays && sd) sd.value = prefs.sessionDays;
 
   const notif = document.getElementById('pref-notif');
-  if (notif) notif.checked = Notification?.permission === 'granted';
+  if (notif) notif.checked = typeof Notification !== 'undefined' && Notification.permission === 'granted';
 }
 
 function savePref(key, value) {
@@ -589,31 +607,27 @@ function toggleNotifications(on) {
 }
 
 // ── Edit name ──────────────────────────────────────────────────────────────
-function saveName() {
+async function saveName() {
   const newName = document.getElementById('edit-name').value.trim();
-  if (!newName) { showToast('Name cannot be empty', true); return; }
-
-  // Update user record
-  const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
-  const idx = users.findIndex(u => u.id === session.userId);
-  if (idx !== -1) { users[idx].name = newName; localStorage.setItem('stockai_users', JSON.stringify(users)); }
-
-  // Update session
-  const raw = localStorage.getItem('stockai_session') || sessionStorage.getItem('stockai_session');
-  if (raw) {
-    const s = JSON.parse(raw); s.name = newName;
-    if (localStorage.getItem('stockai_session')) localStorage.setItem('stockai_session', JSON.stringify(s));
-    else sessionStorage.setItem('stockai_session', JSON.stringify(s));
-  }
-
-  document.getElementById('profile-name').textContent = newName;
-  document.getElementById('nav-name').textContent = newName;
-  document.getElementById('profile-avatar').textContent = newName[0].toUpperCase();
-  document.getElementById('nav-avatar').textContent = newName[0].toUpperCase();
-
-  const msg = document.getElementById('save-success');
-  msg.classList.add('show');
-  setTimeout(() => msg.classList.remove('show'), 2500);
+  if (!newName || newName.length > 80) { showToast('Name must be 1–80 characters', true); return; }
+  try {
+    const r = await fetch('/api/user/profile', {
+      method: 'PATCH', headers: Auth._authHeader(),
+      body: JSON.stringify({ name: newName })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Could not save profile');
+    session.name = data.name;
+    const saved = Auth.getSession();
+    if (saved) {
+      saved.name = data.name;
+      localStorage.setItem('stockai_session', JSON.stringify(saved));
+    }
+    await loadProfile();
+    const msg = document.getElementById('save-success');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 2500);
+  } catch(e) { showToast(e.message, true); }
 }
 
 // ── Change password ────────────────────────────────────────────────────────
@@ -635,39 +649,38 @@ function checkPwd() {
   lbl.textContent = cfg.text; lbl.style.color = cfg.color;
 }
 
-function changePassword() {
+async function changePassword() {
   const current = document.getElementById('pwd-current').value;
-  const nw      = document.getElementById('pwd-new').value;
+  const nw = document.getElementById('pwd-new').value;
   const confirm = document.getElementById('pwd-confirm').value;
-
   if (!current || !nw || !confirm) { showToast('Fill in all password fields', true); return; }
-  if (nw.length < 6) { showToast('New password must be at least 6 characters', true); return; }
+  if (nw.length < 8) { showToast('New password must be at least 8 characters', true); return; }
   if (nw !== confirm) { showToast('Passwords do not match', true); return; }
-
-  const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
-  const idx   = users.findIndex(u => u.id === session.userId && u.password === btoa(current));
-  if (idx === -1) { showToast('Current password is incorrect', true); return; }
-
-  users[idx].password = btoa(nw);
-  localStorage.setItem('stockai_users', JSON.stringify(users));
-  document.getElementById('pwd-current').value = '';
-  document.getElementById('pwd-new').value = '';
-  document.getElementById('pwd-confirm').value = '';
-  document.getElementById('pwd-strength-wrap').style.display = 'none';
-
-  const msg = document.getElementById('pwd-success');
-  msg.classList.add('show');
-  setTimeout(() => msg.classList.remove('show'), 2500);
+  try {
+    const r = await fetch('/api/user/change-password', {
+      method: 'POST', headers: Auth._authHeader(),
+      body: JSON.stringify({ currentPassword: current, newPassword: nw })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Password update failed');
+    document.getElementById('pwd-current').value = '';
+    document.getElementById('pwd-new').value = '';
+    document.getElementById('pwd-confirm').value = '';
+    document.getElementById('pwd-strength-wrap').style.display = 'none';
+    showToast('Password updated. Sign in again.');
+    setTimeout(() => Auth.logout(), 1200); // old tokens revoked on server
+  } catch (e) { showToast(e.message, true); }
 }
 
 // ── Data export ────────────────────────────────────────────────────────────
-function exportAllData() {
+async function exportAllData() {
+  await Promise.all([Auth.loadWatchlist(), Portfolio.load()]);
   const data = {
     exportedAt:  new Date().toISOString(),
     profile:     { name: session.name, email: session.email },
     watchlist:   Auth.getWatchlist(),
     portfolio:   Portfolio.get(),
-    alerts:      JSON.parse(localStorage.getItem('stockai_alerts') || '[]'),
+    alerts:      PriceAlerts.get(),
     preferences: JSON.parse(localStorage.getItem('stockai_prefs') || '{}'),
   };
   const a = document.createElement('a');
@@ -682,18 +695,43 @@ function exportAllData() {
 
 // ── Clear modals ───────────────────────────────────────────────────────────
 const CLEAR_CONFIGS = {
-  watchlist: { icon:'⭐', title:'Clear Watchlist?', body:'All stocks will be removed from your watchlist. Your portfolio and alerts are unaffected.', action: () => { localStorage.removeItem(`watchlist_${session.userId}`); loadProfile(); } },
-  portfolio: { icon:'💼', title:'Clear Portfolio?', body:'All your holdings will be deleted permanently. This cannot be undone.', action: () => { localStorage.removeItem('stockai_portfolio'); loadProfile(); } },
-  alerts:    { icon:'🔔', title:'Clear All Alerts?', body:'All your price alerts will be removed and any triggered alerts will be lost.', action: () => { localStorage.removeItem('stockai_alerts'); loadProfile(); } },
+  watchlist: {
+    icon:'⭐', title:'Clear Watchlist?', body:'Remove all saved watchlist symbols?',
+    action: async () => {
+      const r = await fetch('/api/user/watchlist', {
+        method:'PUT', headers:Auth._authHeader(), body:JSON.stringify({ watchlist:[] })
+      });
+      if(!r.ok) throw new Error('Could not clear watchlist');
+      Auth._watchlistCache = [];
+    }
+  },
+  portfolio: {
+    icon:'💼', title:'Clear Portfolio?', body:'Permanently remove all portfolio holdings?',
+    action: async () => {
+      const r = await fetch('/api/user/portfolio', { method:'DELETE', headers:Auth._authHeader() });
+      if(!r.ok) throw new Error('Could not clear portfolio');
+      Portfolio._cache = [];
+    }
+  },
+  alerts: {
+    icon:'🔔', title:'Clear All Alerts?', body:'Remove your local price alerts?',
+    action: async () => PriceAlerts.save([])
+  }
 };
-let pendingClearAction = null;
 
 function confirmClear(type) {
   const cfg = CLEAR_CONFIGS[type]; if (!cfg) return;
-  document.getElementById('clear-modal-icon').textContent  = cfg.icon;
+  document.getElementById('clear-modal-icon').textContent = cfg.icon;
   document.getElementById('clear-modal-title').textContent = cfg.title;
-  document.getElementById('clear-modal-body').textContent  = cfg.body;
-  document.getElementById('clear-modal-confirm').onclick   = () => { cfg.action(); closeModal('clear-modal'); showToast(`${type.charAt(0).toUpperCase()+type.slice(1)} cleared`); };
+  document.getElementById('clear-modal-body').textContent = cfg.body;
+  document.getElementById('clear-modal-confirm').onclick = async () => {
+    try {
+      await cfg.action();
+      closeModal('clear-modal');
+      await loadProfile();
+      showToast(type.charAt(0).toUpperCase() + type.slice(1) + ' cleared');
+    } catch(e) { showToast(e.message, true); }
+  };
   document.getElementById('clear-modal').classList.remove('hidden');
 }
 
@@ -713,6 +751,8 @@ function openDangerModal(type) {
   document.getElementById('danger-confirm-btn').classList.remove('ready');
 
   dangerAction = isDelete ? 'delete' : 'reset';
+  document.getElementById('danger-password').style.display = isDelete ? 'block' : 'none';
+  document.getElementById('danger-password').value = '';
   document.getElementById('danger-modal').classList.remove('hidden');
 }
 
@@ -723,30 +763,41 @@ function checkDangerInput() {
   btn.classList.toggle('ready', val === expected);
 }
 
-function executeDanger() {
-  if (dangerAction === 'delete') {
-    // Remove user from users array
-    const users = JSON.parse(localStorage.getItem('stockai_users') || '[]');
-    const updated = users.filter(u => u.id !== session.userId);
-    localStorage.setItem('stockai_users', JSON.stringify(updated));
-    // Wipe all user data
-    localStorage.removeItem(`watchlist_${session.userId}`);
-    localStorage.removeItem('stockai_portfolio');
-    localStorage.removeItem('stockai_alerts');
-    localStorage.removeItem('stockai_last_email');
-    localStorage.removeItem('stockai_prefs');
-    // Sign out
-    localStorage.removeItem('stockai_session');
-    sessionStorage.removeItem('stockai_session');
-    window.location.href = 'index.html';
-  } else if (dangerAction === 'reset') {
-    localStorage.removeItem(`watchlist_${session.userId}`);
-    localStorage.removeItem('stockai_portfolio');
-    localStorage.removeItem('stockai_alerts');
-    closeModal('danger-modal');
-    loadProfile();
-    showToast('All data has been reset');
-  }
+async function executeDanger() {
+  const typed = document.getElementById('danger-confirm-input').value.trim();
+  const expected = dangerAction === 'delete' ? session.email : session.name;
+  if (typed !== expected) { showToast('Type the confirmation text exactly', true); return; }
+  try {
+    if (dangerAction === 'delete') {
+      const password = document.getElementById('danger-password').value;
+      if (!password) { showToast('Your current password is required', true); return; }
+      const r = await fetch('/api/user/account', {
+        method:'DELETE', headers:Auth._authHeader(), body:JSON.stringify({ password })
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Account deletion failed');
+      localStorage.removeItem('stockai_alerts');
+      localStorage.removeItem('stockai_last_email');
+      Auth.logout();
+    } else if (dangerAction === 'reset') {
+      const r = await fetch('/api/user/data', { method:'DELETE', headers:Auth._authHeader() });
+      if (!r.ok) throw new Error('Unable to delete MongoDB data');
+      Auth._watchlistCache = [];
+      Portfolio._cache = [];
+      PriceAlerts.save([]);
+      closeModal('danger-modal');
+      await loadProfile();
+      showToast('Account data cleared');
+    }
+  } catch(e) { showToast(e.message, true); }
+}
+
+async function signOutEverywhere() {
+  try {
+    const r = await fetch('/api/user/logout-all', { method:'POST', headers:Auth._authHeader() });
+    if (!r.ok) throw new Error('Could not sign out all devices');
+    Auth.logout();
+  } catch(e) { showToast(e.message, true); }
 }
 
 // ── Modal helpers ──────────────────────────────────────────────────────────
