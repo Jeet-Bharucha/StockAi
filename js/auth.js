@@ -7,20 +7,25 @@ const Auth = {
 
   // ── Helpers ────────────────────────────────────────────────────────────
   _authHeader() {
-    const token = localStorage.getItem(this._TOKEN_KEY);
+    const token = localStorage.getItem(this._TOKEN_KEY) || sessionStorage.getItem(this._TOKEN_KEY);
     return { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
   },
 
   _saveSession(token, user, remember = true) {
-    localStorage.setItem(this._TOKEN_KEY, token);
-    const session = {
-      userId:  user.id,
-      name:    user.name,
-      email:   user.email,
-      expires: remember ? Date.now() + this._REMEMBER_DAYS * 864e5 : null
-    };
-    localStorage.setItem(this._SESSION_KEY, JSON.stringify(session));
-    sessionStorage.removeItem(this._SESSION_KEY); // clear any leftover guest session
+    const store = remember ? localStorage : sessionStorage;
+    const other = remember ? sessionStorage : localStorage;
+    const prefs = (() => {
+      try { return JSON.parse(localStorage.getItem('stockai_prefs') || '{}'); }
+      catch (_) { return {}; }
+    })();
+    const days = prefs.sessionDays === '7' ? 7 : 30; // JWTs expire in 30d on server.
+    store.setItem(this._TOKEN_KEY, token);
+    store.setItem(this._SESSION_KEY, JSON.stringify({
+      userId: user.id, name: user.name, email: user.email,
+      expires: remember ? Date.now() + days * 864e5 : null
+    }));
+    other.removeItem(this._TOKEN_KEY);
+    other.removeItem(this._SESSION_KEY);
   },
 
   // ── Register / Login ───────────────────────────────────────────────────
@@ -162,6 +167,7 @@ const Auth = {
   logout() {
     localStorage.removeItem(this._TOKEN_KEY);
     localStorage.removeItem(this._SESSION_KEY);
+    sessionStorage.removeItem(this._TOKEN_KEY);
     sessionStorage.removeItem(this._SESSION_KEY);
     this._watchlistCache = null;
     window.location.href = 'login.html';
@@ -181,13 +187,14 @@ const Auth = {
       } catch(_) {}
     }
     // Real session lives in localStorage
-    const raw = localStorage.getItem(this._SESSION_KEY);
+    const store = localStorage.getItem(this._SESSION_KEY) ? localStorage : sessionStorage;
+    const raw = store.getItem(this._SESSION_KEY);
     if (!raw) return null;
     try {
       const session = JSON.parse(raw);
       if (session.expires && Date.now() > session.expires) {
-        localStorage.removeItem(this._SESSION_KEY);
-        localStorage.removeItem(this._TOKEN_KEY);
+        store.removeItem(this._SESSION_KEY);
+        store.removeItem(this._TOKEN_KEY);
         return null;
       }
       return session;
@@ -207,6 +214,7 @@ const Auth = {
     };
     sessionStorage.setItem(this._SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(this._SESSION_KEY);
+    localStorage.removeItem(this._TOKEN_KEY);
   },
 
   isGuest()  { return this.getSession()?.isGuest === true; },
