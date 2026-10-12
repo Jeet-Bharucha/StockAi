@@ -117,6 +117,13 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
     } catch (e) { return res.status(500).json({ error: 'Could not change password' }); }
   });
 
+  app.post('/api/user/logout-all', authMW, dbRequired, async (req, res) => {
+    try {
+      await User.findByIdAndUpdate(req.user.id, { $inc: { tokenVersion: 1 } });
+      return res.json({ ok: true });
+    } catch (e) { return res.status(500).json({ error: 'Could not sign out all devices' }); }
+  });
+
   app.delete('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
     try {
       await Holding.deleteMany({ userId: req.user.id });
