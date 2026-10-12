@@ -4,6 +4,7 @@ const { createServer } = require('http');
 const WebSocket = require('ws');
 const path     = require('path');
 const mongoose = require('mongoose');
+const { fetchHistoricalBars, toFinnhubCandleFormat } = require('./marketData');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
@@ -370,9 +371,19 @@ async function finnhubREST(endpoint, res) {
 }
 
 app.get('/api/quote',   (req, res) => finnhubREST(`/quote?symbol=${req.query.symbol}`, res));
-app.get('/api/candle',  (req, res) => {
+app.get('/api/candle', async (req, res) => {
   const { symbol, resolution = 'D', from, to } = req.query;
-  finnhubREST(`/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${to}`, res);
+  try {
+    const bars = await fetchHistoricalBars(symbol, { from, to, resolution });
+    res.set('Cache-Control', 'public, max-age=180');
+    res.json(toFinnhubCandleFormat(bars));
+  } catch (e) {
+    const badRequest = /^(Invalid|Unsupported)/.test(e.message);
+    if (!badRequest) console.warn('[MarketData] ' + symbol + ': ' + e.message);
+    res.status(badRequest ? 400 : 502).json({
+      error: badRequest ? e.message : 'Historical market data temporarily unavailable'
+    });
+  }
 });
 app.get('/api/profile', (req, res) => finnhubREST(`/stock/profile2?symbol=${req.query.symbol}`, res));
 app.get('/api/news', (req, res) => {
