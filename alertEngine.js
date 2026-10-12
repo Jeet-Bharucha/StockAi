@@ -14,6 +14,7 @@
 
 const { Resend } = require('resend');
 const mongoose   = require('mongoose');
+const { fetchHistoricalBars } = require('./marketData');
 
 // ── Environment config ────────────────────────────────────────────────────────
 const FINNHUB_KEY   = process.env.FINNHUB_KEY;
@@ -106,12 +107,9 @@ async function fetchCandles(symbol, days = 220) {
   if (symbol.includes(':')) return fetchCandlesCoinGecko(symbol, days);
   const to   = Math.floor(Date.now() / 1000);
   const from = to - days * 86400;
-  const data = await fhGet(`/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}`);
-  if (data.s !== 'ok' || !data.c?.length) return null;
-  return data.c.map((close, i) => ({
-    close, open: data.o[i], high: data.h[i], low: data.l[i],
-    volume: data.v[i], time: data.t[i]
-  }));
+  // The Finnhub free tier may reject /stock/candle with HTTP 403.
+  // Stock alerts use real Yahoo historical OHLCV instead of fake candles.
+  return fetchHistoricalBars(symbol, { from, to, resolution: 'D' });
 }
 
 async function fetchIPOCalendar() {
@@ -502,7 +500,7 @@ async function sendSMS(alerts) {
 // ── Rate-limited symbol scanner ───────────────────────────────────────────────
 async function scanSymbol(symbol, assetType) {
   try {
-    const bars = await fetchCandles(symbol, 220);
+    const bars = await fetchCandles(symbol, symbol.includes(':') ? 220 : 400);
     if (!bars || bars.length < 60) return null;
 
     const pred = TA.predict(bars);
@@ -688,7 +686,7 @@ async function runDailyDigest() {
     const scored = [];
     for (const { sym, type } of allSymbols) {
       try {
-        const bars = await fetchCandles(sym, 220);
+        const bars = await fetchCandles(sym, sym.includes(':') ? 220 : 400);
         if (!bars || bars.length < 60) continue;
         const pred = TA.predict(bars);
         if (!pred) continue;
