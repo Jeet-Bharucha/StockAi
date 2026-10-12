@@ -197,15 +197,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function refreshQuote() {
-    const q = await StockAPI.getQuote(currentSymbol); const up = q.changePct>=0;
-    document.getElementById('stock-price').textContent = `$${q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-    const chgEl = document.getElementById('stock-change');
-    chgEl.textContent = `${up?'+':''}${q.change} (${up?'+':''}${q.changePct}%)`; chgEl.className = `stock-change ${up?'up':'down'}`;
-    document.getElementById('stat-high').textContent   = `$${q.high}`;
-    document.getElementById('stat-low').textContent    = `$${q.low}`;
-    document.getElementById('stat-open').textContent   = `$${q.open}`;
-    document.getElementById('stat-volume').textContent = q.volume?fmtVol(q.volume):'—';
-    document.getElementById('data-source').textContent = q.live?'🟢 Finnhub Live':'🟡 Simulated';
+    const symbol = currentSymbol;
+    const fmt = n => Number.isFinite(n) && n > 0 ? '$' + n.toFixed(2) : '—';
+    try {
+      const q = await StockAPI.getQuote(symbol);
+      if (currentSymbol !== symbol) return;
+      const up = q.changePct >= 0;
+      document.getElementById('stock-price').textContent = fmt(q.price);
+      const change = document.getElementById('stock-change');
+      change.textContent = (up?'+':'') + q.change.toFixed(2) + ' (' + (up?'+':'') + q.changePct.toFixed(2) + '%)';
+      change.className = 'stock-change ' + (up?'up':'down');
+      document.getElementById('stat-high').textContent = fmt(q.high);
+      document.getElementById('stat-low').textContent = fmt(q.low);
+      document.getElementById('stat-open').textContent = fmt(q.open);
+      document.getElementById('stat-volume').textContent = q.volume ? fmtVol(q.volume) : '—';
+      document.getElementById('data-source').textContent = '● Verified provider quote · latest available';
+      const badge = document.getElementById('market-data-status');
+      if (badge) { badge.textContent='● QUOTES AVAILABLE'; badge.className='ready'; }
+    } catch (error) {
+      if (currentSymbol !== symbol) return;
+      document.getElementById('stock-price').textContent = '—';
+      document.getElementById('stock-change').textContent = 'Quote unavailable';
+      for (const id of ['stat-high','stat-low','stat-open','stat-volume'])
+        document.getElementById(id).textContent = '—';
+      document.getElementById('data-source').textContent = '⚠ Provider quote unavailable. Please retry.';
+      const badge = document.getElementById('market-data-status');
+      if (badge) { badge.textContent='⚠ QUOTE OFFLINE'; badge.className='offline'; }
+      console.warn(error.message);
+    }
   }
 
   // ── AI Prediction ─────────────────────────────────────────────────────────
