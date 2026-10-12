@@ -250,6 +250,15 @@ input.valid-field{border-color:var(--green)!important}
             </div>
           </div>
 
+          <div class="form-group" id="owner-setup-wrap" style="display:none">
+            <label for="owner-setup-key">Owner Setup Key (from your private Render environment)</label>
+            <div class="input-wrap">
+              <span class="icon">🔑</span>
+              <input type="password" id="owner-setup-key" autocomplete="off" placeholder="Temporary owner signup key" minlength="24">
+            </div>
+            <p style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Needed only to create the owner's first MongoDB account. Never share it or save it in GitHub.</p>
+          </div>
+
           <button type="submit" class="btn-submit" id="submit-btn">
             <span class="btn-text">Create Free Account →</span>
             <div class="spinner"></div>
@@ -285,6 +294,7 @@ Auth.getSiteConfig().then(cfg => {
     if (heading) heading.textContent = 'Private owner-only registration';
     const btn = document.querySelector('#submit-btn .btn-text');
     if (btn) btn.textContent = 'Create Owner Account →';
+    document.getElementById('owner-setup-wrap').style.display = 'block';
   }
 });
 </script>
@@ -371,7 +381,7 @@ document.getElementById('reg-form').addEventListener('submit',async function(e){
   const btn=document.getElementById('submit-btn');
   btn.classList.add('loading');
   await new Promise(r=>setTimeout(r,800));
-  const result = await Auth.register(`${fname} ${lname}`,email,pwd);
+  const result = await Auth.register(`${fname} ${lname}`, email, pwd, document.getElementById('owner-setup-key').value.trim());
   btn.classList.remove('loading');
   if(result.success) window.location.href='dashboard.html';
   else{errEl.textContent=result.error;errEl.classList.add('show');}
