@@ -179,7 +179,7 @@ app.get('/api/test-email', async (req, res) => {
 function normalizeAccountEmail(value) {
   if (typeof value !== 'string' || value.length > 254) return null;
   const email = value.trim().toLowerCase();
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) ? email : null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
 
 // ── Auth routes ───────────────────────────────────────────────────────────
