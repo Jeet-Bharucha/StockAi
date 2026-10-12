@@ -192,3 +192,63 @@ body.stockai-pro {
   }
   .stockai-pro .bg-orb { display:none; }
 }
+
+/* Unavailable data and research-grade screener */
+.stockai-pro .data-warning {
+  margin:0 0 .85rem;
+  padding:.85rem 1rem;
+  color:#f6c88f;
+  border:1px solid rgba(208,156,90,.34);
+  background:#2b271f;
+  border-radius:8px;
+  font-size:.78rem;
+  line-height:1.55;
+}
+.stockai-pro .pro-screener-result {
+  display:grid;
+  width:100%;
+  grid-template-columns:minmax(105px,1.4fr) minmax(90px,1fr) minmax(85px,1fr) minmax(100px,1fr);
+  align-items:center;
+  gap:.8rem;
+  cursor:pointer;
+  text-align:left;
+  padding:1rem;
+  border:1px solid #293b47;
+  border-radius:11px;
+  color:var(--text);
+  background:linear-gradient(145deg,#152434,#10202d);
+  transition:background .15s,border-color .15s;
+  font:inherit;
+}
+.stockai-pro .pro-screener-result:hover,
+.stockai-pro .pro-screener-result:focus-visible {
+  background:#1a3040;
+  border-color:#45a090;
+}
+.stockai-pro .pro-screener-result > span { display:block;min-width:0;font-size:.83rem;font-variant-numeric:tabular-nums;font-weight:700; }
+.stockai-pro .pro-screener-result small { display:block;color:var(--muted);font-size:.7rem;font-weight:500;margin-top:.28rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.stockai-pro .pro-scr-symbol { color:#9bf4d9; }
+.stockai-pro .pro-scr-price { color:#e7f3fb; }
+.stockai-pro .pro-scr-change.up { color:var(--green); }
+.stockai-pro .pro-scr-change.down { color:var(--red); }
+.stockai-pro .pro-scr-metrics { color:#bed0de; }
+.stockai-pro #scr-results { display:flex;flex-direction:column;gap:.55rem; }
+.stockai-pro .chart-unavailable {
+  position:absolute;inset:0;z-index:4;
+  display:flex;align-items:center;justify-content:center;
+  padding:1.5rem;background:rgba(13,24,35,.94);
+  color:#b7cad7;text-align:center;font-size:.83rem;line-height:1.6;
+  pointer-events:none;
+}
+.stockai-pro .stock-meta { font-variant-numeric:tabular-nums; }
+.stockai-pro #port-pricing-notice { position:relative;z-index:1; }
+.stockai-pro .wl-remove { opacity:.9; }
+.stockai-pro .ws-live { color:#87e9be;background:#1a3d33;border-color:#306657; }
+.stockai-pro .ws-sim { color:#c0b1a0;background:#2a2930;border-color:#504c58; }
+@media(max-width:680px) {
+  .stockai-pro .pro-screener-result { grid-template-columns:1fr 1fr;gap:.55rem; }
+  .stockai-pro .pro-screener-result > span { font-size:.78rem; }
+  .stockai-pro .pro-scr-price,.stockai-pro .pro-scr-change { text-align:right; }
+  .stockai-pro .pro-scr-metrics { grid-column:span 2; }
+  .stockai-pro .pro-scr-metrics small { display:inline;margin-left:.5rem; }
+}
