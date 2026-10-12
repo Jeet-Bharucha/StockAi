@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Restore Owner Account — StockAI</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:dark;color:#e6f4fd;background:#070e19}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#0e3443 0%,#080e1b 55%);padding:24px}
+    main{max-width:490px;margin:6vh auto;padding:30px;background:#101b2d;border:1px solid #285063;border-radius:18px;box-shadow:0 20px 60px #0006}
+    a{color:#4de1d4;text-decoration:none}a:hover{text-decoration:underline}
+    h1{font-size:1.7rem;line-height:1.25;margin:25px 0 10px}p{color:#b6c7d5;line-height:1.55;font-size:.92rem}
+    label{display:block;margin:18px 0 6px;font-size:.83rem;font-weight:700;color:#d4e8f2}
+    input{width:100%;padding:13px 14px;border-radius:9px;border:1px solid #35536b;color:white;background:#0a1523;font-size:16px}
+    input:focus{outline:2px solid #29bcad;outline-offset:1px}
+    button{width:100%;margin-top:20px;background:linear-gradient(100deg,#099db7,#00cfae);color:#06232d;border:0;border-radius:9px;padding:13px;font:inherit;font-weight:800;cursor:pointer}
+    button:disabled{opacity:.65;cursor:wait}
+    .notice{padding:13px;border-radius:10px;background:#29210f;border:1px solid #644d21;color:#f1cb77;font-size:.86rem;line-height:1.55}
+    .tip{font-size:.8rem;color:#8facbc}#message{margin-top:16px;font-size:.9rem;line-height:1.5}#message.error{color:#ff9aa9}#message.success{color:#86efac}
+  </style>
+</head>
+<body><main>
+  <a href="login.html">← Back to sign in</a>
+  <h1>🔐 Restore your private StockAI account</h1>
+  <div class="notice">Only for the private owner deployment. To use this page, first set a temporary <strong>OWNER_SETUP_KEY</strong> (at least 32 random bytes) in Render → StockAI (Main) → Environment and wait for deployment. Never send the key to anyone. Remove it from Render once you've logged in.</div>
+  <p>This sets a new MongoDB login password. If your account already exists, it <strong>keeps the same account, portfolio and watchlist</strong>. If the account was only saved in your old browser, it creates the owner's MongoDB account.</p>
+  <form id="restore-form">
+    <label for="email">Private owner email (must match ALLOWED_EMAIL)</label>
+    <input id="email" type="email" autocomplete="email" required maxlength="254" placeholder="owner@example.com">
+    <label for="name">Display name (used only for a newly created account)</label>
+    <input id="name" type="text" maxlength="80" autocomplete="name" placeholder="StockAI Owner">
+    <label for="password">Choose a new StockAI account password</label>
+    <input id="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+    <label for="confirm">Confirm new password</label>
+    <input id="confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+    <label for="setup-key">Temporary OWNER_SETUP_KEY from Render</label>
+    <input id="setup-key" type="password" autocomplete="off" required minlength="32" placeholder="Paste the random key you configured in Render">
+    <button id="submit" type="submit">Restore Owner Access</button>
+  </form>
+  <div id="message" role="status" aria-live="polite"></div>
+  <p class="tip">This is different from the browser's site-access password. Your account password and setup key are sent only to your StockAI server over HTTPS. Do not put them in GitHub.</p>
+</main>
+<script>
+document.getElementById('restore-form').addEventListener('submit', async function (event) {
+  event.preventDefault();
+  const password = document.getElementById('password').value;
+  const confirm = document.getElementById('confirm').value;
+  const message = document.getElementById('message');
+  const btn = document.getElementById('submit');
+  message.className = '';
+  if (password !== confirm) {
+    message.textContent = 'New passwords do not match.';
+    message.className = 'error';
+    return;
+  }
+  btn.disabled = true;
+  message.textContent = 'Restoring your account…';
+  try {
+    const resp = await fetch('/api/auth/restore-owner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        email: document.getElementById('email').value.trim(),
+        name: document.getElementById('name').value.trim(),
+        password,
+        ownerSetupKey: document.getElementById('setup-key').value
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || 'Unable to restore account.');
+    document.getElementById('setup-key').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('confirm').value = '';
+    message.className = 'success';
+    message.textContent = data.message;
+    btn.textContent = 'Account restored ✓';
+    const link = document.createElement('a');
+    link.href = 'login.html';
+    link.textContent = ' Continue to sign in →';
+    link.style.display = 'block';
+    link.style.marginTop = '12px';
+    message.appendChild(link);
+  } catch (e) {
+    message.className = 'error';
+    message.textContent = e.message || 'Unable to contact the server.';
+    btn.disabled = false;
+  }
+});
+</script>
+</body></html>
