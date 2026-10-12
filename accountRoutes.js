@@ -41,13 +41,14 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
         user.passwordResetExpires = new Date(now + 30 * 60 * 1000);
         await user.save();
         const link = siteUrl + '/reset-password.html#token=' + token;
-        await mailer.emails.send({
+        const delivery = await mailer.emails.send({
           from: fromEmail,
           to: email,
           subject: 'Reset your StockAI password',
           text: 'You requested a StockAI password reset. Open this link within 30 minutes:\n' +
             link + '\n\nIf you did not request this, ignore the message.'
         });
+        if (delivery?.error) throw new Error(delivery.error.message || 'Email provider rejected the message');
       }
     } catch (e) {
       console.error('[Password Recovery] Delivery or storage failed:', e.message);
@@ -63,16 +64,17 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
     }
     try {
       const hash = crypto.createHash('sha256').update(token).digest('hex');
-      const user = await User.findOne({
-        passwordResetHash: hash,
-        passwordResetExpires: { $gt: new Date() }
-      });
+      const newHash = await bcrypt.hash(password, 12);
+      // Atomic consume: a reset token cannot be reused by a second request.
+      const user = await User.findOneAndUpdate(
+        { passwordResetHash: hash, passwordResetExpires: { $gt: new Date() } },
+        {
+          $set: { password: newHash },
+          $unset: { passwordResetHash: '', passwordResetExpires: '' },
+          $inc: { tokenVersion: 1 }
+        }
+      );
       if (!user) return res.status(400).json({ error: 'Reset link expired or already used. Request another.' });
-      user.password = await bcrypt.hash(password, 12);
-      user.passwordResetHash = undefined;
-      user.passwordResetExpires = undefined;
-      user.tokenVersion = (user.tokenVersion || 0) + 1;
-      await user.save();
       return res.json({ ok: true, message: 'Password updated. Sign in with your new password.' });
     } catch (e) {
       console.error('[Password Recovery] Reset failed:', e.message);
