@@ -35,28 +35,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     commodities:[{ sym:'GLD',name:'Gold ETF'},{ sym:'USO',name:'Oil ETF'},{ sym:'SLV',name:'Silver ETF'},{ sym:'UNG',name:'Natural Gas'},{ sym:'PDBC',name:'Commodities'}],
   };
 
-  // Simulated earnings calendar (relative to today)
-  function getEarningsCalendar() {
-    const d = offset => {
-      const dt = new Date(); dt.setDate(dt.getDate() + offset);
-      return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    };
-    return [
-      { sym:'JPM',  name:'JPMorgan Chase',  date:d(-45), time:'Before Open', est:4.35, act:4.44, beat:true  },
-      { sym:'TSLA', name:'Tesla Inc.',       date:d(-32), time:'After Close', est:0.47, act:0.41, beat:false },
-      { sym:'META', name:'Meta Platforms',   date:d(-28), time:'After Close', est:5.28, act:5.38, beat:true  },
-      { sym:'MSFT', name:'Microsoft',        date:d(-28), time:'After Close', est:3.22, act:3.46, beat:true  },
-      { sym:'GOOGL',name:'Alphabet',         date:d(-27), time:'After Close', est:2.01, act:2.12, beat:true  },
-      { sym:'AMZN', name:'Amazon',           date:d(-21), time:'After Close', est:1.36, act:1.59, beat:true  },
-      { sym:'AAPL', name:'Apple Inc.',       date:d(-14), time:'After Close', est:1.62, act:1.65, beat:true  },
-      { sym:'NVDA', name:'NVIDIA Corp',      date:d(9),   time:'After Close', est:5.89, act:null,  beat:null  },
-      { sym:'COIN', name:'Coinbase',         date:d(14),  time:'After Close', est:1.85, act:null,  beat:null  },
-      { sym:'AMD',  name:'Adv. Micro Dev.',  date:d(20),  time:'After Close', est:0.97, act:null,  beat:null  },
-      { sym:'NFLX', name:'Netflix',          date:d(27),  time:'After Close', est:4.22, act:null,  beat:null  },
-      { sym:'V',    name:'Visa Inc.',        date:d(33),  time:'Before Open', est:2.68, act:null,  beat:null  },
-    ];
-  }
-
   // ── WebSocket status ──────────────────────────────────────────────────────
   const wsBadge = document.getElementById('ws-badge');
   function setWsStatus(state) {
@@ -182,18 +160,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'});
     updatePriceDisplay(close, last?last.close:close);
     checkAlertsForPrice(currentSymbol, close);
-  }
-
-  function onSimTick() {
-    const price = StockAPI._simTick(currentSymbol);
-    const nowSec = Math.floor(Date.now()/1000);
-    const last = currentBars[currentBars.length-1];
-    const newBar = { time:nowSec, open:last?last.close:+price.toFixed(2), high:Math.max(last?last.close:price,price), low:Math.min(last?last.close:price,price), close:+price.toFixed(2), volume:StockAPI._seeds[currentSymbol]?.volume||1e6 };
-    currentBars.push(newBar); currentBars = currentBars.slice(-600); window.fullBars = currentBars;
-    candleSeries.update(newBar);
-    volumeSeries.update({time:nowSec, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'});
-    updatePriceDisplay(price, last?last.close:price);
-    checkAlertsForPrice(currentSymbol, +price.toFixed(2));
   }
 
   function updatePriceDisplay(price, prevPrice) {
