@@ -1280,18 +1280,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       const r = await fetch(`/api/portfolio-prices?symbols=${uniqueSyms.join(',')}`);
       if (r.ok) priceData = await r.json();
     } catch(e) {}
-    const header = ['Symbol','Name','Shares','Avg Buy Price','Current Price','Market Value','P&L $','P&L %','Asset Type','Account'];
-    const csvRows = [header, ...holdings.map(h => {
-      const pd     = priceData[h.symbol] || {};
-      const cur    = pd.price ?? h.buyPrice;
-      const value  = h.shares * cur;
-      const pl     = value - h.shares * h.buyPrice;
-      const plPct  = h.buyPrice ? (pl / (h.shares * h.buyPrice)) * 100 : 0;
-      return [h.symbol, h.name||h.symbol, h.shares, h.buyPrice.toFixed(2), cur.toFixed(2),
-              value.toFixed(2), pl.toFixed(2), plPct.toFixed(2)+'%',
-              h.assetType||'stock', h.accountType||'taxable'];
+    const header=['Symbol','Name','Shares','Avg Buy Price','Current Price','Market Value','P&L $','P&L %','Asset Type','Account','Price Source'];
+    const csvRows=[header,...holdings.map(h=>{
+      const pd=priceData[h.symbol]||{};
+      const verified=Number.isFinite(pd.price)&&pd.price>0;
+      const current=verified?pd.price:null;
+      const value=verified?h.shares*current:null;
+      const cost=h.shares*h.buyPrice;
+      const pl=verified?value-cost:null;
+      const percent=verified&&cost?pl/cost*100:null;
+      return [h.symbol,h.name||h.symbol,h.shares,h.buyPrice.toFixed(2),
+        current===null?'':current.toFixed(2),
+        value===null?'':value.toFixed(2),
+        pl===null?'':pl.toFixed(2),
+        percent===null?'':percent.toFixed(2)+'%',
+        h.assetType||'stock',h.accountType||'taxable',
+        verified?'Provider quote':'Unavailable'];
     })];
-    const csv = csvRows.map(r=>r.join(',')).join('\n');
+    // Escape CSV syntax, commas/newlines and spreadsheet-formula prefixes.
+    const escapeCsv=value=>{
+      let v=String(value??'');
+      if (/^[=+@-]/.test(v.trimStart()))v="'"+v;
+      return '"'+v.replace(/"/g,'""')+'"';
+    };
+    const csv=csvRows.map(row=>row.map(escapeCsv).join(',')).join('\n');
     const a = document.createElement('a');
     a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
     a.download = `portfolio_${new Date().toISOString().slice(0,10)}.csv`;
