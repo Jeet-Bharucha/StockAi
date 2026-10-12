@@ -41,7 +41,10 @@ if (SITE_PASSWORD) {
     res.status(401).send('Access denied');
   });
 }
-const JWT_SECRET       = process.env.JWT_SECRET || 'stockai_fallback_secret_change_me';
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+  throw new Error('JWT_SECRET must be configured with at least 32 characters in production.');
+}
+const JWT_SECRET       = process.env.JWT_SECRET || 'stockai_dev_only_secret_change_me';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const PORT             = process.env.PORT || 3001;
 
