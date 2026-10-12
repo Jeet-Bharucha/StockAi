@@ -95,6 +95,18 @@ function dbRequired(req, res, next) {
 // ── Health check (used by UptimeRobot — no auth required) ────────────────
 app.get('/ping', (req, res) => res.send('ok'));
 
+// Separate readiness check for login. /ping verifies that Node is alive;
+// this endpoint also verifies that the database required for login is ready.
+app.get('/api/health', (req, res) => {
+  const connected = mongoose.connection.readyState === 1;
+  res.set('Cache-Control', 'no-store');
+  res.status(connected ? 200 : 503).json({
+    service: 'stockai',
+    ok: connected,
+    database: connected ? 'connected' : (MONGO_URI ? 'disconnected' : 'not-configured')
+  });
+});
+
 // ── Manual alert test (owner-only, requires site password in query) ───────
 app.get('/api/test-alert', async (req, res) => {
   if (!SITE_PASSWORD || req.query.key !== SITE_PASSWORD) {
