@@ -1225,7 +1225,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const hint = similar.length ? `\n\nDid you mean: ${similar.join(', ')}?` : '\n\nDouble-check the ticker symbol.';
       if (!confirm(`⚠️ "${sym}" not found in known tickers.${hint}\n\nAdd it anyway?`)) return;
     }
-    await Portfolio.add(sym, sh, price, account, type, name);
+    try { await Portfolio.add(sym, sh, price, account, type, name); }
+    catch(error) { showToast('Not saved: '+error.message); return; }
     ['port-sym','port-name','port-shares','port-price'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value = '';
     });
@@ -1236,9 +1237,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.removeHolding = async function(id) {
     if (!confirm('Remove this holding?')) return;
-    await Portfolio.remove(id);
-    await renderPortfolio();
-    showToast('Holding removed');
+    try {
+      await Portfolio.remove(id);
+      await renderPortfolio();
+      showToast('Holding removed');
+    } catch(error) { showToast('Delete failed: '+error.message); }
   };
 
   window.openEditHolding = function(id) {
@@ -1264,10 +1267,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isNaN(shares) || shares <= 0 || isNaN(price) || price <= 0) {
       showToast('Invalid shares or price'); return;
     }
-    await Portfolio.update(id, { shares, buyPrice: price, assetType: type, accountType: account, name: name || undefined });
-    document.getElementById('edit-hold-modal').classList.add('hidden');
-    await renderPortfolio();
-    showToast('Holding updated');
+    try {
+      await Portfolio.update(id, { shares, buyPrice: price, assetType: type, accountType: account, name: name || undefined });
+      document.getElementById('edit-hold-modal').classList.add('hidden');
+      await renderPortfolio();
+      showToast('Holding updated');
+    } catch(error) { showToast('Update failed: '+error.message); }
   };
 
   // ── Export CSV ────────────────────────────────────────────────────────────
