@@ -69,7 +69,7 @@ const Auth = {
           return { success: false, error: 'This is the private StockAI instance; only the owner can sign in. Public users need the public website.' };
         }
         if (res.status === 401 && route.endsWith('/login')) {
-          return { success: false, error: 'Email or password was not recognized in MongoDB. If you registered before StockAI switched databases, create an account again using the same email. If you already registered in MongoDB, use Forgot password.' };
+          return { success: false, error: 'Email or password was not recognized in MongoDB. On private StockAI, use Restore Owner Access to set a new password without deleting your existing portfolio. Public users should use the public website. This can also happen when an older account was never moved to MongoDB.' };
         }
         return { success: false, error: data.error || 'Authentication failed (HTTP ' + res.status + ').' };
       }

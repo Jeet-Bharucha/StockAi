@@ -266,7 +266,12 @@ Auth.getSiteConfig().then(cfg => {
   const notice = document.getElementById('instance-notice');
   if (cfg.mode === 'private') {
     notice.style.display = 'block';
-    notice.textContent = "🔒 Private StockAI: this address accepts only the owner's account. Public accounts must use the separate public deployment.";
+    notice.textContent = "🔒 Private StockAI: only the owner's account can sign in here. If your old password stopped working after MongoDB migration, restore access below.";
+    const restoreLink = document.createElement('a');
+    restoreLink.href = 'owner-recovery.html';
+    restoreLink.textContent = '🔑 Restore Owner Access →';
+    restoreLink.style.cssText = 'display:block;margin-top:.65rem;color:#68e6d8;font-weight:700;text-decoration:underline';
+    notice.appendChild(restoreLink);
     
   }
 });

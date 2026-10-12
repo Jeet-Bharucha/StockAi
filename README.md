@@ -212,6 +212,35 @@ redirects with the **public** Render backend URL. Do not point these at the
 private instance. Redeploy Netlify after that change. Each site will display
 its effective `/api/auth/config` mode as private or public.
 
+### Recover private owner login without losing MongoDB portfolios
+
+If `/login.html` reports that the email/password was not recognized but
+`/api/health` reports MongoDB connected:
+
+1. **Do not delete your MongoDB database, user collection or portfolio** to
+   solve a password mismatch. The private owner email is controlled by the
+   `ALLOWED_EMAIL` setting.
+2. In Render → StockAI (Main) → Environment, set a **temporary**
+   `OWNER_SETUP_KEY` containing **at least 32 random bytes** (64 random hex
+   characters is convenient). This is a different credential from both
+   `SITE_PASSWORD` and your user password. Let Render deploy.
+3. Open `/owner-recovery.html` on the **private** site and enter the email
+   matching `ALLOWED_EMAIL`, a new account password, and the temporary
+   `OWNER_SETUP_KEY`. The form works whether your owner record already
+   exists in MongoDB or still needs creating.
+4. Existing record: changes **only the password** and invalidates old logins,
+   leaving the user's ID, name, holdings and watchlist untouched. Missing
+   MongoDB record: creates an owner account; an old browser-only account is
+   **not** silently imported.
+5. Sign in from `/login.html` using the new password. Immediately **delete
+   `OWNER_SETUP_KEY` from Render Environment and redeploy**. No special key
+   should remain enabled after recovery.
+
+The recovery endpoint is available only on a private backend configured with
+`ALLOWED_EMAIL`. Its random key is compared using timing-safe byte equality,
+and the form never stores it in localStorage or URL parameters. Do not share
+your key, passwords, or database URI in chat or GitHub.
+
 ### Existing account recovery
 
 - **On the private instance**, set a temporary `OWNER_SETUP_KEY` in Render
