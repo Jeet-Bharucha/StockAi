@@ -1289,7 +1289,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
     <!-- ══════════ TAB: DASHBOARD ══════════ -->
     <div class="tab-view active" id="view-dashboard">
 
-      <!-- Daily AI Briefing -->
+      <!-- Market Briefing -->
       <div class="briefing-card" id="briefing-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
           <div style="flex:1;min-width:0">
@@ -1382,7 +1382,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         <div style="display:flex;flex-direction:column;gap:1rem">
           <div class="card">
             <div class="card-title">
-              <span>🤖 AI Signal</span>
+              <span>📐 Technical Signal</span>
               <button class="btn-full-ai" onclick="switchTab(null,'ai')" style="width:auto;padding:.2rem .6rem;font-size:.68rem">Full Analysis →</button>
             </div>
             <div class="ai-quick">
@@ -1663,7 +1663,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       <!-- Sparkline chart -->
       <div class="port-chart-wrap" style="margin-top:1.2rem">
         <div class="port-chart-hdr">
-          <span class="port-chart-title">📈 30-Day Portfolio Value</span>
+          <span class="port-chart-title">📈 Portfolio History · Pending Real Snapshots</span>
         </div>
         <canvas id="port-sparkline"></canvas>
       </div>
@@ -1674,7 +1674,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       <div class="view-header">
         <div>
           <div class="view-title">🌐 Markets Overview</div>
-          <div class="view-subtitle">Live prices across indices, sectors, and commodities</div>
+          <div class="view-subtitle">Provider quotes for US market ETFs · values may be delayed or temporarily unavailable</div>
         </div>
       </div>
 
@@ -1751,7 +1751,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       <div class="view-header">
         <div>
           <div class="view-title">🔎 Stock Screener</div>
-          <div class="view-subtitle">Filter and rank stocks by sector, price, and performance</div>
+          <div class="view-subtitle">Screen verified provider quotes. RSI and market cap are loaded when filtered; unavailable values are excluded.</div>
         </div>
         <button class="btn-scr-run" onclick="runScreener()" style="padding:.5rem 1.4rem">Run Screen</button>
       </div>
