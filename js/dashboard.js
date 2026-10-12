@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         resp = await fetch('/api/ai-analysis', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: Auth._authHeader(),
           body: JSON.stringify({ symbol, price, prediction }),
           signal: ctrl.signal
         });
