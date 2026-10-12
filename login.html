@@ -207,6 +207,8 @@ input::placeholder{color:var(--muted);opacity:.55}
           <button type="button" id="server-retry">Retry</button>
         </div>
 
+        <div id="instance-notice" style="display:none;margin-bottom:1rem;padding:.8rem 1rem;border:1px solid rgba(251,191,36,.35);border-radius:9px;color:#fbbf24;font-size:.82rem;line-height:1.5" role="status"></div>
+
         <form id="login-form" autocomplete="on">
           <div class="form-group">
             <label>Email Address</label>
@@ -227,7 +229,7 @@ input::placeholder{color:var(--muted);opacity:.55}
             <label class="remember">
               <input type="checkbox" id="remember"> Remember me
             </label>
-            <a href="#">Forgot password?</a>
+            <a href="forgot-password.html">Forgot password?</a>
           </div>
           <button type="submit" class="btn-submit" id="submit-btn">
             <span class="btn-text">Sign In →</span>
@@ -259,6 +261,15 @@ async function updateServerStatus() {
 }
 document.getElementById('server-retry').addEventListener('click', updateServerStatus);
 updateServerStatus();
+Auth.getSiteConfig().then(cfg => {
+  if (!cfg) return;
+  const notice = document.getElementById('instance-notice');
+  if (cfg.mode === 'private') {
+    notice.style.display = 'block';
+    notice.textContent = "🔒 Private StockAI: this address accepts only the owner's account. Public accounts must use the separate public deployment.";
+    
+  }
+});
 </script>
 <script>
 if(Auth.getSession()) window.location.href='dashboard.html';

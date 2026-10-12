@@ -7,32 +7,38 @@ const Auth = {
 
   // ── Helpers ────────────────────────────────────────────────────────────
   _authHeader() {
-    const token = localStorage.getItem(this._TOKEN_KEY);
+    const token = localStorage.getItem(this._TOKEN_KEY) || sessionStorage.getItem(this._TOKEN_KEY);
     return { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
   },
 
   _saveSession(token, user, remember = true) {
-    localStorage.setItem(this._TOKEN_KEY, token);
-    const session = {
-      userId:  user.id,
-      name:    user.name,
-      email:   user.email,
-      expires: remember ? Date.now() + this._REMEMBER_DAYS * 864e5 : null
-    };
-    localStorage.setItem(this._SESSION_KEY, JSON.stringify(session));
-    sessionStorage.removeItem(this._SESSION_KEY); // clear any leftover guest session
+    const store = remember ? localStorage : sessionStorage;
+    const other = remember ? sessionStorage : localStorage;
+    const prefs = (() => {
+      try { return JSON.parse(localStorage.getItem('stockai_prefs') || '{}'); }
+      catch (_) { return {}; }
+    })();
+    const days = prefs.sessionDays === '7' ? 7 : 30; // JWTs expire in 30d on server.
+    store.setItem(this._TOKEN_KEY, token);
+    store.setItem(this._SESSION_KEY, JSON.stringify({
+      userId: user.id, name: user.name, email: user.email,
+      role: user.role === 'owner' ? 'owner' : 'user',
+      expires: remember ? Date.now() + days * 864e5 : null
+    }));
+    other.removeItem(this._TOKEN_KEY);
+    other.removeItem(this._SESSION_KEY);
   },
 
   // ── Register / Login ───────────────────────────────────────────────────
   // An HTML error page from a static host/proxy is NOT an authentication error.
   // Classify it separately so users can tell a dead backend from bad credentials.
-  async _postAuth(route, payload, remember = true) {
+  async _postAuth(route, payload, remember = true, extraHeaders = {}) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 55000); // allow Render cold starts
     try {
       const res = await fetch(route, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...extraHeaders },
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
@@ -56,6 +62,15 @@ const Auth = {
         if (res.status === 404) {
           return { success: false, error: 'Login API not found. Check the /api proxy configuration and backend deployment.' };
         }
+        if (data.code === 'OWNER_SETUP_REQUIRED') {
+          return { success: false, error: 'Private owner registration requires OWNER_SETUP_KEY in Render and the same value in the Owner Setup Key field. Use a long random key; remove it from Render after creating the account.' };
+        }
+        if (data.code === 'PRIVATE_ACCESS_ONLY') {
+          return { success: false, error: 'This is the private StockAI instance; only the owner can sign in. Public users need the public website.' };
+        }
+        if (res.status === 401 && route.endsWith('/login')) {
+          return { success: false, error: 'Email or password was not recognized in MongoDB. If you registered before StockAI switched databases, create an account again using the same email. If you already registered in MongoDB, use Forgot password.' };
+        }
         return { success: false, error: data.error || 'Authentication failed (HTTP ' + res.status + ').' };
       }
       if (!data.token || !data.user || !data.user.id) {
@@ -73,8 +88,9 @@ const Auth = {
     }
   },
 
-  async register(name, email, password) {
-    return this._postAuth('/api/auth/register', { name, email, password });
+  async register(name, email, password, ownerSetupKey = '') {
+    return this._postAuth('/api/auth/register', { name, email, password }, true,
+      ownerSetupKey ? { 'X-StockAI-Owner-Setup-Key': ownerSetupKey } : {});
   },
 
   async login(email, password, remember = true) {
@@ -114,9 +130,49 @@ const Auth = {
     }
   },
 
+  // The public and private deployments can share UI but must have their own
+  // correctly configured API backend. No browser-only flag grants access.
+  async getSiteConfig() {
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 10000);
+      try {
+        const r = await fetch('/api/auth/config', { cache: 'no-store', signal: ctrl.signal });
+        if (r.ok && (r.headers.get('content-type') || '').includes('application/json')) {
+          const data = await r.json();
+          if (data.mode === 'public' || data.mode === 'private') return data;
+        }
+      } finally { clearTimeout(timeout); }
+    } catch (_) {}
+    return null;
+  },
+
+  async requestPasswordReset(email) {
+    try {
+      const r = await fetch('/api/auth/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const d = await r.json();
+      return { success: r.ok, message: d.message || '', error: r.ok ? null : (d.error || 'Password recovery unavailable') };
+    } catch (_) { return { success: false, error: 'Cannot contact the server.' }; }
+  },
+
+  async resetPassword(token, password) {
+    try {
+      const r = await fetch('/api/auth/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password })
+      });
+      const d = await r.json();
+      return { success: r.ok, message: d.message, error: d.error };
+    } catch (_) { return { success: false, error: 'Cannot contact the server.' }; }
+  },
+
   logout() {
     localStorage.removeItem(this._TOKEN_KEY);
     localStorage.removeItem(this._SESSION_KEY);
+    sessionStorage.removeItem(this._TOKEN_KEY);
     sessionStorage.removeItem(this._SESSION_KEY);
     this._watchlistCache = null;
     window.location.href = 'login.html';
@@ -136,13 +192,14 @@ const Auth = {
       } catch(_) {}
     }
     // Real session lives in localStorage
-    const raw = localStorage.getItem(this._SESSION_KEY);
+    const store = localStorage.getItem(this._SESSION_KEY) ? localStorage : sessionStorage;
+    const raw = store.getItem(this._SESSION_KEY);
     if (!raw) return null;
     try {
       const session = JSON.parse(raw);
       if (session.expires && Date.now() > session.expires) {
-        localStorage.removeItem(this._SESSION_KEY);
-        localStorage.removeItem(this._TOKEN_KEY);
+        store.removeItem(this._SESSION_KEY);
+        store.removeItem(this._TOKEN_KEY);
         return null;
       }
       return session;
@@ -162,10 +219,11 @@ const Auth = {
     };
     sessionStorage.setItem(this._SESSION_KEY, JSON.stringify(session));
     localStorage.removeItem(this._SESSION_KEY);
+    localStorage.removeItem(this._TOKEN_KEY);
   },
 
   isGuest()  { return this.getSession()?.isGuest === true; },
-  isAdmin()  { const s = this.getSession(); return s && ['admin@stockai.com'].includes(s.email); },
+  isAdmin()  { return this.getSession()?.role === 'owner'; },
 
   // ── Watchlist — API-backed, in-memory cache ────────────────────────────
   getWatchlist() {

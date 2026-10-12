@@ -4,8 +4,7 @@ const Portfolio = {
   _GUEST_KEY: 'stockai_portfolio_guest',
 
   _authHeader() {
-    const token = localStorage.getItem('stockai_jwt');
-    return { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) };
+    return Auth._authHeader();
   },
 
   _isGuest() {
@@ -96,10 +95,17 @@ const Portfolio = {
 
 // ── Price Alerts ──────────────────────────────────────────────────────────
 const PriceAlerts = {
-  _key: 'stockai_alerts',
+  // Keep alerts isolated per account on shared browsers.
+  _key() {
+    const session = typeof Auth !== 'undefined' ? Auth.getSession() : null;
+    return 'stockai_alerts_' + (session?.userId || 'anonymous');
+  },
 
-  get() { return JSON.parse(localStorage.getItem(this._key) || '[]'); },
-  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+  get() {
+    try { return JSON.parse(localStorage.getItem(this._key()) || '[]'); }
+    catch (_) { return []; }
+  },
+  save(data) { localStorage.setItem(this._key(), JSON.stringify(data)); },
 
   add(symbol, targetPrice, direction) {
     const list = this.get();

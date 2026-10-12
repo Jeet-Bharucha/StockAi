@@ -6,6 +6,7 @@ const path     = require('path');
 const mongoose = require('mongoose');
 const { fetchHistoricalBars, toFinnhubCandleFormat } = require('./marketData');
 const bcrypt   = require('bcryptjs');
+const { installAccountRoutes } = require('./accountRoutes');
 const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
 const _anthropicMod = require('@anthropic-ai/sdk');
@@ -40,7 +41,13 @@ if (SITE_PASSWORD) {
     res.status(401).send('Access denied');
   });
 }
-const JWT_SECRET       = process.env.JWT_SECRET || 'stockai_fallback_secret_change_me';
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be configured in production.');
+}
+if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
+  console.warn('⚠️  JWT_SECRET is short; use a 32+ character random secret at the next maintenance window.');
+}
+const JWT_SECRET       = process.env.JWT_SECRET || 'stockai_dev_only_secret_change_me';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const PORT             = process.env.PORT || 3001;
 
@@ -59,7 +66,10 @@ const UserSchema = new mongoose.Schema({
   email:     { type: String, required: true, unique: true, lowercase: true, trim: true },
   password:  { type: String, required: true },
   watchlist: { type: [String], default: ['AAPL','GOOGL','MSFT','TSLA','AMZN'] },
-  created:   { type: Date, default: Date.now }
+  created:   { type: Date, default: Date.now },
+  tokenVersion: { type: Number, default: 0 },
+  passwordResetHash: { type: String, default: undefined, select: false },
+  passwordResetExpires: { type: Date, default: undefined, select: false }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -76,20 +86,45 @@ const HoldingSchema = new mongoose.Schema({
 const Holding = mongoose.model('Holding', HoldingSchema);
 
 // ── Auth middleware ───────────────────────────────────────────────────────
-function authMW(req, res, next) {
+async function authMW(req, res, next) {
   const h = req.headers.authorization;
   if (!h?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    req.user = jwt.verify(h.slice(7), JWT_SECRET);
+    const decoded = jwt.verify(h.slice(7), JWT_SECRET);
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database not connected' });
+    }
+    // Reject tokens issued before a password reset/change and deleted accounts.
+    const user = await User.findById(decoded.id).select('tokenVersion email name');
+    if (!user || (decoded.v ?? 0) !== (user.tokenVersion || 0)) {
+      return res.status(401).json({ error: 'Session expired. Sign in again.' });
+    }
+    if (ALLOWED_EMAIL && user.email !== ALLOWED_EMAIL) {
+      return res.status(403).json({ error: 'This instance is restricted to the owner.' });
+    }
+    req.user = { id: String(user._id), email: user.email, name: user.name };
     next();
-  } catch(e) {
-    res.status(401).json({ error: 'Token expired or invalid — please log in again' });
+  } catch (e) {
+    return res.status(401).json({ error: 'Token expired or invalid — please log in again' });
   }
+}
+
+function signAccessToken(user) {
+  return jwt.sign({
+    id: String(user._id), email: user.email, name: user.name, v: user.tokenVersion || 0
+  }, JWT_SECRET, { expiresIn: '30d' });
 }
 
 function dbRequired(req, res, next) {
   if (mongoose.connection.readyState !== 1)
     return res.status(503).json({ error: 'Database not connected' });
+  next();
+}
+
+function ownerOnly(req, res, next) {
+  if (!ALLOWED_EMAIL || req.user?.email !== ALLOWED_EMAIL) {
+    return res.status(403).json({ error: 'Private owner access required' });
+  }
   next();
 }
 
@@ -108,11 +143,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ── Manual alert test (owner-only, requires site password in query) ───────
-app.get('/api/test-alert', async (req, res) => {
-  if (!SITE_PASSWORD || req.query.key !== SITE_PASSWORD) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+// ── Manual alert test (private owner JWT only; no secrets in URLs) ───────
+app.post('/api/admin/test-alert', authMW, ownerOnly, async (req, res) => {
   res.json({ ok: true, message: 'Crypto scan started — check your email in ~60 seconds' });
   try {
     const { runCryptoScan } = require('./alertEngine');
@@ -122,11 +154,8 @@ app.get('/api/test-alert', async (req, res) => {
   }
 });
 
-// ── Force a test email via Resend (bypasses signal thresholds) ───────────
-app.get('/api/test-email', async (req, res) => {
-  if (!SITE_PASSWORD || req.query.key !== SITE_PASSWORD) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+// ── Force a test email via Resend (private owner JWT only) ────────────────
+app.post('/api/admin/test-email', authMW, ownerOnly, async (req, res) => {
   const RESEND_KEY = process.env.RESEND_API_KEY;
   const ALERT_TO   = process.env.ALERT_EMAIL_TO;
   if (!RESEND_KEY || !ALERT_TO) {
@@ -148,23 +177,43 @@ app.get('/api/test-email', async (req, res) => {
     .catch(e => console.error('[TestEmail] ❌ Failed:', e.message));
 });
 
+function normalizeAccountEmail(value) {
+  if (typeof value !== 'string' || value.length > 254) return null;
+  const email = value.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
 // ── Auth routes ───────────────────────────────────────────────────────────
 app.post('/api/auth/register', dbRequired, async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    const { name, email, password } = req.body || {};
+    const normalizedEmail = normalizeAccountEmail(email);
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 80 || !normalizedEmail)
+      return res.status(400).json({ error: 'A valid name (up to 80 characters) and email are required' });
     // Layer 2: block registration for any email that isn't the owner's
-    if (ALLOWED_EMAIL && email.toLowerCase().trim() !== ALLOWED_EMAIL)
-      return res.status(403).json({ error: 'Registration is closed on this instance.' });
-    if (password.length < 6)
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    if (await User.findOne({ email: email.toLowerCase() }))
+    if (ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
+      return res.status(403).json({ error: 'Registration is restricted to the owner on this private instance.', code: 'PRIVATE_ACCESS_ONLY' });
+    // A public /api request must never be able to claim the private owner's
+    // email, even if the account does not yet exist in MongoDB.
+    if (ALLOWED_EMAIL) {
+      const ownerKey = Buffer.from(process.env.OWNER_SETUP_KEY || '');
+      const presented = Buffer.from(req.get('X-StockAI-Owner-Setup-Key') || '');
+      if (ownerKey.length < 24 || presented.length !== ownerKey.length ||
+          !require('node:crypto').timingSafeEqual(presented, ownerKey)) {
+        return res.status(403).json({
+          error: 'Private account setup requires the owner setup key configured in Render.',
+          code: 'OWNER_SETUP_REQUIRED'
+        });
+      }
+    }
+    if (typeof password !== 'string' || password.length < 8 || password.length > 128)
+      return res.status(400).json({ error: 'Password must be 8–128 characters' });
+    if (await User.findOne({ email: normalizedEmail }))
       return res.status(400).json({ error: 'An account with that email already exists' });
-    const hashed = await bcrypt.hash(password, 10);
-    const user   = await User.create({ name: name.trim(), email, password: hashed });
-    const token  = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    const hashed = await bcrypt.hash(password, 12);
+    const user   = await User.create({ name: name.trim(), email: normalizedEmail, password: hashed });
+    const token  = signAccessToken(user);
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
   } catch(e) {
     console.error('Register:', e.message);
     res.status(500).json({ error: 'Server error — try again' });
@@ -173,22 +222,25 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
 
 app.post('/api/auth/login', dbRequired, async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password)
+    const { email, password } = req.body || {};
+    const normalizedEmail = normalizeAccountEmail(email);
+    if (!normalizedEmail || typeof password !== 'string')
       return res.status(400).json({ error: 'Email and password are required' });
     // Layer 3: block login for anyone who isn't the owner
-    if (ALLOWED_EMAIL && email.toLowerCase().trim() !== ALLOWED_EMAIL)
-      return res.status(403).json({ error: 'Invalid email or password' }); // same message to avoid enumeration
-    const user = await User.findOne({ email: email.toLowerCase() });
+    if (ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
+      return res.status(403).json({ error: 'This is the private owner-only instance. Use the public website for other accounts.', code: 'PRIVATE_ACCESS_ONLY' });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid email or password' });
-    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    const token = signAccessToken(user);
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
   } catch(e) {
     console.error('Login:', e.message);
     res.status(500).json({ error: 'Server error — try again' });
   }
 });
+
+installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedEmail: ALLOWED_EMAIL });
 
 // ── Portfolio routes (protected) ──────────────────────────────────────────
 app.get('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
@@ -475,7 +527,7 @@ app.get('/api/portfolio-prices', async (req, res) => {
 });
 
 // ── Claude AI Stock Analysis ──────────────────────────────────────────────
-app.post('/api/ai-analysis', async (req, res) => {
+app.post('/api/ai-analysis', authMW, async (req, res) => {
   if (!ANTHROPIC_API_KEY) {
     return res.status(503).json({ error: 'AI analysis not configured — add ANTHROPIC_API_KEY to .env' });
   }

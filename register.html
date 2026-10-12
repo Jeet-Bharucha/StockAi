@@ -206,6 +206,8 @@ input.valid-field{border-color:var(--green)!important}
           <button type="button" id="server-retry">Retry</button>
         </div>
 
+        <div id="instance-notice" style="display:none;margin-bottom:1rem;padding:.8rem 1rem;border:1px solid rgba(251,191,36,.35);border-radius:9px;color:#fbbf24;font-size:.82rem;line-height:1.5" role="status"></div>
+
         <form id="reg-form" autocomplete="on">
           <div class="form-row">
             <div class="form-group">
@@ -248,13 +250,22 @@ input.valid-field{border-color:var(--green)!important}
             </div>
           </div>
 
+          <div class="form-group" id="owner-setup-wrap" style="display:none">
+            <label for="owner-setup-key">Owner Setup Key (from your private Render environment)</label>
+            <div class="input-wrap">
+              <span class="icon">🔑</span>
+              <input type="password" id="owner-setup-key" autocomplete="off" placeholder="Temporary owner signup key" minlength="24">
+            </div>
+            <p style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Needed only to create the owner's first MongoDB account. Never share it or save it in GitHub.</p>
+          </div>
+
           <button type="submit" class="btn-submit" id="submit-btn">
             <span class="btn-text">Create Free Account →</span>
             <div class="spinner"></div>
           </button>
         </form>
 
-        <p class="terms">By creating an account you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>. StockAI is for educational purposes only — not financial advice.</p>
+        <p class="terms">StockAI provides educational market analysis, not financial advice. Never rely on a prediction as a guaranteed outcome.</p>
         <div class="auth-switch">Already have an account? <a href="login.html">Sign in</a></div>
       </div>
     </div>
@@ -273,6 +284,19 @@ async function updateServerStatus() {
 }
 document.getElementById('server-retry').addEventListener('click', updateServerStatus);
 updateServerStatus();
+Auth.getSiteConfig().then(cfg => {
+  if (!cfg) return;
+  const notice = document.getElementById('instance-notice');
+  if (cfg.mode === 'private') {
+    notice.style.display = 'block';
+    notice.textContent = "🔒 Private StockAI: this address accepts only the owner's account. Public accounts must use the separate public deployment.";
+    const heading = document.querySelector('.auth-header p');
+    if (heading) heading.textContent = 'Private owner-only registration';
+    const btn = document.querySelector('#submit-btn .btn-text');
+    if (btn) btn.textContent = 'Create Owner Account →';
+    document.getElementById('owner-setup-wrap').style.display = 'block';
+  }
+});
 </script>
 <script>
 if(Auth.getSession()) window.location.href='dashboard.html';
@@ -353,11 +377,11 @@ document.getElementById('reg-form').addEventListener('submit',async function(e){
   const pwd=document.getElementById('password').value;
   const confirm=document.getElementById('confirm').value;
   if(pwd!==confirm){errEl.textContent='Passwords do not match.';errEl.classList.add('show');return;}
-  if(pwd.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.classList.add('show');return;}
+  if(pwd.length<8){errEl.textContent='Password must be at least 8 characters.';errEl.classList.add('show');return;}
   const btn=document.getElementById('submit-btn');
   btn.classList.add('loading');
   await new Promise(r=>setTimeout(r,800));
-  const result = await Auth.register(`${fname} ${lname}`,email,pwd);
+  const result = await Auth.register(`${fname} ${lname}`, email, pwd, document.getElementById('owner-setup-key').value.trim());
   btn.classList.remove('loading');
   if(result.success) window.location.href='dashboard.html';
   else{errEl.textContent=result.error;errEl.classList.add('show');}
