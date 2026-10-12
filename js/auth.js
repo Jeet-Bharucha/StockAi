@@ -31,13 +31,13 @@ const Auth = {
   // ── Register / Login ───────────────────────────────────────────────────
   // An HTML error page from a static host/proxy is NOT an authentication error.
   // Classify it separately so users can tell a dead backend from bad credentials.
-  async _postAuth(route, payload, remember = true) {
+  async _postAuth(route, payload, remember = true, extraHeaders = {}) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 55000); // allow Render cold starts
     try {
       const res = await fetch(route, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...extraHeaders },
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
@@ -60,6 +60,9 @@ const Auth = {
         }
         if (res.status === 404) {
           return { success: false, error: 'Login API not found. Check the /api proxy configuration and backend deployment.' };
+        }
+        if (data.code === 'OWNER_SETUP_REQUIRED') {
+          return { success: false, error: 'Private owner registration requires OWNER_SETUP_KEY in Render and the same value in the Owner Setup Key field. Use a long random key; remove it from Render after creating the account.' };
         }
         if (data.code === 'PRIVATE_ACCESS_ONLY') {
           return { success: false, error: 'This is the private StockAI instance; only the owner can sign in. Public users need the public website.' };
@@ -84,8 +87,9 @@ const Auth = {
     }
   },
 
-  async register(name, email, password) {
-    return this._postAuth('/api/auth/register', { name, email, password });
+  async register(name, email, password, ownerSetupKey = '') {
+    return this._postAuth('/api/auth/register', { name, email, password }, true,
+      ownerSetupKey ? { 'X-StockAI-Owner-Setup-Key': ownerSetupKey } : {});
   },
 
   async login(email, password, remember = true) {
