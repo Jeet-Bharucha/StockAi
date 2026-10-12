@@ -109,6 +109,7 @@ Open [http://localhost:3001](http://localhost:3001)
 | `ALERT_EMAIL_TO` | No | Where to receive alerts |
 | `SITE_PASSWORD` | No | HTTP Basic Auth gate (private mode) |
 | `ALLOWED_EMAIL` | Private only | Restrict login to the owner's email (private mode) |
+| `OWNER_SETUP_KEY` | Private initial signup | Temporary random secret (24+ bytes) required to create the private owner's first MongoDB account |
 | `SITE_URL` | Password recovery | Exact https:// origin of the deployment's login pages (no path) |
 | `RESEND_FROM_EMAIL` | Password recovery | Verified email sender address in Resend; use with RESEND_API_KEY |
 | `RESEND_API_KEY` | Password recovery | Resend API key; keep private in the host environment |
@@ -213,6 +214,12 @@ its effective `/api/auth/config` mode as private or public.
 
 ### Existing account recovery
 
+- **On the private instance**, set a temporary `OWNER_SETUP_KEY` in Render
+  (for example generate 32 random bytes with a local password manager),
+  redeploy, then enter the same key on the private registration form to create
+  the owner's first MongoDB account. **Remove `OWNER_SETUP_KEY` after signup**
+  and redeploy to disable new private account registration. An old browser
+  password does not automatically authenticate with MongoDB.
 - If the account was registered using StockAI's **old localStorage-only
   login**, it is **not** automatically in MongoDB. You must create a MongoDB
   account on the right deployment. Old browser-only portfolio information
