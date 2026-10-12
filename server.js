@@ -179,6 +179,19 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
     // Layer 2: block registration for any email that isn't the owner's
     if (ALLOWED_EMAIL && String(email).toLowerCase().trim() !== ALLOWED_EMAIL)
       return res.status(403).json({ error: 'Registration is restricted to the owner on this private instance.', code: 'PRIVATE_ACCESS_ONLY' });
+    // A public /api request must never be able to claim the private owner's
+    // email, even if the account does not yet exist in MongoDB.
+    if (ALLOWED_EMAIL) {
+      const ownerKey = process.env.OWNER_SETUP_KEY || '';
+      const presented = req.get('X-StockAI-Owner-Setup-Key') || '';
+      if (!ownerKey || ownerKey.length < 24 || presented.length !== ownerKey.length ||
+          !require('node:crypto').timingSafeEqual(Buffer.from(presented), Buffer.from(ownerKey))) {
+        return res.status(403).json({
+          error: 'Private account setup requires the owner setup key configured in Render.',
+          code: 'OWNER_SETUP_REQUIRED'
+        });
+      }
+    }
     if (typeof password !== 'string' || password.length < 8 || password.length > 128)
       return res.status(400).json({ error: 'Password must be 8–128 characters' });
     if (await User.findOne({ email: email.toLowerCase() }))
