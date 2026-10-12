@@ -121,6 +121,13 @@ function dbRequired(req, res, next) {
   next();
 }
 
+function ownerOnly(req, res, next) {
+  if (!ALLOWED_EMAIL || req.user?.email !== ALLOWED_EMAIL) {
+    return res.status(403).json({ error: 'Private owner access required' });
+  }
+  next();
+}
+
 // ── Health check (used by UptimeRobot — no auth required) ────────────────
 app.get('/ping', (req, res) => res.send('ok'));
 
@@ -136,11 +143,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ── Manual alert test (owner-only, requires site password in query) ───────
-app.get('/api/test-alert', async (req, res) => {
-  if (!SITE_PASSWORD || req.query.key !== SITE_PASSWORD) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+// ── Manual alert test (private owner JWT only; no secrets in URLs) ───────
+app.post('/api/admin/test-alert', authMW, ownerOnly, async (req, res) => {
   res.json({ ok: true, message: 'Crypto scan started — check your email in ~60 seconds' });
   try {
     const { runCryptoScan } = require('./alertEngine');
@@ -150,11 +154,8 @@ app.get('/api/test-alert', async (req, res) => {
   }
 });
 
-// ── Force a test email via Resend (bypasses signal thresholds) ───────────
-app.get('/api/test-email', async (req, res) => {
-  if (!SITE_PASSWORD || req.query.key !== SITE_PASSWORD) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+// ── Force a test email via Resend (private owner JWT only) ────────────────
+app.post('/api/admin/test-email', authMW, ownerOnly, async (req, res) => {
   const RESEND_KEY = process.env.RESEND_API_KEY;
   const ALERT_TO   = process.env.ALERT_EMAIL_TO;
   if (!RESEND_KEY || !ALERT_TO) {
