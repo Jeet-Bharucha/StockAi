@@ -1,7 +1,10 @@
 /* ── StockAI — AI Chat Widget ──────────────────────────────────────────── */
 
 const StockChat = {
-  _key: 'stockai_chat_history',
+  _key() {
+    const session = typeof Auth !== 'undefined' ? Auth.getSession() : null;
+    return 'stockai_chat_history_' + (session?.userId || 'anonymous');
+  },
   _open: false,
   _currentSymbol: 'AAPL',
   _bars: [],
@@ -55,13 +58,13 @@ const StockChat = {
 
   // ── Persistence ───────────────────────────────────────────────────────────
   getHistory() {
-    try { return JSON.parse(localStorage.getItem(this._key) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(this._key()) || '[]'); } catch { return []; }
   },
   saveHistory(h) {
-    localStorage.setItem(this._key, JSON.stringify(h.slice(-60)));
+    localStorage.setItem(this._key(), JSON.stringify(h.slice(-60)));
   },
   clearHistory() {
-    localStorage.removeItem(this._key);
+    localStorage.removeItem(this._key());
     this._indicators = null;
     this._renderMessages();
     this._renderChips(this._chips.default);
