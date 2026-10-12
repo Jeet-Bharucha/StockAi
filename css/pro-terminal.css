@@ -252,3 +252,59 @@ body.stockai-pro {
   .stockai-pro .pro-scr-metrics { grid-column:span 2; }
   .stockai-pro .pro-scr-metrics small { display:inline;margin-left:.5rem; }
 }
+
+/* Complete light mode: retain the user's existing theme toggle. */
+body.stockai-pro.light {
+  --bg:#f2f6f9; --sidebar:#fff; --text:#162737; --muted:#587080;
+  --cyan:#0d8d7a; --cyan2:#117b92; --green:#087b57; --red:#c13d51;
+  --gold:#9a650a; --purple:#277fae;
+  --card:#fff; --card2:#eff5f8;
+  --border:rgba(53,82,101,.18); --border2:rgba(53,82,101,.11);
+  background:#f2f6f9;color:#162737;
+}
+body.stockai-pro.light .sidebar,body.stockai-pro.light .topbar {
+  background:#fff; border-color:#d8e4ea; box-shadow:none;
+}
+body.stockai-pro.light .logo-text { color:#10382f; }
+body.stockai-pro.light .nav-item { color:#435d6d; }
+body.stockai-pro.light .nav-item:hover { background:#e9f4f2;color:#0b5c57; }
+body.stockai-pro.light .nav-item.active { background:#dff2ed;color:#087c68;border-color:#b4dacc; }
+body.stockai-pro.light .user-card { background:#f1f7f9;border-color:#d6e4e9; }
+body.stockai-pro.light .card,
+body.stockai-pro.light .stock-header,
+body.stockai-pro.light .market-card,
+body.stockai-pro.light .mkt-card,
+body.stockai-pro.light .briefing-card,
+body.stockai-pro.light .trend-card,
+body.stockai-pro.light .port-stat-card,
+body.stockai-pro.light .alloc-sidebar,
+body.stockai-pro.light .quick-stats-panel,
+body.stockai-pro.light .port-analytics,
+body.stockai-pro.light .port-chart-wrap,
+body.stockai-pro.light .screener-filters,
+body.stockai-pro.light .wl-full-item {
+  background:#fff;border-color:#d7e3ea;box-shadow:0 5px 20px rgba(33,69,83,.05);
+}
+body.stockai-pro.light .view-title,
+body.stockai-pro.light #current-symbol,
+body.stockai-pro.light #stock-price { color:#162b3b; }
+body.stockai-pro.light .view-subtitle,
+body.stockai-pro.light .card-title { color:#526b7e; }
+body.stockai-pro.light input:not([type=checkbox]):not([type=radio]),
+body.stockai-pro.light select,
+body.stockai-pro.light .chart-btn,
+body.stockai-pro.light .ind-btn,
+body.stockai-pro.light .schip,
+body.stockai-pro.light .news-tab {
+  background:#f0f6f8;color:#193547;border-color:#cfdee4;
+}
+body.stockai-pro.light .chart-btn.active,
+body.stockai-pro.light .schip.active { color:#0a795f;background:#dff4e9;border-color:#9dcbbb; }
+body.stockai-pro.light #price-chart { background:#f6fafb;border-color:#d9e4ec; }
+body.stockai-pro.light .pro-screener-result { background:#fff;border-color:#d6e4eb;color:#1a3041; }
+body.stockai-pro.light .pro-screener-result:hover { background:#f0f9f7;border-color:#8abdb1; }
+body.stockai-pro.light .pro-scr-symbol { color:#037d69; }
+body.stockai-pro.light .pro-scr-price { color:#193547; }
+body.stockai-pro.light .pro-scr-metrics { color:#506777; }
+body.stockai-pro.light .data-warning { background:#fff5df;color:#885c18;border-color:#e6c387; }
+body.stockai-pro.light .chart-unavailable { background:rgba(249,252,253,.96);color:#4f6879; }
