@@ -771,48 +771,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Daily AI Briefing ─────────────────────────────────────────────────────
   async function renderDailyBriefing() {
-    const textEl = document.getElementById('briefing-text');
-    const badgeEl = document.getElementById('briefing-badge');
-    const moversEl = document.getElementById('briefing-movers');
-    if (!textEl) return;
-
-    // Gather quick quotes for major indices
-    const moverSyms = ['AAPL','NVDA','MSFT','TSLA','META','AMZN','GOOGL','SPY','QQQ'];
-    const qts = await Promise.all(moverSyms.map(s => {
-      StockAPI._initSeed(s);
-      return Promise.resolve(StockAPI._simQuote(s));
-    }));
-    const data = moverSyms.map((s,i) => ({ sym:s, ...qts[i] }));
-    data.sort((a,b) => Math.abs(b.changePct) - Math.abs(a.changePct));
-
-    const spy = data.find(d=>d.sym==='SPY');
-    const qqq = data.find(d=>d.sym==='QQQ');
-    const bullish = (spy?.changePct||0) > 0.3;
-    const bearish = (spy?.changePct||0) < -0.3;
-    const sentiment = bullish ? 'bull' : bearish ? 'bear' : 'neutral';
-    const sentLabel = bullish ? 'Bullish' : bearish ? 'Bearish' : 'Neutral';
-
-    if (badgeEl) { badgeEl.className = `briefing-badge ${sentiment}`; badgeEl.textContent = sentLabel; }
-
-    const spyRaw = spy?.changePct||0;
-    const qqqRaw = qqq?.changePct||0;
-    const spyDir = spyRaw >= 0 ? 'up' : 'down';
-    const qqqDir = qqqRaw >= 0 ? 'up' : 'down';
-    const fmtPct = v => `${v>=0?'+':''}${v.toFixed(2)}%`;
-
-    const opener = bullish
-      ? 'Markets are showing strength today with broad-based gains.'
-      : bearish
-      ? 'Markets are under pressure today with selling across sectors.'
-      : 'Markets are trading mixed today with no clear directional bias.';
-
-    textEl.innerHTML = `${opener} S&P 500 (SPY) <span class="${spyDir}">${fmtPct(spyRaw)}</span>, NASDAQ (QQQ) <span class="${qqqDir}">${fmtPct(qqqRaw)}</span>. AI momentum indicators suggest watching ${data[0]?.sym||'NVDA'} closely today.`;
-
-    if (moversEl) {
-      moversEl.innerHTML = data.slice(0,4).map(d => {
-        const up = d.changePct >= 0;
-        return `<div class="briefing-mover ${up?'up':'down'}">${d.sym} ${up?'+':''}${d.changePct.toFixed(2)}%</div>`;
-      }).join('');
+    const textEl=document.getElementById('briefing-text');
+    const badgeEl=document.getElementById('briefing-badge');
+    const moversEl=document.getElementById('briefing-movers');
+    if(!textEl)return;
+    const syms=['AAPL','NVDA','MSFT','TSLA','META','AMZN','GOOGL','SPY','QQQ'];
+    const available=(await Promise.all(syms.map(async sym=>{
+      try {const q=await StockAPI.getQuote(sym);return {sym,pct:q.changePct};}
+      catch(_){return null;}
+    }))).filter(Boolean);
+    const spy=available.find(q=>q.sym==='SPY'),qqq=available.find(q=>q.sym==='QQQ');
+    if(!spy||!qqq){
+      if(badgeEl){badgeEl.className='briefing-badge neutral';badgeEl.textContent='Data pending';}
+      textEl.textContent='Verified market summary is not available yet. No simulated changes are shown.';
+      if(moversEl)moversEl.textContent='Awaiting live quotes';
+      return;
+    }
+    const sentiment=spy.pct>.3?'bull':spy.pct<-.3?'bear':'neutral';
+    if(badgeEl){
+      badgeEl.className='briefing-badge '+sentiment;
+      badgeEl.textContent=sentiment==='bull'?'Positive session':sentiment==='bear'?'Negative session':'Mixed session';
+    }
+    const pct=v=>(v>=0?'+':'')+v.toFixed(2)+'%';
+    textEl.textContent='Latest available ETF moves: SPY '+pct(spy.pct)+' · QQQ '+pct(qqq.pct)+'. Past performance does not predict future returns.';
+    if(moversEl){
+      available.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
+      moversEl.innerHTML=available.slice(0,4).map(d=>
+        `<div class="briefing-mover ${d.pct>=0?'up':'down'}">${d.sym} ${pct(d.pct)}</div>`).join('');
     }
   }
 
@@ -1495,27 +1480,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Earnings Calendar ─────────────────────────────────────────────────────
   function renderEarnings() {
-    const tbody = document.getElementById('earnings-tbody'); if (!tbody) return;
-    const list = getEarningsCalendar();
-    tbody.innerHTML = list.map(e=>{
-      const upcoming = e.act===null;
-      const rowCls = upcoming?'earn-upcoming':'earn-past';
-      const badge  = upcoming?'<span class="earn-badge upcoming">Upcoming</span>':'<span class="earn-badge reported">Reported</span>';
-      const actual = upcoming
-        ? '<span style="color:var(--muted)">—</span>'
-        : `<span class="${e.beat?'earn-beat':'earn-miss'}">${e.beat?'▲':'▼'} $${e.act.toFixed(2)}</span>`;
-      const status = upcoming
-        ? '<span style="color:var(--muted);font-size:.75rem">TBA</span>'
-        : `<span class="${e.beat?'earn-beat':'earn-miss'}">${e.beat?'✓ Beat':'✗ Missed'}</span>`;
-      return `<tr class="${rowCls}">
-        <td><span class="earn-sym" onclick="window.selectSearch('${e.sym}');switchTab(null,'dashboard')">${e.sym}</span><br><span style="font-size:.7rem;color:var(--muted)">${e.name}</span></td>
-        <td class="earn-date ${upcoming?'upcoming':'past'}">${e.date}</td>
-        <td style="font-size:.75rem;color:var(--muted)">${e.time}</td>
-        <td class="earn-est">$${e.est.toFixed(2)}</td>
-        <td>${actual}</td>
-        <td>${badge} ${status}</td>
-      </tr>`;
-    }).join('');
+    const tbody=document.getElementById('earnings-tbody');
+    if(!tbody)return;
+    // No licensed earnings feed is connected. Never present invented EPS or dates.
+    tbody.innerHTML='<tr><td colspan="6" style="padding:1.3rem;color:var(--muted);text-align:center">Verified earnings data not connected. Forecast EPS and dates are not shown.</td></tr>';
   }
 
   // ── News ──────────────────────────────────────────────────────────────────
