@@ -6,6 +6,7 @@ const path     = require('path');
 const mongoose = require('mongoose');
 const { fetchHistoricalBars, toFinnhubCandleFormat } = require('./marketData');
 const bcrypt   = require('bcryptjs');
+const { installAccountRoutes } = require('./accountRoutes');
 const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
 const _anthropicMod = require('@anthropic-ai/sdk');
@@ -59,7 +60,10 @@ const UserSchema = new mongoose.Schema({
   email:     { type: String, required: true, unique: true, lowercase: true, trim: true },
   password:  { type: String, required: true },
   watchlist: { type: [String], default: ['AAPL','GOOGL','MSFT','TSLA','AMZN'] },
-  created:   { type: Date, default: Date.now }
+  created:   { type: Date, default: Date.now },
+  tokenVersion: { type: Number, default: 0 },
+  passwordResetHash: { type: String, default: undefined, select: false },
+  passwordResetExpires: { type: Date, default: undefined, select: false }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -76,15 +80,33 @@ const HoldingSchema = new mongoose.Schema({
 const Holding = mongoose.model('Holding', HoldingSchema);
 
 // ── Auth middleware ───────────────────────────────────────────────────────
-function authMW(req, res, next) {
+async function authMW(req, res, next) {
   const h = req.headers.authorization;
   if (!h?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    req.user = jwt.verify(h.slice(7), JWT_SECRET);
+    const decoded = jwt.verify(h.slice(7), JWT_SECRET);
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database not connected' });
+    }
+    // Reject tokens issued before a password reset/change and deleted accounts.
+    const user = await User.findById(decoded.id).select('tokenVersion email name');
+    if (!user || (decoded.v ?? 0) !== (user.tokenVersion || 0)) {
+      return res.status(401).json({ error: 'Session expired. Sign in again.' });
+    }
+    if (ALLOWED_EMAIL && user.email !== ALLOWED_EMAIL) {
+      return res.status(403).json({ error: 'This instance is restricted to the owner.' });
+    }
+    req.user = { id: String(user._id), email: user.email, name: user.name };
     next();
-  } catch(e) {
-    res.status(401).json({ error: 'Token expired or invalid — please log in again' });
+  } catch (e) {
+    return res.status(401).json({ error: 'Token expired or invalid — please log in again' });
   }
+}
+
+function signAccessToken(user) {
+  return jwt.sign({
+    id: String(user._id), email: user.email, name: user.name, v: user.tokenVersion || 0
+  }, JWT_SECRET, { expiresIn: '30d' });
 }
 
 function dbRequired(req, res, next) {
@@ -151,19 +173,19 @@ app.get('/api/test-email', async (req, res) => {
 // ── Auth routes ───────────────────────────────────────────────────────────
 app.post('/api/auth/register', dbRequired, async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body || {};
     if (!name || !email || !password)
       return res.status(400).json({ error: 'Name, email, and password are required' });
     // Layer 2: block registration for any email that isn't the owner's
-    if (ALLOWED_EMAIL && email.toLowerCase().trim() !== ALLOWED_EMAIL)
-      return res.status(403).json({ error: 'Registration is closed on this instance.' });
-    if (password.length < 6)
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (ALLOWED_EMAIL && String(email).toLowerCase().trim() !== ALLOWED_EMAIL)
+      return res.status(403).json({ error: 'Registration is restricted to the owner on this private instance.', code: 'PRIVATE_ACCESS_ONLY' });
+    if (typeof password !== 'string' || password.length < 8 || password.length > 128)
+      return res.status(400).json({ error: 'Password must be 8–128 characters' });
     if (await User.findOne({ email: email.toLowerCase() }))
       return res.status(400).json({ error: 'An account with that email already exists' });
-    const hashed = await bcrypt.hash(password, 10);
-    const user   = await User.create({ name: name.trim(), email, password: hashed });
-    const token  = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
+    const hashed = await bcrypt.hash(password, 12);
+    const user   = await User.create({ name: name.trim(), email: String(email).trim().toLowerCase(), password: hashed });
+    const token  = signAccessToken(user);
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch(e) {
     console.error('Register:', e.message);
@@ -173,22 +195,24 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
 
 app.post('/api/auth/login', dbRequired, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
     if (!email || !password)
       return res.status(400).json({ error: 'Email and password are required' });
     // Layer 3: block login for anyone who isn't the owner
-    if (ALLOWED_EMAIL && email.toLowerCase().trim() !== ALLOWED_EMAIL)
-      return res.status(403).json({ error: 'Invalid email or password' }); // same message to avoid enumeration
+    if (ALLOWED_EMAIL && String(email).toLowerCase().trim() !== ALLOWED_EMAIL)
+      return res.status(403).json({ error: 'This is the private owner-only instance. Use the public website for other accounts.', code: 'PRIVATE_ACCESS_ONLY' });
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid email or password' });
-    const token = jwt.sign({ id: user._id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
+    const token = signAccessToken(user);
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch(e) {
     console.error('Login:', e.message);
     res.status(500).json({ error: 'Server error — try again' });
   }
 });
+
+installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedEmail: ALLOWED_EMAIL });
 
 // ── Portfolio routes (protected) ──────────────────────────────────────────
 app.get('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
