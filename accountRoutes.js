@@ -22,6 +22,62 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
     res.json({ mode: allowedEmail ? 'private' : 'public', passwordResetAvailable: mailReady });
   });
 
+  // One-time owner account restoration, usable even when email sending
+  // is not configured.  This NEVER deletes/recreates an existing user record:
+  // its _id, portfolio, watchlist and history remain unchanged.
+  // OWNER_SETUP_KEY must be set privately in Render, then removed after use.
+  app.post('/api/auth/restore-owner', dbRequired, async (req, res) => {
+    if (!allowedEmail) return res.status(404).json({ error: 'Not available on this deployment.' });
+    const genericError = { error: 'Owner email or setup key is incorrect, or owner recovery is disabled.' };
+    const submitted = req.body || {};
+    const secret = Buffer.from(process.env.OWNER_SETUP_KEY || '', 'utf8');
+    const provided = Buffer.from(
+      typeof submitted.ownerSetupKey === 'string' ? submitted.ownerSetupKey : '', 'utf8'
+    );
+    // Require a random key of at least 32 bytes; no default or override in source.
+    if (secret.length < 32 || provided.length !== secret.length ||
+        !crypto.timingSafeEqual(provided, secret) ||
+        safeEmail(submitted.email) !== allowedEmail) {
+      return res.status(403).json(genericError);
+    }
+    const password = submitted.password;
+    const name = typeof submitted.name === 'string' ? submitted.name.trim() : '';
+    if (typeof password !== 'string' || password.length < 8 || password.length > 128)
+      return res.status(400).json({ error: 'Choose a password of 8–128 characters.' });
+    if (name.length > 80)
+      return res.status(400).json({ error: 'Display name must be 80 characters or less.' });
+    try {
+      const hashed = await bcrypt.hash(password, 12);
+      // Update in place to preserve portfolio and user ID. A single update
+      // invalidates all earlier JWTs and consumes previous reset tokens.
+      const existing = await User.findOneAndUpdate(
+        { email: allowedEmail },
+        {
+          $set: { password: hashed },
+          $inc: { tokenVersion: 1 },
+          $unset: { passwordResetHash: '', passwordResetExpires: '' }
+        },
+        { new: true }
+      );
+      if (!existing) {
+        // New MongoDB account: only after successful owner-key verification.
+        await User.create({
+          name: name || 'StockAI Owner',
+          email: allowedEmail,
+          password: hashed
+        });
+      }
+      res.set('Cache-Control', 'no-store');
+      return res.json({
+        ok: true,
+        message: 'Owner access restored. Sign in with the new password. Remove OWNER_SETUP_KEY from Render after you log in.'
+      });
+    } catch (e) {
+      console.error('[Owner Recovery] Could not restore account:', e.message);
+      return res.status(500).json({ error: 'Owner recovery could not be completed. Check Render logs.' });
+    }
+  });
+
   app.post('/api/auth/forgot-password', dbRequired, async (req, res) => {
     const message = 'If the account exists and email recovery is configured, a reset link will be sent.';
     // Always respond generically so nobody can enumerate user emails.
