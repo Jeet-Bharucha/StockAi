@@ -852,55 +852,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Portfolio sparkline ───────────────────────────────────────────────────
   function renderPortfolioChart(rows) {
-    const canvas = document.getElementById('port-sparkline'); if (!canvas) return;
-    const W = canvas.parentElement.clientWidth || 600, H = 80;
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0,0,W,H);
-
-    if (!rows || !rows.length) {
-      ctx.fillStyle='rgba(100,116,139,0.4)'; ctx.font='13px Inter'; ctx.textAlign='center';
-      ctx.fillText('Add holdings to see portfolio chart',W/2,H/2+5); return;
-    }
-
-    // Anchor start to actual cost basis and end to actual current value
-    const totalCost  = rows.reduce((a,r) => a + r.cost, 0);
-    const totalValue = rows.reduce((a,r) => a + r.value, 0);
-
-    // 30-day path interpolating from cost to current value with realistic noise
-    const days = 30;
-    const values = Array.from({length: days}, (_, i) => {
-      const t = i / (days - 1);
-      const base = totalCost + (totalValue - totalCost) * t;
-      const noise = Math.sin(i * 0.8 + 1.3) * 0.022 + Math.cos(i * 1.4 + 0.5) * 0.014;
-      return base * (1 + noise);
-    });
-    values[0] = totalCost;
-    values[days - 1] = totalValue;
-
-    const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
-    const pts = values.map((v,i)=>({ x:(i/(days-1))*W, y:H-4-((v-min)/range)*(H-10) }));
-    const isUp = totalValue >= totalCost;
-    const color = isUp?'#00ff88':'#ff4466';
-
-    const grad = ctx.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0, isUp?'rgba(0,255,136,0.25)':'rgba(255,68,102,0.25)');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-
-    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
-    pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
-    ctx.fillStyle=grad; ctx.fill();
-
-    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
-    pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.shadowColor=color; ctx.shadowBlur=6; ctx.stroke(); ctx.shadowBlur=0;
-
-    const fmt = v=>`$${v.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
-    ctx.fillStyle='rgba(100,116,139,0.8)'; ctx.font='10px Inter'; ctx.textAlign='left';
-    ctx.fillText(fmt(totalCost),4,H-4);
-    ctx.textAlign='right'; ctx.fillStyle=color;
-    ctx.fillText(fmt(totalValue),W-4,H-4);
+    const canvas=document.getElementById('port-sparkline');
+    if(!canvas)return;
+    const width=canvas.parentElement.clientWidth || 600;
+    canvas.width=width;canvas.height=80;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,width,80);
+    ctx.fillStyle='#96adbe';
+    ctx.font='12px Inter,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(rows?.length
+      ? 'Historical portfolio values are not stored yet · no synthetic chart.'
+      : 'Add holdings to begin tracking.',width/2,42,Math.max(140,width-18));
   }
 
   // ── Portfolio v2 — real prices via Yahoo Finance + CoinGecko ─────────────
