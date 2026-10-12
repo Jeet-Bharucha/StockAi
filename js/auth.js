@@ -22,6 +22,7 @@ const Auth = {
     store.setItem(this._TOKEN_KEY, token);
     store.setItem(this._SESSION_KEY, JSON.stringify({
       userId: user.id, name: user.name, email: user.email,
+      role: user.role === 'owner' ? 'owner' : 'user',
       expires: remember ? Date.now() + days * 864e5 : null
     }));
     other.removeItem(this._TOKEN_KEY);
@@ -222,7 +223,7 @@ const Auth = {
   },
 
   isGuest()  { return this.getSession()?.isGuest === true; },
-  isAdmin()  { const s = this.getSession(); return s && ['admin@stockai.com'].includes(s.email); },
+  isAdmin()  { return this.getSession()?.role === 'owner'; },
 
   // ── Watchlist — API-backed, in-memory cache ────────────────────────────
   getWatchlist() {
