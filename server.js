@@ -226,7 +226,7 @@ app.post('/api/auth/login', dbRequired, async (req, res) => {
     if (!normalizedEmail || typeof password !== 'string')
       return res.status(400).json({ error: 'Email and password are required' });
     // Layer 3: block login for anyone who isn't the owner
-    if (ALLOWED_EMAIL && String(email).toLowerCase().trim() !== ALLOWED_EMAIL)
+    if (ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
       return res.status(403).json({ error: 'This is the private owner-only instance. Use the public website for other accounts.', code: 'PRIVATE_ACCESS_ONLY' });
     const user = await User.findOne({ email: normalizedEmail });
     if (!user || !(await bcrypt.compare(password, user.password)))
