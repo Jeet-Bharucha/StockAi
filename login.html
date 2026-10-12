@@ -153,6 +153,13 @@ input::placeholder{color:var(--muted);opacity:.55}
 @keyframes pulse3d{0%,100%{opacity:.1}50%{opacity:.2}}
 
 @media(max-width:520px){.auth-card{padding:1.8rem 1.4rem;border-radius:18px}.shape-3d-wrap{display:none}}
+
+/* Live auth API readiness — distinguishes a working page from a working login. */
+.server-status{display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,.25);border-radius:9px;color:var(--muted);background:rgba(148,163,184,.05);font-size:.77rem;margin-bottom:1rem;line-height:1.35}
+.server-status span{min-width:0}
+.server-status button{flex-shrink:0;background:transparent;border:1px solid currentColor;border-radius:6px;color:inherit;font-size:.74rem;padding:.3rem .55rem;cursor:pointer}
+.server-status[data-state="online"]{color:#34d399;border-color:rgba(52,211,153,.3)}
+.server-status[data-state="database"],.server-status[data-state="offline"]{color:#fbbf24;border-color:rgba(251,191,36,.3)}
 </style>
 </head>
 <body>
@@ -195,6 +202,10 @@ input::placeholder{color:var(--muted);opacity:.55}
         </div>
 
         <div class="error-msg" id="error-msg"></div>
+        <div class="server-status" id="server-status" data-state="checking" role="status" aria-live="polite">
+          <span id="server-status-text">Checking login server…</span>
+          <button type="button" id="server-retry">Retry</button>
+        </div>
 
         <form id="login-form" autocomplete="on">
           <div class="form-group">
@@ -237,6 +248,18 @@ input::placeholder{color:var(--muted);opacity:.55}
 </div>
 
 <script src="js/auth.js"></script>
+<script>
+async function updateServerStatus() {
+  const box = document.getElementById('server-status');
+  box.dataset.state = 'checking';
+  document.getElementById('server-status-text').textContent = 'Checking login server…';
+  const result = await Auth.checkServer();
+  box.dataset.state = result.state;
+  document.getElementById('server-status-text').textContent = result.text;
+}
+document.getElementById('server-retry').addEventListener('click', updateServerStatus);
+updateServerStatus();
+</script>
 <script>
 if(Auth.getSession()) window.location.href='dashboard.html';
 
