@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     volumeSeries.setData(currentBars.length ? volData(currentBars) : []);
     if (currentBars.length) chart.timeScale().fitContent();
     showChartLoader(false);
+    showChartUnavailable(!currentBars.length);
     if (typeof StockChat !== 'undefined') StockChat.setContext(symbol, currentBars);
 
     // Clear any active compare so the second line doesn't linger
@@ -142,6 +143,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await refreshQuote();
     if (currentBars.length >= 50) runAI();
+    else {
+      const q=document.getElementById('quick-direction');
+      if(q){q.textContent='○ NO SIGNAL DATA';q.className='ai-dir-badge neutral';}
+      const c=document.getElementById('quick-conf-text');
+      if(c)c.textContent='Indicator score: —';
+      ['q-buy','q-sell','q-neutral'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+    }
     updateWatchlistUI();
     if (newsMode === 'stock') loadNews(symbol);
 
@@ -524,7 +532,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const list = Auth.getWatchlist(); const el = document.getElementById('watchlist'); if (!el) return;
     if (!list.length) { el.innerHTML='<div style="color:var(--muted);font-size:.82rem;padding:.5rem;text-align:center">Watchlist empty</div>'; return; }
     el.innerHTML = list.map(sym => {
-      const seed = StockAPI._seeds[sym]||{}, price = seed.price?+seed.price.toFixed(2):'—', info = StockAPI.getCompanyInfo(sym);
+      const quote=StockAPI._cache['q_'+sym]?.data;
+      const price=Number.isFinite(quote?.price) ? quote.price.toFixed(2) : '—';
+      const info=StockAPI.getCompanyInfo(sym);
       return `<div class="wl-item ${sym===currentSymbol?'active':''}" onclick="window.selectSearch('${sym}')">
         <span class="wl-sym">${sym}</span><span class="wl-name">${info.name.split(' ')[0]}</span>
         <span class="wl-price">$${price}</span>
@@ -1576,6 +1586,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   function showChartLoader(show) {
     let el=document.getElementById('chart-loader');
     if (!el){ el=document.createElement('div'); el.id='chart-loader'; el.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,11,31,0.7);border-radius:10px;font-size:.85rem;color:#64748b;z-index:10;pointer-events:none'; el.innerHTML='<span>⟳ Loading chart data…</span>'; const cw=document.getElementById('price-chart'); cw.style.position='relative'; cw.appendChild(el); }
+    el.style.display=show?'flex':'none';
+  }
+
+  function showChartUnavailable(show) {
+    const host=document.getElementById('price-chart');
+    let el=document.getElementById('chart-unavailable');
+    if(!el){
+      el=document.createElement('div');
+      el.id='chart-unavailable';
+      el.className='chart-unavailable';
+      el.setAttribute('role','status');
+      el.textContent='Verified candle history is unavailable. No simulated prices are shown.';
+      host.appendChild(el);
+    }
     el.style.display=show?'flex':'none';
   }
 
