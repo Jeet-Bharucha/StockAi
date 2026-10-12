@@ -24,52 +24,93 @@ const Auth = {
   },
 
   // ── Register / Login ───────────────────────────────────────────────────
-  async register(name, email, password) {
+  // An HTML error page from a static host/proxy is NOT an authentication error.
+  // Classify it separately so users can tell a dead backend from bad credentials.
+  async _postAuth(route, payload, remember = true) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 55000); // allow Render cold starts
     try {
-      const ctrl  = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 55000);
-      let r;
-      try {
-        r = await fetch('/api/auth/register', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ name, email, password }),
-          signal:  ctrl.signal
-        });
-      } finally { clearTimeout(timer); }
-      const data = await r.json();
-      if (!r.ok) return { success: false, error: data.error || 'Registration failed' };
-      this._saveSession(data.token, data.user);
+      const res = await fetch(route, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
+      });
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); } catch (_) { data = null; }
+
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        if ([502, 503, 504].includes(res.status)) {
+          return { success: false, error: 'The StockAI backend is unavailable (HTTP ' + res.status + '). Check the Render service and try again.' };
+        }
+        return { success: false, error: 'The login API returned a webpage instead of JSON. The site\'s /api proxy may not be reaching the StockAI backend.' };
+      }
+      if (!res.ok) {
+        if (res.status === 503 && /database/i.test(data.error || '')) {
+          return { success: false, error: 'The server is online, but MongoDB is disconnected. Check MONGO_URI and MongoDB Atlas network access in Render.' };
+        }
+        if ([502, 503, 504].includes(res.status)) {
+          return { success: false, error: data.error || 'The backend is unavailable (HTTP ' + res.status + '). Check Render.' };
+        }
+        if (res.status === 404) {
+          return { success: false, error: 'Login API not found. Check the /api proxy configuration and backend deployment.' };
+        }
+        return { success: false, error: data.error || 'Authentication failed (HTTP ' + res.status + ').' };
+      }
+      if (!data.token || !data.user || !data.user.id) {
+        return { success: false, error: 'The login server returned an incomplete response. Please try again.' };
+      }
+      this._saveSession(data.token, data.user, remember);
       return { success: true, user: data.user };
-    } catch(e) {
-      if (e.name === 'AbortError')
-        return { success: false, error: 'Server is waking up — please wait 30 seconds and try again.' };
-      return { success: false, error: 'Cannot reach server. Check your connection and try again.' };
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        return { success: false, error: 'The server did not respond within 55 seconds. It may be asleep or offline. Check your Render deployment.' };
+      }
+      return { success: false, error: 'Cannot reach the StockAI server. Check the Render deployment and the site\'s /api proxy.' };
+    } finally {
+      clearTimeout(timer);
     }
   },
 
+  async register(name, email, password) {
+    return this._postAuth('/api/auth/register', { name, email, password });
+  },
+
   async login(email, password, remember = true) {
+    const result = await this._postAuth('/api/auth/login', { email, password }, remember);
+    if (result.success) localStorage.setItem('stockai_last_email', email);
+    return result;
+  },
+
+  // Readiness probe: checks the API AND MongoDB, not merely a cached website.
+  async checkServer() {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
     try {
-      const ctrl  = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 55000);
-      let r;
-      try {
-        r = await fetch('/api/auth/login', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ email, password }),
-          signal:  ctrl.signal
-        });
-      } finally { clearTimeout(timer); }
-      const data = await r.json();
-      if (!r.ok) return { success: false, error: data.error || 'Login failed' };
-      this._saveSession(data.token, data.user, remember);
-      localStorage.setItem('stockai_last_email', email);
-      return { success: true, user: data.user };
-    } catch(e) {
-      if (e.name === 'AbortError')
-        return { success: false, error: 'Server is waking up — please wait 30 seconds and try again.' };
-      return { success: false, error: 'Cannot reach server. Check your connection and try again.' };
+      const res = await fetch('/api/health', {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+        signal: ctrl.signal
+      });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        return { state: 'offline', text: 'Login service unavailable. The site\'s /api proxy may not be connected.' };
+      }
+      const data = await res.json();
+      if (data.service !== 'stockai') {
+        return { state: 'offline', text: 'Unexpected server response. Check your API proxy.' };
+      }
+      if (data.database !== 'connected') {
+        return { state: 'database', text: 'Server online, but MongoDB is disconnected. Login is temporarily unavailable.' };
+      }
+      return { state: 'online', text: 'Server and database connected — ready to sign in.' };
+    } catch (e) {
+      return { state: 'offline', text: e.name === 'AbortError'
+        ? 'Server is slow to start or unavailable. You can retry.'
+        : 'Cannot reach the login service. Check the Render deployment.' };
+    } finally {
+      clearTimeout(timer);
     }
   },
 
