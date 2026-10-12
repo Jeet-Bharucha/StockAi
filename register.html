@@ -206,6 +206,8 @@ input.valid-field{border-color:var(--green)!important}
           <button type="button" id="server-retry">Retry</button>
         </div>
 
+        <div id="instance-notice" style="display:none;margin-bottom:1rem;padding:.8rem 1rem;border:1px solid rgba(251,191,36,.35);border-radius:9px;color:#fbbf24;font-size:.82rem;line-height:1.5" role="status"></div>
+
         <form id="reg-form" autocomplete="on">
           <div class="form-row">
             <div class="form-group">
@@ -273,6 +275,18 @@ async function updateServerStatus() {
 }
 document.getElementById('server-retry').addEventListener('click', updateServerStatus);
 updateServerStatus();
+Auth.getSiteConfig().then(cfg => {
+  if (!cfg) return;
+  const notice = document.getElementById('instance-notice');
+  if (cfg.mode === 'private') {
+    notice.style.display = 'block';
+    notice.textContent = '🔒 Private StockAI: this address accepts only the owner's account. Public accounts must use the separate public deployment.';
+    const heading = document.querySelector('.auth-header p');
+    if (heading) heading.textContent = 'Private owner-only registration';
+    const btn = document.querySelector('#submit-btn .btn-text');
+    if (btn) btn.textContent = 'Create Owner Account →';
+  }
+});
 </script>
 <script>
 if(Auth.getSession()) window.location.href='dashboard.html';
@@ -353,7 +367,7 @@ document.getElementById('reg-form').addEventListener('submit',async function(e){
   const pwd=document.getElementById('password').value;
   const confirm=document.getElementById('confirm').value;
   if(pwd!==confirm){errEl.textContent='Passwords do not match.';errEl.classList.add('show');return;}
-  if(pwd.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.classList.add('show');return;}
+  if(pwd.length<8){errEl.textContent='Password must be at least 8 characters.';errEl.classList.add('show');return;}
   const btn=document.getElementById('submit-btn');
   btn.classList.add('loading');
   await new Promise(r=>setTimeout(r,800));
