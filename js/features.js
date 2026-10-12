@@ -1,6 +1,7 @@
 // ── Portfolio — API-backed with in-memory cache ────────────────────────────
 const Portfolio = {
   _cache: null,    // in-memory cache populated by load()
+  lastError: null,
   _GUEST_KEY: 'stockai_portfolio_guest',
 
   _authHeader() {
@@ -26,9 +27,18 @@ const Portfolio = {
       let r;
       try { r = await fetch('/api/user/portfolio', { headers: this._authHeader(), signal: ctrl.signal }); }
       finally { clearTimeout(timer); }
-      if (r.ok) { this._cache = await r.json(); return this._cache; }
-    } catch(e) { console.warn('Portfolio.load failed:', e.message); }
-    // Fallback: return whatever is cached
+      if (!r.ok) throw new Error('Portfolio API HTTP ' + r.status);
+      const holdings = await r.json();
+      if (!Array.isArray(holdings)) throw new Error('Invalid portfolio response');
+      this._cache = holdings;
+      this.lastError = null;
+      return this._cache;
+    } catch(e) {
+      this.lastError = e.message;
+      console.warn('Portfolio.load failed:', e.message);
+    }
+    // Do not erase already-loaded holdings during brief network outages.
+    // The UI shows an error instead of falsely claiming an empty portfolio.
     if (!this._cache) this._cache = [];
     return this._cache;
   },
@@ -41,12 +51,15 @@ const Portfolio = {
       this._cache = list;
       return;
     }
-    await fetch('/api/user/portfolio', {
-      method:  'POST',
-      headers: this._authHeader(),
-      body:    JSON.stringify({ symbol, shares:+shares, buyPrice:+buyPrice, accountType, assetType, name: name||symbol.toUpperCase() })
+    const r = await fetch('/api/user/portfolio', {
+      method: 'POST', headers: this._authHeader(),
+      body: JSON.stringify({ symbol, shares:+shares, buyPrice:+buyPrice, accountType, assetType, name: name||symbol.toUpperCase() })
     });
-    await this.load();
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not save holding (HTTP ' + r.status + ')');
+    const holding = await r.json();
+    if (!this._cache) this._cache = [];
+    this._cache.push({ ...holding, id: holding.id, addedAt: new Date().toISOString() });
+    this.lastError = null;
   },
 
   async update(id, data) {
@@ -56,12 +69,13 @@ const Portfolio = {
       this._cache = list;
       return;
     }
-    await fetch(`/api/user/portfolio/${id}`, {
-      method:  'PUT',
-      headers: this._authHeader(),
-      body:    JSON.stringify(data)
+    const r = await fetch(`/api/user/portfolio/${encodeURIComponent(id)}`, {
+      method: 'PUT', headers: this._authHeader(), body: JSON.stringify(data)
     });
-    await this.load();
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not update holding (HTTP ' + r.status + ')');
+    const updated = await r.json();
+    this._cache = this.get().map(h => String(h.id) === String(id) ? { ...h, ...updated } : h);
+    this.lastError = null;
   },
 
   async remove(id) {
@@ -71,8 +85,10 @@ const Portfolio = {
       this._cache = list;
       return;
     }
-    await fetch(`/api/user/portfolio/${id}`, { method: 'DELETE', headers: this._authHeader() });
-    await this.load();
+    const r = await fetch(`/api/user/portfolio/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this._authHeader() });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not delete holding (HTTP ' + r.status + ')');
+    this._cache = this.get().filter(h => String(h.id) !== String(id));
+    this.lastError = null;
   },
 
   summary(quotes) {
@@ -167,8 +183,9 @@ const NewsAPI = {
       const sorted = data.sort((a, b) => b.datetime - a.datetime).slice(0, 12);
       this._cache[key] = { ts: Date.now(), data: sorted };
       return sorted;
-    } catch (_) {
-      return this._mockNews(symbol);
+    } catch (error) {
+      console.warn('Verified news unavailable:', error.message);
+      return []; // Never invent news headlines or attribute them to real publishers.
     }
   },
 
