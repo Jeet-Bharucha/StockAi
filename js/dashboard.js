@@ -973,12 +973,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                accountType: h.accountType || 'taxable' };
     });
 
+    const partialQuotes=rows.some(r=>r.priceSource!=='live');
+    let pricingNotice=document.getElementById('port-pricing-notice');
+    if(!pricingNotice){
+      pricingNotice=document.createElement('div');
+      pricingNotice.id='port-pricing-notice';
+      pricingNotice.className='data-warning';
+      listEl.parentElement.insertBefore(pricingNotice,listEl);
+    }
+    pricingNotice.style.display=partialQuotes?'block':'none';
+    if(partialQuotes)pricingNotice.textContent='Some prices cannot be verified. Cost basis is shown temporarily for those holdings; total value is an estimate and portfolio P/L is withheld.';
     // Stats
     const totalPL    = totalValue - totalCost;
     const totalPLPct = totalCost ? (totalPL / totalCost) * 100 : 0;
     const up    = totalPL >= 0;
-    const best  = rows.length ? rows.reduce((a,b) => b.plPct > a.plPct ? b : a) : null;
-    const worst = rows.length ? rows.reduce((a,b) => b.plPct < a.plPct ? b : a) : null;
+    const pricedRows=rows.filter(r=>r.plPct!==null);
+    const best=pricedRows.length?pricedRows.reduce((a,b)=>b.plPct>a.plPct?b:a):null;
+    const worst=pricedRows.length?pricedRows.reduce((a,b)=>b.plPct<a.plPct?b:a):null;
 
     // ── Big stat cards ────────────────────────────────────────────────────────
     const setText = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
@@ -989,8 +1000,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     setText('port-count-sub', rows.length + ' position' + (rows.length !== 1 ? 's' : ''));
 
     const plEl = document.getElementById('port-pl');
-    if (plEl) { plEl.textContent = (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)); plEl.className = 'pt-stat-val ' + (up?'up':'down'); }
-    setHTML('port-pl-badge', `<span class="pt-stat-badge ${up?'up':'down'}">${up?'▲':'▼'} ${up?'+':''}${_fmtD(totalPLPct)}%</span>`);
+    if(plEl){plEl.textContent=partialQuotes?'—':(up?'+':'-')+'$'+_fmtD(Math.abs(totalPL));plEl.className='pt-stat-val '+(partialQuotes?'':(up?'up':'down'));}
+    setHTML('port-pl-badge',partialQuotes?'<span class="pt-stat-badge">Waiting for all quotes</span>':
+      `<span class="pt-stat-badge ${up?'up':'down'}">${up?'▲':'▼'} ${up?'+':''}${_fmtD(totalPLPct)}%</span>`);
 
     if (best) {
       const bEl = document.getElementById('port-best');
@@ -1016,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (wpEl) { wpEl.textContent = (wUp?'+':'') + _fmtD(worst.plPct) + '%'; wpEl.style.color = wUp?'var(--green)':'var(--red)'; }
     }
     const gainEl = document.getElementById('qs-gain');
-    if (gainEl) { gainEl.textContent = (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)); gainEl.style.color = up?'var(--green)':'var(--red)'; }
+    if(gainEl){gainEl.textContent=partialQuotes?'—':(up?'+':'-')+'$'+_fmtD(Math.abs(totalPL));gainEl.style.color=partialQuotes?'var(--muted)':(up?'var(--green)':'var(--red)');}
 
     // ── Update filter tab counts ──────────────────────────────────────────────
     const filterGroups = { all: rows.length, stock: 0, etf: 0, crypto: 0, roth_ira: 0, k401: 0 };
