@@ -820,55 +820,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Portfolio sparkline ───────────────────────────────────────────────────
   function renderPortfolioChart(rows) {
-    const canvas = document.getElementById('port-sparkline'); if (!canvas) return;
-    const W = canvas.parentElement.clientWidth || 600, H = 80;
-    canvas.width = W; canvas.height = H;
+    const canvas = document.getElementById('port-sparkline');
+    if (!canvas) return;
+    const W = canvas.parentElement.clientWidth || 600;
+    canvas.width = W; canvas.height = 80;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0,0,W,H);
-
-    if (!rows || !rows.length) {
-      ctx.fillStyle='rgba(100,116,139,0.4)'; ctx.font='13px Inter'; ctx.textAlign='center';
-      ctx.fillText('Add holdings to see portfolio chart',W/2,H/2+5); return;
-    }
-
-    // Anchor start to actual cost basis and end to actual current value
-    const totalCost  = rows.reduce((a,r) => a + r.cost, 0);
-    const totalValue = rows.reduce((a,r) => a + r.value, 0);
-
-    // 30-day path interpolating from cost to current value with realistic noise
-    const days = 30;
-    const values = Array.from({length: days}, (_, i) => {
-      const t = i / (days - 1);
-      const base = totalCost + (totalValue - totalCost) * t;
-      const noise = Math.sin(i * 0.8 + 1.3) * 0.022 + Math.cos(i * 1.4 + 0.5) * 0.014;
-      return base * (1 + noise);
-    });
-    values[0] = totalCost;
-    values[days - 1] = totalValue;
-
-    const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
-    const pts = values.map((v,i)=>({ x:(i/(days-1))*W, y:H-4-((v-min)/range)*(H-10) }));
-    const isUp = totalValue >= totalCost;
-    const color = isUp?'#00ff88':'#ff4466';
-
-    const grad = ctx.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0, isUp?'rgba(0,255,136,0.25)':'rgba(255,68,102,0.25)');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-
-    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
-    pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
-    ctx.fillStyle=grad; ctx.fill();
-
-    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
-    pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.shadowColor=color; ctx.shadowBlur=6; ctx.stroke(); ctx.shadowBlur=0;
-
-    const fmt = v=>`$${v.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
-    ctx.fillStyle='rgba(100,116,139,0.8)'; ctx.font='10px Inter'; ctx.textAlign='left';
-    ctx.fillText(fmt(totalCost),4,H-4);
-    ctx.textAlign='right'; ctx.fillStyle=color;
-    ctx.fillText(fmt(totalValue),W-4,H-4);
+    ctx.clearRect(0,0,W,80);
+    ctx.fillStyle='#93a9bc';
+    ctx.font='12px Inter,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(rows?.length
+      ? 'Historical portfolio values not yet recorded · no simulated graph.'
+      : 'Add holdings to begin tracking portfolio value.', W/2,43,Math.max(150,W-20));
   }
 
   // ── Portfolio v2 — real prices via Yahoo Finance + CoinGecko ─────────────
@@ -934,7 +897,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!listEl) return;
 
     if (!holdings.length) {
-      listEl.innerHTML = '<div class="port-empty">No holdings yet — add your first position above.</div>';
+      listEl.innerHTML = Portfolio.lastError
+        ? '<div class="port-empty" style="color:var(--gold)">Unable to load your saved holdings. The database has NOT been cleared. Please retry.</div>'
+        : '<div class="port-empty">No holdings yet — add your first position above.</div>';
       ['port-invested','port-value','port-pl','port-pct','port-best','port-count'].forEach(id=>{
         const el=document.getElementById(id); if(el){ el.textContent=id==='port-count'?'0':'—'; el.className='psc-val'; }
       });
@@ -959,28 +924,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pd      = priceData[h.symbol] || {};
       const hasLive = pd.price != null && pd.price > 0;
 
-      // Price source priority: 1) live API price  2) simulated market price  3) avg cost (last resort)
-      let curPrice, priceSource;
-      if (hasLive) {
-        curPrice    = pd.price;
-        priceSource = 'live';
-      } else {
-        // Use simulated price so gain/loss reflects market movement, NOT avg cost
-        try {
-          StockAPI._initSeed(h.symbol);
-          curPrice    = StockAPI._simQuote(h.symbol).price;
-          priceSource = 'sim';
-        } catch(e) {
-          curPrice    = h.buyPrice;
-          priceSource = 'cost';
-        }
-      }
+      // Never invent quotes. Mark missing market data as cost-basis only.
+      const curPrice = hasLive ? pd.price : h.buyPrice;
+      const priceSource = hasLive ? 'live' : 'cost';
 
       const chg24h = hasLive ? (pd.change24h ?? null) : null;
       const cost   = h.shares * h.buyPrice;
       const value  = h.shares * curPrice;
-      const pl     = value - cost;
-      const plPct  = cost ? (pl / cost) * 100 : 0;
+      const pl     = hasLive ? value - cost : null;
+      const plPct  = hasLive && cost ? (pl / cost) * 100 : null;
       totalCost  += cost;
       totalValue += value;
       return { ...h, curPrice, chg24h, priceSource, cost, value, pl, plPct,
