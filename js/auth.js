@@ -56,6 +56,12 @@ const Auth = {
         if (res.status === 404) {
           return { success: false, error: 'Login API not found. Check the /api proxy configuration and backend deployment.' };
         }
+        if (data.code === 'PRIVATE_ACCESS_ONLY') {
+          return { success: false, error: 'This is the private StockAI instance; only the owner can sign in. Public users need the public website.' };
+        }
+        if (res.status === 401 && route.endsWith('/login')) {
+          return { success: false, error: 'Email or password was not recognized in MongoDB. If you registered before StockAI switched databases, create an account again using the same email. If you already registered in MongoDB, use Forgot password.' };
+        }
         return { success: false, error: data.error || 'Authentication failed (HTTP ' + res.status + ').' };
       }
       if (!data.token || !data.user || !data.user.id) {
@@ -112,6 +118,45 @@ const Auth = {
     } finally {
       clearTimeout(timer);
     }
+  },
+
+  // The public and private deployments can share UI but must have their own
+  // correctly configured API backend. No browser-only flag grants access.
+  async getSiteConfig() {
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 10000);
+      try {
+        const r = await fetch('/api/auth/config', { cache: 'no-store', signal: ctrl.signal });
+        if (r.ok && (r.headers.get('content-type') || '').includes('application/json')) {
+          const data = await r.json();
+          if (data.mode === 'public' || data.mode === 'private') return data;
+        }
+      } finally { clearTimeout(timeout); }
+    } catch (_) {}
+    return null;
+  },
+
+  async requestPasswordReset(email) {
+    try {
+      const r = await fetch('/api/auth/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const d = await r.json();
+      return { success: r.ok, message: d.message || '', error: r.ok ? null : (d.error || 'Password recovery unavailable') };
+    } catch (_) { return { success: false, error: 'Cannot contact the server.' }; }
+  },
+
+  async resetPassword(token, password) {
+    try {
+      const r = await fetch('/api/auth/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password })
+      });
+      const d = await r.json();
+      return { success: r.ok, message: d.message, error: d.error };
+    } catch (_) { return { success: false, error: 'Cannot contact the server.' }; }
   },
 
   logout() {
