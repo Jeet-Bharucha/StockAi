@@ -670,10 +670,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Notification Center ───────────────────────────────────────────────────
   const NotifCenter = window.NotifCenter = (function() {
-    const KEY = 'stockai_notifs';
+    const KEY = () => 'stockai_notifs_' + (Auth.getSession()?.userId || 'anonymous');
     let _open = false;
-    function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]'); } catch { return []; } }
-    function save(list) { localStorage.setItem(KEY, JSON.stringify(list.slice(0,50))); }
+    function load() { try { return JSON.parse(localStorage.getItem(KEY())||'[]'); } catch { return []; } }
+    function save(list) { localStorage.setItem(KEY(), JSON.stringify(list.slice(0,50))); }
     function updateBadge() {
       const n = load().filter(x=>!x.read).length;
       const badge = document.getElementById('notif-badge');
