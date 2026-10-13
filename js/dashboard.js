@@ -511,12 +511,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const set=(id,value)=>{
         const el=document.getElementById(id);if(el)el.textContent=value;
       };
-      set('evidence-hit', report.hitRatePct.toFixed(1) + '%');
-      set('evidence-hit-ci', '95% Wilson interval: ' + report.hitRate95Pct.join('–') + '%');
+      // Avoid marketing tiny-sample noise as a meaningful accuracy figure.
+      const enough = report.evidenceLevel !== 'insufficient';
+      set('evidence-hit', enough ? report.hitRatePct.toFixed(1) + '%' : 'Not enough');
+      set('evidence-hit-ci', enough
+        ? '95% Wilson interval: ' + report.hitRate95Pct.join('–') + '%'
+        : 'At least 10 directional samples required');
       set('evidence-n', String(report.directionalSignals));
       set('evidence-window', report.evaluations + ' sampled windows · ' + report.neutralSignals + ' neutral');
-      set('evidence-strategy',format(report.avgDirectionalReturnPct));
-      set('evidence-benchmark',format(report.avgBaselineLongReturnPct));
+      set('evidence-strategy',enough ? format(report.avgDirectionalReturnPct) : '—');
+      set('evidence-benchmark',enough ? format(report.avgBaselineLongReturnPct) : '—');
       set('evidence-disclaimer',report.note);
       const table = document.getElementById('evidence-rows');
       if (table) {
