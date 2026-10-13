@@ -308,3 +308,76 @@ body.stockai-pro.light .pro-scr-price { color:#193547; }
 body.stockai-pro.light .pro-scr-metrics { color:#506777; }
 body.stockai-pro.light .data-warning { background:#fff5df;color:#885c18;border-color:#e6c387; }
 body.stockai-pro.light .chart-unavailable { background:rgba(249,252,253,.96);color:#4f6879; }
+
+
+/* Desktop/mobile interaction refinements — keep the charcoal/teal palette. */
+.stockai-pro .sidebar-backdrop { display:none; }
+.stockai-pro .terminal-refresh-btn {
+  width:34px;height:34px;display:grid;place-items:center;flex-shrink:0;
+  background:var(--card2);color:var(--text);border:1px solid var(--border);
+  border-radius:8px;cursor:pointer;font:700 1.15rem Inter,system-ui,sans-serif;
+}
+.stockai-pro .terminal-refresh-btn:hover { background:rgba(48,175,151,.13);border-color:var(--cyan); }
+.stockai-pro .terminal-refresh-btn:disabled { opacity:.55;cursor:wait; }
+.stockai-pro .chart-btn, .stockai-pro .ind-btn, .stockai-pro #sidebar-toggle,
+.stockai-pro #btn-logout, .stockai-pro #theme-toggle, .stockai-pro .terminal-refresh-btn {
+  min-height:34px;
+}
+.stockai-pro .stock-header, .stockai-pro #market-overview, .stockai-pro .dash-grid {
+  min-width:0;
+}
+.stockai-pro #price-chart {
+  position:relative;
+  min-height:260px;
+}
+.stockai-pro .tab-view { scrollbar-gutter:stable; }
+.stockai-pro .topbar-right { min-width:0; }
+.stockai-pro .chart-btn, .stockai-pro .ind-btn { touch-action:manipulation; }
+body.stockai-pro.light .terminal-refresh-btn {
+  background:#f0f6f8;color:#193547;border-color:#c9dce2;
+}
+@media (max-width:900px) {
+  .stockai-pro .sidebar {
+    width:min(295px,86vw);
+    max-width:86vw;
+    left:0;
+    transform:translateX(-105%);
+    transition:transform .23s cubic-bezier(.2,.7,.2,1);
+    box-shadow:12px 0 40px rgba(0,0,0,.28);
+  }
+  .stockai-pro .sidebar.open { left:0;transform:translateX(0); }
+  .stockai-pro .sidebar-backdrop:not(.hidden) {
+    position:fixed;inset:0;z-index:290;display:block;width:100%;
+    padding:0;border:0;border-radius:0;background:rgba(2,8,15,.68);
+    backdrop-filter:blur(3px);cursor:pointer;
+  }
+  .stockai-pro .sidebar { z-index:300; }
+  .stockai-pro .tab-view { scrollbar-gutter:auto; }
+  .stockai-pro #sidebar-toggle { padding:.38rem .6rem;color:var(--text); }
+}
+@media (max-width:600px) {
+  .stockai-pro .topbar { padding:.6rem .75rem; }
+  .stockai-pro .topbar-right { gap:.45rem; }
+  .stockai-pro .search-wrap { min-width:0;width:100%; }
+  .stockai-pro .stock-left { min-width:0; }
+  .stockai-pro .stock-badge { width:40px;height:40px; }
+  .stockai-pro #company-name { overflow-wrap:anywhere; }
+  .stockai-pro #market-overview { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .stockai-pro .market-price { font-size:.98rem; }
+  .stockai-pro .quick-counts { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .stockai-pro .port-table-wrap { overscroll-behavior-x:contain; }
+  .stockai-pro .port-table-row.new-cols,
+  .stockai-pro .port-table-head.new-cols { min-width:760px; }
+  .stockai-pro #price-chart { height:300px!important; }
+  .stockai-pro .card-title > div { max-width:100%; }
+}
+@media (max-width:380px) {
+  .stockai-pro .topbar-right { gap:.25rem; }
+  .stockai-pro #ws-badge { font-size:.62rem;padding:.28rem .45rem; }
+  .stockai-pro #notif-btn,
+  .stockai-pro #theme-toggle,
+  .stockai-pro .terminal-refresh-btn { width:32px;height:32px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .stockai-pro .sidebar { transition:none; }
+}
