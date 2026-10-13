@@ -52,11 +52,12 @@ test('successful login stores the token and session', async () => {
   assert.equal(auth.getSession().email, user.email);
 });
 
-test('invalid credentials show the API error, not a server error', async () => {
+test('invalid credentials explain MongoDB account mismatch without claiming the server is offline', async () => {
   const { auth } = setup(async () => response(401, { error: 'Invalid email or password' }));
   const result = await auth.login('demo@example.com', 'wrong');
   assert.equal(result.success, false);
-  assert.match(result.error, /Invalid email or password/);
+  assert.match(result.error, /Email or password was not recognized in MongoDB/);
+  assert.doesNotMatch(result.error, /Server is offline|Cannot reach server/);
 });
 
 test('disconnected MongoDB returns actionable login feedback', async () => {

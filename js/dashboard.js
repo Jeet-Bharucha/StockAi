@@ -71,15 +71,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     chart = LightweightCharts.createChart(container, {
       width: container.clientWidth, height: 320,
       layout: { background:{type:'solid',color:'transparent'}, textColor:'#94a3b8' },
-      grid: { vertLines:{color:'rgba(0,212,255,0.07)'}, horzLines:{color:'rgba(0,212,255,0.07)'} },
+      grid: { vertLines:{color:'rgba(132,157,193,0.07)'}, horzLines:{color:'rgba(132,157,193,0.07)'} },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-      rightPriceScale: { borderColor:'rgba(0,212,255,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
-      timeScale: { borderColor:'rgba(0,212,255,0.2)', timeVisible:true },
+      rightPriceScale: { borderColor:'rgba(132,157,193,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
+      timeScale: { borderColor:'rgba(132,157,193,0.2)', timeVisible:true },
     });
-    candleSeries = chart.addCandlestickSeries({ upColor:'#00ff88', downColor:'#ff4466', borderUpColor:'#00ff88', borderDownColor:'#ff4466', wickUpColor:'#00ff88', wickDownColor:'#ff4466' });
+    candleSeries = chart.addCandlestickSeries({ upColor:'#4bbf8d', downColor:'#e27889', borderUpColor:'#4bbf8d', borderDownColor:'#e27889', wickUpColor:'#4bbf8d', wickDownColor:'#e27889' });
     volumeSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'', scaleMargins:{top:0.82,bottom:0} });
     window._chart = chart; window._candleSeries = candleSeries; window._volSeries = volumeSeries;
-    window.addEventListener('resize', () => chart && chart.applyOptions({ width: container.clientWidth }));
+    window.addEventListener('resize', resizeChart);
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => {
+        if (container.clientWidth >= 90 && container.offsetParent !== null) resizeChart();
+      });
+      observer.observe(container.parentElement || container);
+    }
+    applyChartTheme();
+  }
+
+
+  // Keep the chart legible when its tab changes visibility, the sidebar
+  // opens/closes, a phone rotates or the user changes color mode.
+  function resizeChart() {
+    const host = document.getElementById('price-chart');
+    if (!chart || !host || host.clientWidth < 90 || host.offsetParent === null) return;
+    chart.applyOptions({ width: host.clientWidth, height: host.clientHeight || 320 });
+  }
+
+  function applyChartTheme() {
+    if (!chart) return;
+    const light = document.body.classList.contains('light');
+    chart.applyOptions({
+      layout: { background:{type:'solid',color:light?'#f6fafb':'#0d1823'}, textColor:light?'#526b7e':'#9eb0bd' },
+      grid: {
+        vertLines:{color:light?'rgba(56,91,110,0.08)':'rgba(111,152,168,0.10)'},
+        horzLines:{color:light?'rgba(56,91,110,0.08)':'rgba(111,152,168,0.10)'}
+      },
+      rightPriceScale:{borderColor:light?'#cedee4':'#284251'},
+      timeScale:{borderColor:light?'#cedee4':'#284251'}
+    });
+    candleSeries?.applyOptions({
+      upColor:light?'#158568':'#4bbf8d',downColor:light?'#c13d51':'#ff7784',
+      borderUpColor:light?'#158568':'#4bbf8d',borderDownColor:light?'#c13d51':'#ff7784',
+      wickUpColor:light?'#158568':'#4bbf8d',wickDownColor:light?'#c13d51':'#ff7784'
+    });
+    resizeChart();
   }
 
   // ── Load stock ────────────────────────────────────────────────────────────
@@ -117,12 +153,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Candles
     showChartLoader(true);
-    try { currentBars = await StockAPI.getCandles(symbol,'D',365); }
-    catch (e) {
-      console.warn('Chart unavailable:', e.message);
-      currentBars = [];
-    }
+    let loadedBars = [];
+    try { loadedBars = await StockAPI.getCandles(symbol,'D',365); }
+    catch (e) { console.warn('Chart unavailable:', e.message); }
+    // A slow older response must not overwrite the newer ticker selection.
     if (requestVersion !== stockRequestVersion) return;
+    currentBars = loadedBars;
     window.fullBars = currentBars;
 
     candleSeries.setData(currentBars);
@@ -337,7 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Gradient arc (full sweep)
       const grad = ctx.createLinearGradient(cx-R,0,cx+R,0);
-      grad.addColorStop(0,'#ff4466'); grad.addColorStop(0.5,'#ffd700'); grad.addColorStop(1,'#00ff88');
+      grad.addColorStop(0,'#e27889'); grad.addColorStop(0.5,'#d9b676'); grad.addColorStop(1,'#4bbf8d');
       ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,0,false);
       ctx.lineWidth=lw; ctx.strokeStyle=grad; ctx.globalAlpha=0.18; ctx.stroke();
       ctx.globalAlpha=1;
@@ -346,7 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const conf = r.confidence/100;
       const startAngle = Math.PI;
       const endAngle = Math.PI + conf * Math.PI;
-      const color = r.direction==='UP'?'#00ff88':r.direction==='DOWN'?'#ff4466':'#ffd700';
+      const color = r.direction==='UP'?'#4bbf8d':r.direction==='DOWN'?'#e27889':'#d9b676';
       ctx.beginPath(); ctx.arc(cx,cy,R,startAngle,endAngle,false);
       ctx.lineWidth=lw; ctx.strokeStyle=color;
       ctx.shadowColor=color; ctx.shadowBlur=18; ctx.stroke(); ctx.shadowBlur=0;
@@ -392,7 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Risk needle
     const riskPct = r.atrPct ? Math.min(100, parseFloat(r.atrPct) / 4 * 100) : 50;
-    const riskColor = riskPct < 35 ? '#00ff88' : riskPct < 65 ? '#ffd700' : '#ff4466';
+    const riskColor = riskPct < 35 ? '#4bbf8d' : riskPct < 65 ? '#d9b676' : '#e27889';
     const needleEl = document.getElementById('risk-needle');
     if (!needleEl) {
       const track = document.querySelector('.risk-track');
@@ -484,10 +520,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           const intensity = Math.min(1, Math.abs(chg) / 4);
           if (chg >= 0) {
             cell.style.background = `rgba(0,255,136,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#00ff88';
+            cell.style.color = '#4bbf8d';
           } else {
             cell.style.background = `rgba(255,68,102,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#ff4466';
+            cell.style.color = '#e27889';
           }
           if (chgEl) chgEl.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
         } catch (_) {}
@@ -811,7 +847,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (wrap) wrap.style.display='';
 
     const total = rows.reduce((a,r) => a + r.value, 0) || 1;
-    const colors = ['#00d4ff','#00ff88','#60a5fa','#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#a78bfa','#fb923c'];
+    const colors = ['#91a9cf','#4bbf8d','#60a5fa','#d9b676','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#a78bfa','#fb923c'];
     const colored = rows.map((r,i) => ({ ...r, color: colors[i % colors.length] }));
 
     // Draw donut using actual portfolio values (canvas is 140×140)
@@ -1140,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!totalValue) return;
 
     // Group by assetType
-    const typeMap = { stock:'#3b82f6', etf:'#06b6d4', crypto:'#f59e0b' };
+    const typeMap = { stock:'#3b82f6', etf:'#7e99c4', crypto:'#f59e0b' };
     const typeLabels = { stock:'Stocks', etf:'ETFs', crypto:'Crypto' };
     const byType = {};
     rows.forEach(r => {
@@ -1463,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // ── Price Alerts ──────────────────────────────────────────────────────────
-  PriceAlerts.requestPermission();
+  // Ask notification permission only after the user chooses to set an alert.
 
   function renderAlerts() {
     const list=PriceAlerts.get(), el=document.getElementById('alert-list'); if (!el) return;
@@ -1485,6 +1521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dir=document.getElementById('alert-dir')?.value||'above';
     if (!sym||isNaN(price)||price<=0) { showToast('Fill in symbol and target price'); return; }
     PriceAlerts.add(sym,price,dir);
+    PriceAlerts.requestPermission();
     document.getElementById('alert-sym').value=''; document.getElementById('alert-price').value='';
     renderAlerts(); showToast(`Alert set: ${sym} ${dir} $${price}`);
   };
@@ -1521,6 +1558,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const light = document.body.classList.toggle('light');
     localStorage.setItem('stockai_theme', light?'light':'dark');
     document.getElementById('theme-toggle').textContent = light?'☀️':'🌙';
+    applyChartTheme();
   };
 
   // ── Search ────────────────────────────────────────────────────────────────
@@ -1535,11 +1573,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   window.selectSearch = function(sym) {
-    searchDrop.classList.add('hidden'); clearSMAUI(); loadNews(sym); loadStock(sym);
+    const normalized = String(sym || '').toUpperCase().trim();
+    if (!/^[A-Z0-9.^:-]{1,16}$/.test(normalized)) {
+      showToast('Enter a valid market symbol');
+      return;
+    }
+    searchDrop.classList.add('hidden');
+    clearSMAUI();
+    loadStock(normalized).catch(error => showToast('Chart could not load: ' + error.message));
+    if (!document.getElementById('view-dashboard')?.classList.contains('active')) {
+      window.switchTab?.(null, 'dashboard');
+    }
   };
 
   document.addEventListener('click',e=>{ if (!searchInput.contains(e.target)&&!searchDrop.contains(e.target)) searchDrop.classList.add('hidden'); });
-  searchInput.addEventListener('keydown',e=>{ if (e.key==='Enter'){ const q=searchInput.value.toUpperCase().trim(); if(q){searchDrop.classList.add('hidden');loadStock(q);} } });
+  searchInput.addEventListener('keydown',e=>{
+    if(e.key==='Enter') { e.preventDefault(); window.selectSearch(searchInput.value); searchInput.blur(); }
+    if(e.key==='Escape') searchDrop.classList.add('hidden');
+  });
 
   // ── Watchlist add (dashboard tab) ─────────────────────────────────────────
   document.getElementById('btn-add-watch').addEventListener('click', async ()=>{
@@ -1549,9 +1600,53 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Logout / Sidebar ─────────────────────────────────────────────────────
   document.getElementById('btn-logout').addEventListener('click',()=>{ StockAPI.unsubscribeAll(); Auth.logout(); });
-  document.getElementById('sidebar-toggle').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+  function setSidebarOpen(open) {
+    const show = Boolean(open && window.innerWidth < 900);
+    sidebar.classList.toggle('open', show);
+    sidebarBackdrop?.classList.toggle('hidden', !show);
+    sidebarToggle?.setAttribute('aria-expanded', String(show));
+    sidebarToggle?.setAttribute('aria-label', show ? 'Close navigation' : 'Open navigation');
+    if (show) sidebar.querySelector('.nav-item')?.focus();
+  }
+  sidebarToggle?.addEventListener('click', () => setSidebarOpen(!sidebar.classList.contains('open')));
+  sidebarBackdrop?.addEventListener('click', () => { setSidebarOpen(false); sidebarToggle?.focus(); });
+  document.addEventListener('stockai:tab', event => {
+    if (event.detail === 'dashboard') requestAnimationFrame(resizeChart);
+    setSidebarOpen(false);
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 900) setSidebarOpen(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && sidebar.classList.contains('open')) {
+      setSidebarOpen(false);
+      sidebarToggle?.focus();
+    }
+  });
 
   // ── API Key modal ─────────────────────────────────────────────────────────
+  // Request a fresh quote without losing local saved holdings or candle cache.
+  let manualRefreshBusy = false;
+  window.refreshMarketData = async function () {
+    if (manualRefreshBusy) return;
+    manualRefreshBusy = true;
+    const button = document.getElementById('btn-refresh-market');
+    if (button) { button.disabled = true; button.textContent = '…'; }
+    try {
+      for (const key of Object.keys(StockAPI._cache)) {
+        if (key.startsWith('q_')) delete StockAPI._cache[key];
+      }
+      await Promise.allSettled([refreshQuote(), updateMarket()]);
+      showToast('Market quote refresh completed. Check data status above.');
+    } finally {
+      manualRefreshBusy = false;
+      if (button) { button.disabled = false; button.textContent = '↻'; }
+    }
+  };
+
   document.getElementById('btn-api').addEventListener('click',e=>{
     e.preventDefault(); document.getElementById('api-modal').classList.remove('hidden');
     fetch('/api/status').then(r=>r.json()).then(s=>{
@@ -1618,19 +1713,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   initChart();
   document.getElementById('loading-screen').style.display='none';
 
-  await updateMarket();
-  const _prefs = JSON.parse(localStorage.getItem('stockai_prefs') || '{}');
-  await loadStock(_prefs.defaultStock || 'AAPL');
-
-  renderPortfolio();
-  loadNews(currentSymbol);
+  // A sleeping market-data provider must not block navigation or holdings.
+  let _prefs = {};
+  try { _prefs = JSON.parse(localStorage.getItem('stockai_prefs') || '{}'); }
+  catch (_) { _prefs = {}; }
   renderAlerts();
   renderEarnings();
-
-  // New features boot
   NotifCenter.init();
-  renderTickerTape();
-  renderDailyBriefing();
+  void loadStock(_prefs.defaultStock || 'AAPL').catch(err => {
+    console.error('Initial chart failed:', err);
+    showToast('Unable to load the opening stock. Try Refresh.');
+  });
+  void updateMarket().catch(err => console.warn('Market overview failed:', err.message));
+  void renderPortfolio().catch(err => console.warn('Portfolio could not load:', err.message));
+  void renderTickerTape().catch(err => console.warn('Ticker could not load:', err.message));
+  void renderDailyBriefing().catch(err => console.warn('Market briefing could not load:', err.message));
 
   marketInterval = setInterval(updateMarket, 30000);
 
@@ -1662,6 +1759,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrap3d.style.display = 'none';
       wrap2d.style.display = '';
       btn.classList.remove('active');
+      requestAnimationFrame(resizeChart);
       if (window._3dAnimId) { cancelAnimationFrame(window._3dAnimId); window._3dAnimId = null; }
       if (window._3dRenderer) { window._3dRenderer.dispose(); window._3dRenderer = null; }
     } else {
