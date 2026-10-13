@@ -1599,9 +1599,53 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Logout / Sidebar ─────────────────────────────────────────────────────
   document.getElementById('btn-logout').addEventListener('click',()=>{ StockAPI.unsubscribeAll(); Auth.logout(); });
-  document.getElementById('sidebar-toggle').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+  function setSidebarOpen(open) {
+    const show = Boolean(open && window.innerWidth < 900);
+    sidebar.classList.toggle('open', show);
+    sidebarBackdrop?.classList.toggle('hidden', !show);
+    sidebarToggle?.setAttribute('aria-expanded', String(show));
+    sidebarToggle?.setAttribute('aria-label', show ? 'Close navigation' : 'Open navigation');
+    if (show) sidebar.querySelector('.nav-item')?.focus();
+  }
+  sidebarToggle?.addEventListener('click', () => setSidebarOpen(!sidebar.classList.contains('open')));
+  sidebarBackdrop?.addEventListener('click', () => { setSidebarOpen(false); sidebarToggle?.focus(); });
+  document.addEventListener('stockai:tab', event => {
+    if (event.detail === 'dashboard') requestAnimationFrame(resizeChart);
+    setSidebarOpen(false);
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 900) setSidebarOpen(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && sidebar.classList.contains('open')) {
+      setSidebarOpen(false);
+      sidebarToggle?.focus();
+    }
+  });
 
   // ── API Key modal ─────────────────────────────────────────────────────────
+  // Request a fresh quote without losing local saved holdings or candle cache.
+  let manualRefreshBusy = false;
+  window.refreshMarketData = async function () {
+    if (manualRefreshBusy) return;
+    manualRefreshBusy = true;
+    const button = document.getElementById('btn-refresh-market');
+    if (button) { button.disabled = true; button.textContent = '…'; }
+    try {
+      for (const key of Object.keys(StockAPI._cache)) {
+        if (key.startsWith('q_')) delete StockAPI._cache[key];
+      }
+      await Promise.allSettled([refreshQuote(), updateMarket()]);
+      showToast('Market quote refresh completed. Check data status above.');
+    } finally {
+      manualRefreshBusy = false;
+      if (button) { button.disabled = false; button.textContent = '↻'; }
+    }
+  };
+
   document.getElementById('btn-api').addEventListener('click',e=>{
     e.preventDefault(); document.getElementById('api-modal').classList.remove('hidden');
     fetch('/api/status').then(r=>r.json()).then(s=>{
@@ -1668,19 +1712,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   initChart();
   document.getElementById('loading-screen').style.display='none';
 
-  await updateMarket();
-  const _prefs = JSON.parse(localStorage.getItem('stockai_prefs') || '{}');
-  await loadStock(_prefs.defaultStock || 'AAPL');
-
-  renderPortfolio();
-  loadNews(currentSymbol);
+  // A sleeping market-data provider must not block navigation or holdings.
+  let _prefs = {};
+  try { _prefs = JSON.parse(localStorage.getItem('stockai_prefs') || '{}'); }
+  catch (_) { _prefs = {}; }
   renderAlerts();
   renderEarnings();
-
-  // New features boot
   NotifCenter.init();
-  renderTickerTape();
-  renderDailyBriefing();
+  void loadStock(_prefs.defaultStock || 'AAPL').catch(err => {
+    console.error('Initial chart failed:', err);
+    showToast('Unable to load the opening stock. Try Refresh.');
+  });
+  void updateMarket().catch(err => console.warn('Market overview failed:', err.message));
+  void renderPortfolio().catch(err => console.warn('Portfolio could not load:', err.message));
+  void renderTickerTape().catch(err => console.warn('Ticker could not load:', err.message));
+  void renderDailyBriefing().catch(err => console.warn('Market briefing could not load:', err.message));
 
   marketInterval = setInterval(updateMarket, 30000);
 
