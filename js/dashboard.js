@@ -79,7 +79,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     candleSeries = chart.addCandlestickSeries({ upColor:'#00ff88', downColor:'#ff4466', borderUpColor:'#00ff88', borderDownColor:'#ff4466', wickUpColor:'#00ff88', wickDownColor:'#ff4466' });
     volumeSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'', scaleMargins:{top:0.82,bottom:0} });
     window._chart = chart; window._candleSeries = candleSeries; window._volSeries = volumeSeries;
-    window.addEventListener('resize', () => chart && chart.applyOptions({ width: container.clientWidth }));
+    window.addEventListener('resize', resizeChart);
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => {
+        if (container.clientWidth >= 90 && container.offsetParent !== null) resizeChart();
+      });
+      observer.observe(container.parentElement || container);
+    }
+    applyChartTheme();
+  }
+
+
+  // Keep the chart legible when its tab changes visibility, the sidebar
+  // opens/closes, a phone rotates or the user changes color mode.
+  function resizeChart() {
+    const host = document.getElementById('price-chart');
+    if (!chart || !host || host.clientWidth < 90 || host.offsetParent === null) return;
+    chart.applyOptions({ width: host.clientWidth, height: host.clientHeight || 320 });
+  }
+
+  function applyChartTheme() {
+    if (!chart) return;
+    const light = document.body.classList.contains('light');
+    chart.applyOptions({
+      layout: { background:{type:'solid',color:light?'#f6fafb':'#0d1823'}, textColor:light?'#526b7e':'#9eb0bd' },
+      grid: {
+        vertLines:{color:light?'rgba(56,91,110,0.08)':'rgba(111,152,168,0.10)'},
+        horzLines:{color:light?'rgba(56,91,110,0.08)':'rgba(111,152,168,0.10)'}
+      },
+      rightPriceScale:{borderColor:light?'#cedee4':'#284251'},
+      timeScale:{borderColor:light?'#cedee4':'#284251'}
+    });
+    candleSeries?.applyOptions({
+      upColor:light?'#158568':'#37c7ac',downColor:light?'#c13d51':'#ff7784',
+      borderUpColor:light?'#158568':'#37c7ac',borderDownColor:light?'#c13d51':'#ff7784',
+      wickUpColor:light?'#158568':'#37c7ac',wickDownColor:light?'#c13d51':'#ff7784'
+    });
+    resizeChart();
   }
 
   // ── Load stock ────────────────────────────────────────────────────────────
@@ -1521,6 +1557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const light = document.body.classList.toggle('light');
     localStorage.setItem('stockai_theme', light?'light':'dark');
     document.getElementById('theme-toggle').textContent = light?'☀️':'🌙';
+    applyChartTheme();
   };
 
   // ── Search ────────────────────────────────────────────────────────────────
@@ -1535,11 +1572,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   window.selectSearch = function(sym) {
-    searchDrop.classList.add('hidden'); clearSMAUI(); loadNews(sym); loadStock(sym);
+    const normalized = String(sym || '').toUpperCase().trim();
+    if (!/^[A-Z0-9.^:-]{1,16}$/.test(normalized)) {
+      showToast('Enter a valid market symbol');
+      return;
+    }
+    searchDrop.classList.add('hidden');
+    clearSMAUI();
+    loadStock(normalized).catch(error => showToast('Chart could not load: ' + error.message));
+    if (!document.getElementById('view-dashboard')?.classList.contains('active')) {
+      window.switchTab?.(null, 'dashboard');
+    }
   };
 
   document.addEventListener('click',e=>{ if (!searchInput.contains(e.target)&&!searchDrop.contains(e.target)) searchDrop.classList.add('hidden'); });
-  searchInput.addEventListener('keydown',e=>{ if (e.key==='Enter'){ const q=searchInput.value.toUpperCase().trim(); if(q){searchDrop.classList.add('hidden');loadStock(q);} } });
+  searchInput.addEventListener('keydown',e=>{
+    if(e.key==='Enter') { e.preventDefault(); window.selectSearch(searchInput.value); searchInput.blur(); }
+    if(e.key==='Escape') searchDrop.classList.add('hidden');
+  });
 
   // ── Watchlist add (dashboard tab) ─────────────────────────────────────────
   document.getElementById('btn-add-watch').addEventListener('click', async ()=>{
@@ -1662,6 +1712,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrap3d.style.display = 'none';
       wrap2d.style.display = '';
       btn.classList.remove('active');
+      requestAnimationFrame(resizeChart);
       if (window._3dAnimId) { cancelAnimationFrame(window._3dAnimId); window._3dAnimId = null; }
       if (window._3dRenderer) { window._3dRenderer.dispose(); window._3dRenderer = null; }
     } else {
