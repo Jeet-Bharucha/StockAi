@@ -1,0 +1,310 @@
+/* StockAI Pro · restrained institutional trading-terminal presentation.
+   Loaded AFTER legacy inline styles; no JS or account state changes. */
+body.stockai-pro {
+  --bg:#0b121b; --sidebar:#0c141e; --text:#e8f0f6; --muted:#95a9bc;
+  --cyan:#37c7ac; --cyan2:#1a9d9b; --green:#3ddb9f; --red:#ff7784;
+  --gold:#e9bc6b; --purple:#7ab8e9;
+  --card:#111c28; --card2:#162434;
+  --border:rgba(132,164,186,.20); --border2:rgba(132,164,186,.13);
+  color:var(--text);
+  background:var(--bg);
+  font-synthesis:none;
+}
+.stockai-pro * { scrollbar-color:#334a58 transparent; }
+.stockai-pro :focus-visible { outline:2px solid #58dfbf;outline-offset:3px; }
+.stockai-pro .bg-orb,.stockai-pro .shape-3d-wrap,.stockai-pro .hero-3d-shape { opacity:.22; }
+.stockai-pro .bg-grid { opacity:.26; }
+.stockai-pro .logo-icon,.stockai-pro .stock-badge,.stockai-pro .user-avatar {
+  background:linear-gradient(145deg,#1f897e,#18516b);
+  box-shadow:none;
+  border:1px solid rgba(76,224,181,.25);
+  color:#f2fffa;
+}
+.stockai-pro .logo-text,.stockai-pro .loader-logo {
+  background:none;
+  -webkit-text-fill-color:initial;
+  color:#e8faf6;
+  letter-spacing:-.035em;
+}
+.stockai-pro .sidebar {
+  background:#0d1620;
+  border-color:#21313f;
+  box-shadow:3px 0 26px rgba(0,0,0,.08);
+}
+.stockai-pro .sidebar-header { padding:1.3rem 1.15rem; }
+.stockai-pro .nav-section { color:#7f96a8;letter-spacing:.12em;font-size:.66rem; }
+.stockai-pro .nav-item { border-radius:8px;font-size:.84rem;color:#a0b3c2; }
+.stockai-pro .nav-item:hover { background:rgba(96,155,158,.11);color:#f0f7ff; }
+.stockai-pro .nav-item.active {
+  background:rgba(41,181,155,.12);
+  color:#69e8c5;
+  border-color:rgba(76,224,181,.19);
+  box-shadow:inset 2px 0 0 #41d7b4;
+}
+.stockai-pro .sidebar-footer { border-color:#233644; }
+.stockai-pro .user-card { background:#14232f;border:1px solid #2a3c4a; }
+.stockai-pro .topbar {
+  background:rgba(13,22,32,.97);
+  border-color:#223341;
+  padding:.85rem 1.45rem;
+  box-shadow:0 5px 18px rgba(0,0,0,.08);
+}
+.stockai-pro .topbar-right { gap:.7rem; }
+.stockai-pro .search-wrap input,
+.stockai-pro input:not([type=checkbox]):not([type=radio]),
+.stockai-pro select {
+  background:#162430;
+  border-color:#2a4050;
+  color:#eaf5fb;
+  box-shadow:none;
+}
+.stockai-pro input::placeholder { color:#8198a9; }
+.stockai-pro .tab-view { gap:1.05rem;padding:1.3rem 1.55rem 2.3rem; }
+.stockai-pro .tab-view.active { animation:proTabIn .18s ease-out both; }
+@keyframes proTabIn { from { opacity:.84; } to { opacity:1; } }
+.stockai-pro .view-title { font-size:1.35rem;letter-spacing:-.04em;font-weight:800; }
+.stockai-pro .view-subtitle { color:#93a7b9; }
+.stockai-pro .card,
+.stockai-pro .stock-header,
+.stockai-pro .market-card,
+.stockai-pro .mkt-card,
+.stockai-pro .briefing-card,
+.stockai-pro .trend-card,
+.stockai-pro .port-stat-card,
+.stockai-pro .alloc-sidebar,
+.stockai-pro .quick-stats-panel,
+.stockai-pro .port-analytics,
+.stockai-pro .port-chart-wrap,
+.stockai-pro .screener-filters,
+.stockai-pro .wl-full-item {
+  background:linear-gradient(160deg,rgba(22,35,47,.99),rgba(14,25,36,.99));
+  border:1px solid #273b49;
+  border-radius:12px;
+  box-shadow:0 8px 25px rgba(0,0,0,.09);
+}
+.stockai-pro .card:hover,.stockai-pro .market-card:hover,.stockai-pro .trend-card:hover {
+  border-color:#3b6472;
+}
+.stockai-pro .market-card:hover,.stockai-pro .trend-card:hover { transform:translateY(-1px); }
+.stockai-pro .card-title { color:#a5bacc;font-size:.72rem;letter-spacing:.09em; }
+.stockai-pro .market-name,.stockai-pro .market-price { letter-spacing:-.01em; }
+.stockai-pro .market-price { font-size:1.1rem;font-variant-numeric:tabular-nums; }
+.stockai-pro .market-change { font-variant-numeric:tabular-nums; }
+.stockai-pro #stock-price {
+  color:#f5f9ff;
+  font-weight:800;
+  font-size:2.15rem;
+  letter-spacing:-.045em;
+  font-variant-numeric:tabular-nums;
+}
+.stockai-pro #current-symbol { color:#e9f7fb; }
+.stockai-pro #company-sector { border-color:#286354; }
+.stockai-pro #data-source { color:#96afbb;font-weight:650; }
+.stockai-pro #price-chart {
+  background:#0d1823;
+  border:1px solid rgba(113,142,160,.14);
+  border-radius:8px;
+}
+.stockai-pro .chart-btn,.stockai-pro .ind-btn,
+.stockai-pro .schip,.stockai-pro .news-tab {
+  border-radius:7px;
+  background:#192838;
+  border-color:#304453;
+  color:#afc2d2;
+}
+.stockai-pro .chart-btn.active,.stockai-pro .chart-btn:hover,
+.stockai-pro .ind-btn:hover,.stockai-pro .schip.active {
+  border-color:#438878;
+  color:#9df5d8;
+  background:#183b3a;
+}
+.stockai-pro .ai-dir-badge,
+.stockai-pro .ai-direction {
+  border-radius:8px;
+  letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;
+}
+.stockai-pro .quick-conf,.stockai-pro .qc-box,.stockai-pro .sr-item {
+  background:#152535;border-radius:8px;
+}
+.stockai-pro #ws-badge,
+.stockai-pro #market-data-status {
+  display:inline-flex;align-items:center;min-height:29px;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+  letter-spacing:.02em;padding:.35rem .65rem;
+  border-radius:7px;font-size:.7rem;
+}
+.stockai-pro #market-data-status { color:#f0c989;border:1px solid #71552d;background:#30261b; }
+.stockai-pro #market-data-status.ready { color:#7be8c4;border-color:#296454;background:#17372d; }
+.stockai-pro #market-data-status.offline { color:#f0b4af;border-color:#70434c;background:#39222a; }
+.stockai-pro .ticker-inner { font-variant-numeric:tabular-nums; }
+.stockai-pro .port-table-row,.stockai-pro .port-table-head { font-variant-numeric:tabular-nums; }
+.stockai-pro .port-table-row { transition:background .15s; }
+.stockai-pro .port-table-row:hover { background:rgba(77,153,153,.08); }
+.stockai-pro .btn-scr-run,.stockai-pro .btn-submit,.stockai-pro .btn-primary {
+  background:linear-gradient(100deg,#167c89,#10a68d);
+  box-shadow:none;
+  color:#f2fffd;
+}
+.stockai-pro .btn-scr-run:hover,.stockai-pro .btn-submit:hover,.stockai-pro .btn-primary:hover { box-shadow:0 8px 18px rgba(7,116,99,.2); }
+.stockai-pro .hero-stats,.stockai-pro .ai-mockup,.stockai-pro .feat-card,
+.stockai-pro .how-step,.stockai-pro .cta-card,.stockai-pro .auth-card {
+  box-shadow:0 18px 60px rgba(0,0,0,.16);
+  border-color:#2b414c;
+  backdrop-filter:none;
+}
+.stockai-pro .feat-card:hover { transform:translateY(-2px);box-shadow:0 18px 50px rgba(0,0,0,.24); }
+.stockai-pro .server-status { border-radius:8px; }
+.stockai-pro .auth-card { background:#111f2c; }
+.stockai-pro .stock-header,
+.stockai-pro .card,.stockai-pro .market-card { overflow-wrap:anywhere; }
+@media(max-width:1000px) {
+  .stockai-pro .topbar { gap:.55rem;padding:.75rem 1rem; }
+  .stockai-pro .tab-view { padding:1.05rem 1rem 2rem; }
+}
+@media(max-width:690px) {
+  .stockai-pro .tab-view { padding:1rem .75rem 1.5rem; }
+  .stockai-pro .topbar { flex-wrap:wrap;gap:.65rem; }
+  .stockai-pro .search-wrap { max-width:none;flex:1 1 100%;order:2; }
+  .stockai-pro .topbar-right { margin-left:auto;order:1; }
+  .stockai-pro #sidebar-toggle { order:0; }
+  .stockai-pro #market-data-status { display:none; }
+  .stockai-pro .market-strip { grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem; }
+  .stockai-pro .market-card { padding:.75rem;min-width:0; }
+  .stockai-pro .stock-header { padding:.95rem; }
+  .stockai-pro .stock-price-wrap { text-align:left;width:100%; }
+  .stockai-pro #stock-price { font-size:1.85rem; }
+  .stockai-pro .stock-meta { gap:.55rem 1rem; }
+  .stockai-pro .dash-grid { grid-template-columns:minmax(0,1fr); }
+  .stockai-pro .card { padding:.95rem; }
+  .stockai-pro .card-title { flex-wrap:wrap;gap:.55rem; }
+  .stockai-pro #price-chart { min-height:270px;height:270px!important; }
+  .stockai-pro #ticker-tape-wrap { overflow:hidden; }
+  .stockai-pro .port-table-wrap { overflow-x:auto;-webkit-overflow-scrolling:touch; }
+  .stockai-pro .port-table-row.new-cols,.stockai-pro .port-table-head.new-cols { min-width:760px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .stockai-pro *, .stockai-pro *::before,.stockai-pro *::after {
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+    scroll-behavior:auto!important;
+  }
+  .stockai-pro .bg-orb { display:none; }
+}
+
+/* Unavailable data and research-grade screener */
+.stockai-pro .data-warning {
+  margin:0 0 .85rem;
+  padding:.85rem 1rem;
+  color:#f6c88f;
+  border:1px solid rgba(208,156,90,.34);
+  background:#2b271f;
+  border-radius:8px;
+  font-size:.78rem;
+  line-height:1.55;
+}
+.stockai-pro .pro-screener-result {
+  display:grid;
+  width:100%;
+  grid-template-columns:minmax(105px,1.4fr) minmax(90px,1fr) minmax(85px,1fr) minmax(100px,1fr);
+  align-items:center;
+  gap:.8rem;
+  cursor:pointer;
+  text-align:left;
+  padding:1rem;
+  border:1px solid #293b47;
+  border-radius:11px;
+  color:var(--text);
+  background:linear-gradient(145deg,#152434,#10202d);
+  transition:background .15s,border-color .15s;
+  font:inherit;
+}
+.stockai-pro .pro-screener-result:hover,
+.stockai-pro .pro-screener-result:focus-visible {
+  background:#1a3040;
+  border-color:#45a090;
+}
+.stockai-pro .pro-screener-result > span { display:block;min-width:0;font-size:.83rem;font-variant-numeric:tabular-nums;font-weight:700; }
+.stockai-pro .pro-screener-result small { display:block;color:var(--muted);font-size:.7rem;font-weight:500;margin-top:.28rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.stockai-pro .pro-scr-symbol { color:#9bf4d9; }
+.stockai-pro .pro-scr-price { color:#e7f3fb; }
+.stockai-pro .pro-scr-change.up { color:var(--green); }
+.stockai-pro .pro-scr-change.down { color:var(--red); }
+.stockai-pro .pro-scr-metrics { color:#bed0de; }
+.stockai-pro #scr-results { display:flex;flex-direction:column;gap:.55rem; }
+.stockai-pro .chart-unavailable {
+  position:absolute;inset:0;z-index:4;
+  display:flex;align-items:center;justify-content:center;
+  padding:1.5rem;background:rgba(13,24,35,.94);
+  color:#b7cad7;text-align:center;font-size:.83rem;line-height:1.6;
+  pointer-events:none;
+}
+.stockai-pro .stock-meta { font-variant-numeric:tabular-nums; }
+.stockai-pro #port-pricing-notice { position:relative;z-index:1; }
+.stockai-pro .wl-remove { opacity:.9; }
+.stockai-pro .ws-live { color:#87e9be;background:#1a3d33;border-color:#306657; }
+.stockai-pro .ws-sim { color:#c0b1a0;background:#2a2930;border-color:#504c58; }
+@media(max-width:680px) {
+  .stockai-pro .pro-screener-result { grid-template-columns:1fr 1fr;gap:.55rem; }
+  .stockai-pro .pro-screener-result > span { font-size:.78rem; }
+  .stockai-pro .pro-scr-price,.stockai-pro .pro-scr-change { text-align:right; }
+  .stockai-pro .pro-scr-metrics { grid-column:span 2; }
+  .stockai-pro .pro-scr-metrics small { display:inline;margin-left:.5rem; }
+}
+
+/* Complete light mode: retain the user's existing theme toggle. */
+body.stockai-pro.light {
+  --bg:#f2f6f9; --sidebar:#fff; --text:#162737; --muted:#587080;
+  --cyan:#0d8d7a; --cyan2:#117b92; --green:#087b57; --red:#c13d51;
+  --gold:#9a650a; --purple:#277fae;
+  --card:#fff; --card2:#eff5f8;
+  --border:rgba(53,82,101,.18); --border2:rgba(53,82,101,.11);
+  background:#f2f6f9;color:#162737;
+}
+body.stockai-pro.light .sidebar,body.stockai-pro.light .topbar {
+  background:#fff; border-color:#d8e4ea; box-shadow:none;
+}
+body.stockai-pro.light .logo-text { color:#10382f; }
+body.stockai-pro.light .nav-item { color:#435d6d; }
+body.stockai-pro.light .nav-item:hover { background:#e9f4f2;color:#0b5c57; }
+body.stockai-pro.light .nav-item.active { background:#dff2ed;color:#087c68;border-color:#b4dacc; }
+body.stockai-pro.light .user-card { background:#f1f7f9;border-color:#d6e4e9; }
+body.stockai-pro.light .card,
+body.stockai-pro.light .stock-header,
+body.stockai-pro.light .market-card,
+body.stockai-pro.light .mkt-card,
+body.stockai-pro.light .briefing-card,
+body.stockai-pro.light .trend-card,
+body.stockai-pro.light .port-stat-card,
+body.stockai-pro.light .alloc-sidebar,
+body.stockai-pro.light .quick-stats-panel,
+body.stockai-pro.light .port-analytics,
+body.stockai-pro.light .port-chart-wrap,
+body.stockai-pro.light .screener-filters,
+body.stockai-pro.light .wl-full-item {
+  background:#fff;border-color:#d7e3ea;box-shadow:0 5px 20px rgba(33,69,83,.05);
+}
+body.stockai-pro.light .view-title,
+body.stockai-pro.light #current-symbol,
+body.stockai-pro.light #stock-price { color:#162b3b; }
+body.stockai-pro.light .view-subtitle,
+body.stockai-pro.light .card-title { color:#526b7e; }
+body.stockai-pro.light input:not([type=checkbox]):not([type=radio]),
+body.stockai-pro.light select,
+body.stockai-pro.light .chart-btn,
+body.stockai-pro.light .ind-btn,
+body.stockai-pro.light .schip,
+body.stockai-pro.light .news-tab {
+  background:#f0f6f8;color:#193547;border-color:#cfdee4;
+}
+body.stockai-pro.light .chart-btn.active,
+body.stockai-pro.light .schip.active { color:#0a795f;background:#dff4e9;border-color:#9dcbbb; }
+body.stockai-pro.light #price-chart { background:#f6fafb;border-color:#d9e4ec; }
+body.stockai-pro.light .pro-screener-result { background:#fff;border-color:#d6e4eb;color:#1a3041; }
+body.stockai-pro.light .pro-screener-result:hover { background:#f0f9f7;border-color:#8abdb1; }
+body.stockai-pro.light .pro-scr-symbol { color:#037d69; }
+body.stockai-pro.light .pro-scr-price { color:#193547; }
+body.stockai-pro.light .pro-scr-metrics { color:#506777; }
+body.stockai-pro.light .data-warning { background:#fff5df;color:#885c18;border-color:#e6c387; }
+body.stockai-pro.light .chart-unavailable { background:rgba(249,252,253,.96);color:#4f6879; }

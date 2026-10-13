@@ -262,14 +262,23 @@ app.get('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
 app.post('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
   try {
     const { symbol, shares, buyPrice, assetType = 'stock', accountType = 'taxable', name = '' } = req.body;
-    if (!symbol || shares == null || buyPrice == null)
-      return res.status(400).json({ error: 'symbol, shares, and buyPrice are required' });
+    const ticker = typeof symbol === 'string' ? symbol.trim().toUpperCase() : '';
+    const qty = Number(shares), cost = Number(buyPrice);
+    if (!/^[A-Z0-9.\\^:-]{1,24}$/.test(ticker) ||
+        shares == null || buyPrice == null ||
+        !Number.isFinite(qty) || qty <= 0 || qty > 1e12 ||
+        !Number.isFinite(cost) || cost <= 0 || cost > 1e12 ||
+        !['stock','etf','crypto'].includes(assetType) ||
+        !['taxable','roth_ira','k401','crypto_wallet','other'].includes(accountType) ||
+        typeof name !== 'string' || name.length > 120) {
+      return res.status(400).json({ error: 'Valid ticker, positive shares and price, and supported asset/account types are required.' });
+    }
     const h = await Holding.create({
       userId: req.user.id,
-      symbol: symbol.toUpperCase(),
-      shares: +shares, buyPrice: +buyPrice,
+      symbol: ticker,
+      shares: qty, buyPrice: cost,
       assetType, accountType,
-      name: name || symbol.toUpperCase()
+      name: name.trim() || ticker
     });
     res.json({ id: h._id, symbol: h.symbol, name: h.name, shares: h.shares, buyPrice: h.buyPrice, assetType: h.assetType, accountType: h.accountType });
   } catch(e) { res.status(500).json({ error: 'Server error' }); }
@@ -278,8 +287,29 @@ app.post('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
 app.put('/api/user/portfolio/:id', authMW, dbRequired, async (req, res) => {
   try {
     const allowed = ['shares','buyPrice','assetType','accountType','name'];
-    const update  = {};
-    allowed.forEach(k => { if (req.body[k] != null) update[k] = req.body[k]; });
+    const update = {};
+    for (const k of allowed) {
+      if (req.body?.[k] == null) continue;
+      const value=req.body[k];
+      if (k==='shares' || k==='buyPrice') {
+        const num=Number(value);
+        if (!Number.isFinite(num) || num<=0 || num>1e12)
+          return res.status(400).json({ error: 'Shares and buy price must be positive finite numbers.' });
+        update[k]=num;
+      } else if (k==='assetType') {
+        if (!['stock','etf','crypto'].includes(value))
+          return res.status(400).json({error:'Invalid asset type'});
+        update[k]=value;
+      } else if (k==='accountType') {
+        if (!['taxable','roth_ira','k401','crypto_wallet','other'].includes(value))
+          return res.status(400).json({error:'Invalid account type'});
+        update[k]=value;
+      } else if (k==='name') {
+        if (typeof value !== 'string' || value.length>120)
+          return res.status(400).json({error:'Name must be 120 characters or fewer'});
+        update[k]=value.trim();
+      }
+    }
     const h = await Holding.findOneAndUpdate(
       { _id: req.params.id, userId: req.user.id },
       { $set: update }, { new: true }
@@ -307,8 +337,11 @@ app.get('/api/user/watchlist', authMW, dbRequired, async (req, res) => {
 app.put('/api/user/watchlist', authMW, dbRequired, async (req, res) => {
   try {
     const { watchlist } = req.body;
-    if (!Array.isArray(watchlist)) return res.status(400).json({ error: 'watchlist must be an array' });
-    await User.findByIdAndUpdate(req.user.id, { watchlist });
+    if (!Array.isArray(watchlist) || watchlist.length > 100 ||
+        watchlist.some(v=>typeof v!=='string' || !/^[A-Z0-9.\\^:-]{1,24}$/.test(v.trim().toUpperCase())))
+      return res.status(400).json({ error: 'Watchlist must contain up to 100 valid ticker symbols.' });
+    const clean = [...new Set(watchlist.map(v=>v.trim().toUpperCase()))];
+    await User.findByIdAndUpdate(req.user.id, { watchlist: clean });
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: 'Server error' }); }
 });

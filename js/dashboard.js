@@ -1,4 +1,4 @@
-// Dashboard — Finnhub-powered with simulation fallback
+// Dashboard — verified prices; no fabricated chart or ticker values
 document.addEventListener('DOMContentLoaded', async () => {
   if (!Auth.requireAuth()) return;
 
@@ -15,7 +15,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const avatarEl = document.querySelector('.user-avatar');
   if (avatarEl) avatarEl.textContent = session.name[0].toUpperCase();
 
+  const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+  const safeExternalLink = value => {
+    try {
+      const url = new URL(value, location.origin);
+      return ['https:','http:'].includes(url.protocol) ? escapeHTML(url.href) : '#';
+    } catch (_) { return '#'; }
+  };
+
   let currentSymbol = 'AAPL';
+  let stockRequestVersion = 0;
+  let verifiedPrevClose = null;
   let chart = null;
   let candleSeries = null;
   let volumeSeries = null;
@@ -35,33 +47,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     commodities:[{ sym:'GLD',name:'Gold ETF'},{ sym:'USO',name:'Oil ETF'},{ sym:'SLV',name:'Silver ETF'},{ sym:'UNG',name:'Natural Gas'},{ sym:'PDBC',name:'Commodities'}],
   };
 
-  // Simulated earnings calendar (relative to today)
-  function getEarningsCalendar() {
-    const d = offset => {
-      const dt = new Date(); dt.setDate(dt.getDate() + offset);
-      return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    };
-    return [
-      { sym:'JPM',  name:'JPMorgan Chase',  date:d(-45), time:'Before Open', est:4.35, act:4.44, beat:true  },
-      { sym:'TSLA', name:'Tesla Inc.',       date:d(-32), time:'After Close', est:0.47, act:0.41, beat:false },
-      { sym:'META', name:'Meta Platforms',   date:d(-28), time:'After Close', est:5.28, act:5.38, beat:true  },
-      { sym:'MSFT', name:'Microsoft',        date:d(-28), time:'After Close', est:3.22, act:3.46, beat:true  },
-      { sym:'GOOGL',name:'Alphabet',         date:d(-27), time:'After Close', est:2.01, act:2.12, beat:true  },
-      { sym:'AMZN', name:'Amazon',           date:d(-21), time:'After Close', est:1.36, act:1.59, beat:true  },
-      { sym:'AAPL', name:'Apple Inc.',       date:d(-14), time:'After Close', est:1.62, act:1.65, beat:true  },
-      { sym:'NVDA', name:'NVIDIA Corp',      date:d(9),   time:'After Close', est:5.89, act:null,  beat:null  },
-      { sym:'COIN', name:'Coinbase',         date:d(14),  time:'After Close', est:1.85, act:null,  beat:null  },
-      { sym:'AMD',  name:'Adv. Micro Dev.',  date:d(20),  time:'After Close', est:0.97, act:null,  beat:null  },
-      { sym:'NFLX', name:'Netflix',          date:d(27),  time:'After Close', est:4.22, act:null,  beat:null  },
-      { sym:'V',    name:'Visa Inc.',        date:d(33),  time:'Before Open', est:2.68, act:null,  beat:null  },
-    ];
-  }
-
   // ── WebSocket status ──────────────────────────────────────────────────────
   const wsBadge = document.getElementById('ws-badge');
   function setWsStatus(state) {
     if (!wsBadge) return;
-    const map = { connected:{text:'⚡ LIVE',cls:'ws-live'}, disconnected:{text:'○ Simulated',cls:'ws-sim'}, error:{text:'⚠ WS Error',cls:'ws-error'}, connecting:{text:'… Connecting',cls:'ws-conn'} };
+    const map = { connected:{text:'● STREAM LIVE',cls:'ws-live'}, disconnected:{text:'○ STREAM OFFLINE',cls:'ws-sim'}, error:{text:'⚠ STREAM ERROR',cls:'ws-error'}, connecting:{text:'… CONNECTING',cls:'ws-conn'} };
     const cfg = map[state] || map.disconnected;
     wsBadge.textContent = cfg.text; wsBadge.className = `ws-badge ${cfg.cls}`;
   }
@@ -98,6 +88,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    const requestVersion = ++stockRequestVersion;
+    verifiedPrevClose = null;
 
     // Update UI chrome
     document.getElementById('current-symbol').textContent = symbol;
@@ -111,6 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Company profile
     const info = await StockAPI.getCompanyProfile(symbol);
+    if (requestVersion !== stockRequestVersion) return;
     document.getElementById('company-name').textContent   = info.name;
     document.getElementById('company-sector').textContent = info.sector;
 
@@ -125,29 +118,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Candles
     showChartLoader(true);
     try { currentBars = await StockAPI.getCandles(symbol,'D',365); }
-    catch (_) { currentBars = StockAPI._simCandles(symbol,365); }
+    catch (e) {
+      console.warn('Chart unavailable:', e.message);
+      currentBars = [];
+    }
+    if (requestVersion !== stockRequestVersion) return;
     window.fullBars = currentBars;
 
-    if (currentBars.length) {
-      candleSeries.setData(currentBars);
-      volumeSeries.setData(volData(currentBars));
-      chart.timeScale().fitContent();
-    }
+    candleSeries.setData(currentBars);
+    volumeSeries.setData(currentBars.length ? volData(currentBars) : []);
+    if (currentBars.length) chart.timeScale().fitContent();
     showChartLoader(false);
+    showChartUnavailable(!currentBars.length);
     if (typeof StockChat !== 'undefined') StockChat.setContext(symbol, currentBars);
 
     // Clear any active compare so the second line doesn't linger
     if (compareSeries) clearCompare();
 
     await refreshQuote();
+    if (requestVersion !== stockRequestVersion) return;
     if (currentBars.length >= 50) runAI();
+    else {
+      const q=document.getElementById('quick-direction');
+      if(q){q.textContent='○ NO SIGNAL DATA';q.className='ai-dir-badge neutral';}
+      const c=document.getElementById('quick-conf-text');
+      if(c)c.textContent='Indicator score: —';
+      ['q-buy','q-sell','q-neutral'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+    }
     updateWatchlistUI();
     if (newsMode === 'stock') loadNews(symbol);
 
     if (location.host && StockAPI._wsStatus === 'connected') {
       StockAPI.subscribeSymbol(symbol, onWSTrade);
     } else {
-      simInterval = setInterval(onSimTick, 2000);
+      // Streaming unavailable: keep the last verified quote, never simulate trades.
+      simInterval = null;
     }
   }
 
@@ -155,10 +160,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Real-time handlers ────────────────────────────────────────────────────
   function onWSTrade({ price, volume, time }) {
+    if (!Number.isFinite(price) || price <= 0) return;
     const nowSec = Math.floor((time||Date.now())/1000);
     const close  = +price.toFixed(4);
     const dayBucket = Math.floor(nowSec/86400)*86400;
     const last = currentBars[currentBars.length-1];
+    if (last && dayBucket < last.time) return;
     let newBar;
     if (last && last.time===dayBucket) {
       newBar = {...last, high:Math.max(last.high,close), low:Math.min(last.low,close), close, volume:(last.volume||0)+(volume||0)};
@@ -174,36 +181,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkAlertsForPrice(currentSymbol, close);
   }
 
-  function onSimTick() {
-    const price = StockAPI._simTick(currentSymbol);
-    const nowSec = Math.floor(Date.now()/1000);
-    const last = currentBars[currentBars.length-1];
-    const newBar = { time:nowSec, open:last?last.close:+price.toFixed(2), high:Math.max(last?last.close:price,price), low:Math.min(last?last.close:price,price), close:+price.toFixed(2), volume:StockAPI._seeds[currentSymbol]?.volume||1e6 };
-    currentBars.push(newBar); currentBars = currentBars.slice(-600); window.fullBars = currentBars;
-    candleSeries.update(newBar);
-    volumeSeries.update({time:nowSec, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'});
-    updatePriceDisplay(price, last?last.close:price);
-    checkAlertsForPrice(currentSymbol, +price.toFixed(2));
-  }
-
-  function updatePriceDisplay(price, prevPrice) {
-    const change = price - prevPrice, changePct = prevPrice?(change/prevPrice)*100:0, up = change>=0;
-    document.getElementById('stock-price').textContent = `$${price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-    const chgEl = document.getElementById('stock-change');
-    chgEl.textContent = `${up?'+':''}${change.toFixed(2)} (${up?'+':''}${changePct.toFixed(2)}%)`;
-    chgEl.className = `stock-change ${up?'up':'down'}`;
+  function updatePriceDisplay(price) {
+    if(!Number.isFinite(price)||price<=0)return;
+    document.getElementById('stock-price').textContent='$'+price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const el=document.getElementById('stock-change');
+    if(!Number.isFinite(verifiedPrevClose)||verifiedPrevClose<=0){
+      el.textContent='Previous close unavailable';
+      return;
+    }
+    const change=price-verifiedPrevClose,percent=(change/verifiedPrevClose)*100;
+    const up=change>=0;
+    el.textContent=(up?'+':'')+change.toFixed(2)+' ('+(up?'+':'')+percent.toFixed(2)+'%)';
+    el.className='stock-change '+(up?'up':'down');
   }
 
   async function refreshQuote() {
-    const q = await StockAPI.getQuote(currentSymbol); const up = q.changePct>=0;
-    document.getElementById('stock-price').textContent = `$${q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-    const chgEl = document.getElementById('stock-change');
-    chgEl.textContent = `${up?'+':''}${q.change} (${up?'+':''}${q.changePct}%)`; chgEl.className = `stock-change ${up?'up':'down'}`;
-    document.getElementById('stat-high').textContent   = `$${q.high}`;
-    document.getElementById('stat-low').textContent    = `$${q.low}`;
-    document.getElementById('stat-open').textContent   = `$${q.open}`;
-    document.getElementById('stat-volume').textContent = q.volume?fmtVol(q.volume):'—';
-    document.getElementById('data-source').textContent = q.live?'🟢 Finnhub Live':'🟡 Simulated';
+    const symbol = currentSymbol;
+    const fmt = n => Number.isFinite(n) && n > 0 ? '$' + n.toFixed(2) : '—';
+    try {
+      const q = await StockAPI.getQuote(symbol);
+      if (currentSymbol !== symbol) return;
+      const up = q.changePct >= 0;
+      verifiedPrevClose = q.prevClose > 0 ? q.prevClose : null;
+      document.getElementById('stock-price').textContent = fmt(q.price);
+      const change = document.getElementById('stock-change');
+      change.textContent = (up?'+':'') + q.change.toFixed(2) + ' (' + (up?'+':'') + q.changePct.toFixed(2) + '%)';
+      change.className = 'stock-change ' + (up?'up':'down');
+      document.getElementById('stat-high').textContent = fmt(q.high);
+      document.getElementById('stat-low').textContent = fmt(q.low);
+      document.getElementById('stat-open').textContent = fmt(q.open);
+      document.getElementById('stat-volume').textContent = q.volume ? fmtVol(q.volume) : '—';
+      document.getElementById('data-source').textContent = '● Verified provider quote · latest available';
+      const badge = document.getElementById('market-data-status');
+      if (badge) { badge.textContent='● QUOTES AVAILABLE'; badge.className='ready'; }
+    } catch (error) {
+      if (currentSymbol !== symbol) return;
+      document.getElementById('stock-price').textContent = '—';
+      document.getElementById('stock-change').textContent = 'Quote unavailable';
+      for (const id of ['stat-high','stat-low','stat-open','stat-volume'])
+        document.getElementById(id).textContent = '—';
+      document.getElementById('data-source').textContent = '⚠ Provider quote unavailable. Please retry.';
+      const badge = document.getElementById('market-data-status');
+      if (badge) { badge.textContent='⚠ QUOTE OFFLINE'; badge.className='offline'; }
+      console.warn(error.message);
+    }
   }
 
   // ── AI Prediction ─────────────────────────────────────────────────────────
@@ -409,22 +430,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       qDir.textContent = r.direction==='UP'?'▲ BULLISH':r.direction==='DOWN'?'▼ BEARISH':'● NEUTRAL';
       qDir.className = `ai-dir-badge ${r.direction==='UP'?'up':r.direction==='DOWN'?'down':'neutral'}`;
     }
-    vc('quick-conf-text',`Confidence: ${r.confidence}%`);
+    vc('quick-conf-text',`Indicator score: ${r.confidence}% (not probability)`);
     vc('q-buy',r.buyCount); vc('q-sell',r.sellCount); vc('q-neutral',r.neutralCount);
   }
 
   // ── Market strip ──────────────────────────────────────────────────────────
   async function updateMarket() {
-    const data = await StockAPI.getMarketOverview();
     const el = document.getElementById('market-overview');
     if (!el) return;
+    let data;
+    try { data = await StockAPI.getMarketOverview(); }
+    catch (e) { el.textContent='Market overview is currently unavailable.';return; }
     el.innerHTML = data.map(m => {
-      const up = m.changePct>=0;
-      return `<div class="market-card ${up?'up':'down'}" onclick="window.selectSearch('${m.symbol||m.name}')">
-        <div class="market-name">${m.name}</div>
-        <div class="market-price">${(m.price||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-        <div class="market-change">${up?'+':''}${(m.changePct||0).toFixed(2)}%</div>
-      </div>`;
+      const valid = m.available && Number.isFinite(m.price);
+      const up = valid && m.changePct>=0;
+      const price = valid ? '$' + m.price.toFixed(2) : '—';
+      const pct = valid ? (up?'+':'') + m.changePct.toFixed(2) + '%' : 'Quote unavailable';
+      return `<div class="market-card ${valid ? (up?'up':'down') : ''}" onclick="window.selectSearch('${m.symbol}')">
+        <div class="market-name">${m.name}</div><div class="market-price">${price}</div>
+        <div class="market-change">${pct}</div></div>`;
     }).join('');
   }
 
@@ -500,7 +524,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const list = Auth.getWatchlist(); const el = document.getElementById('watchlist'); if (!el) return;
     if (!list.length) { el.innerHTML='<div style="color:var(--muted);font-size:.82rem;padding:.5rem;text-align:center">Watchlist empty</div>'; return; }
     el.innerHTML = list.map(sym => {
-      const seed = StockAPI._seeds[sym]||{}, price = seed.price?+seed.price.toFixed(2):'—', info = StockAPI.getCompanyInfo(sym);
+      const quote=StockAPI._cache['q_'+sym]?.data;
+      const price=Number.isFinite(quote?.price) ? quote.price.toFixed(2) : '—';
+      const info=StockAPI.getCompanyInfo(sym);
       return `<div class="wl-item ${sym===currentSymbol?'active':''}" onclick="window.selectSearch('${sym}')">
         <span class="wl-sym">${sym}</span><span class="wl-name">${info.name.split(' ')[0]}</span>
         <span class="wl-price">$${price}</span>
@@ -648,24 +674,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Ticker Tape ──────────────────────────────────────────────────────────
   async function renderTickerTape() {
     const inner = document.getElementById('ticker-inner'); if (!inner) return;
-    const syms = ['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','JPM','V','SPY','QQQ','GLD','BTC-USD','NFLX','AMD'];
-    const quotes = await Promise.all(syms.map(async s => {
-      try { StockAPI._initSeed(s); const q = StockAPI._simQuote(s); return { sym:s, price:q.price, pct:q.changePct }; }
-      catch { return null; }
-    }));
-    const valid = quotes.filter(Boolean);
-    const mkItem = q => {
-      const up = q.pct >= 0;
-      return `<span class="ticker-item"><b>${q.sym}</b> $${q.price.toFixed(2)} <span style="color:${up?'var(--green)':'var(--red)'}">${up?'+':''}${q.pct.toFixed(2)}%</span></span>`;
-    };
-    const html = valid.map(mkItem).join('');
-    inner.innerHTML = html + html; // duplicate for seamless loop
-    // Adjust animation duration to content width
-    const totalW = inner.scrollWidth / 2;
-    inner.style.animation = 'none';
-    inner.style.width = (totalW * 2) + 'px';
-    inner.offsetHeight; // reflow
-    inner.style.animation = `ticker ${Math.max(20, totalW / 60)}s linear infinite`;
+    const syms = ['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','JPM','V','SPY','QQQ','GLD'];
+    const quotes = (await Promise.all(syms.map(async sym => {
+      try { const q=await StockAPI.getQuote(sym);return {sym,price:q.price,pct:q.changePct}; }
+      catch (_) { return null; }
+    }))).filter(Boolean);
+    if (!quotes.length) { inner.textContent='Verified market ticker unavailable · check back shortly.'; inner.style.animation='none'; return; }
+    const html=quotes.map(q=> {
+      const up=q.pct>=0;
+      return `<span class="ticker-item"><b>${q.sym}</b> $${q.price.toFixed(2)}
+        <span style="color:${up?'var(--green)':'var(--red)'}">${up?'+':''}${q.pct.toFixed(2)}%</span></span>`;
+    }).join('');
+    inner.innerHTML=html+html;
+    const totalW=inner.scrollWidth/2;
+    inner.style.animation='none';
+    inner.style.width=(totalW*2)+'px';
+    void inner.offsetHeight;
+    inner.style.animation=`ticker ${Math.max(30,totalW/45)}s linear infinite`;
   }
 
   // ── Notification Center ───────────────────────────────────────────────────
@@ -748,48 +773,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Daily AI Briefing ─────────────────────────────────────────────────────
   async function renderDailyBriefing() {
-    const textEl = document.getElementById('briefing-text');
-    const badgeEl = document.getElementById('briefing-badge');
-    const moversEl = document.getElementById('briefing-movers');
-    if (!textEl) return;
-
-    // Gather quick quotes for major indices
-    const moverSyms = ['AAPL','NVDA','MSFT','TSLA','META','AMZN','GOOGL','SPY','QQQ'];
-    const qts = await Promise.all(moverSyms.map(s => {
-      StockAPI._initSeed(s);
-      return Promise.resolve(StockAPI._simQuote(s));
-    }));
-    const data = moverSyms.map((s,i) => ({ sym:s, ...qts[i] }));
-    data.sort((a,b) => Math.abs(b.changePct) - Math.abs(a.changePct));
-
-    const spy = data.find(d=>d.sym==='SPY');
-    const qqq = data.find(d=>d.sym==='QQQ');
-    const bullish = (spy?.changePct||0) > 0.3;
-    const bearish = (spy?.changePct||0) < -0.3;
-    const sentiment = bullish ? 'bull' : bearish ? 'bear' : 'neutral';
-    const sentLabel = bullish ? 'Bullish' : bearish ? 'Bearish' : 'Neutral';
-
-    if (badgeEl) { badgeEl.className = `briefing-badge ${sentiment}`; badgeEl.textContent = sentLabel; }
-
-    const spyRaw = spy?.changePct||0;
-    const qqqRaw = qqq?.changePct||0;
-    const spyDir = spyRaw >= 0 ? 'up' : 'down';
-    const qqqDir = qqqRaw >= 0 ? 'up' : 'down';
-    const fmtPct = v => `${v>=0?'+':''}${v.toFixed(2)}%`;
-
-    const opener = bullish
-      ? 'Markets are showing strength today with broad-based gains.'
-      : bearish
-      ? 'Markets are under pressure today with selling across sectors.'
-      : 'Markets are trading mixed today with no clear directional bias.';
-
-    textEl.innerHTML = `${opener} S&P 500 (SPY) <span class="${spyDir}">${fmtPct(spyRaw)}</span>, NASDAQ (QQQ) <span class="${qqqDir}">${fmtPct(qqqRaw)}</span>. AI momentum indicators suggest watching ${data[0]?.sym||'NVDA'} closely today.`;
-
-    if (moversEl) {
-      moversEl.innerHTML = data.slice(0,4).map(d => {
-        const up = d.changePct >= 0;
-        return `<div class="briefing-mover ${up?'up':'down'}">${d.sym} ${up?'+':''}${d.changePct.toFixed(2)}%</div>`;
-      }).join('');
+    const textEl=document.getElementById('briefing-text');
+    const badgeEl=document.getElementById('briefing-badge');
+    const moversEl=document.getElementById('briefing-movers');
+    if(!textEl)return;
+    const syms=['AAPL','NVDA','MSFT','TSLA','META','AMZN','GOOGL','SPY','QQQ'];
+    const available=(await Promise.all(syms.map(async sym=>{
+      try {const q=await StockAPI.getQuote(sym);return {sym,pct:q.changePct};}
+      catch(_){return null;}
+    }))).filter(Boolean);
+    const spy=available.find(q=>q.sym==='SPY'),qqq=available.find(q=>q.sym==='QQQ');
+    if(!spy||!qqq){
+      if(badgeEl){badgeEl.className='briefing-badge neutral';badgeEl.textContent='Data pending';}
+      textEl.textContent='Verified market summary is not available yet. No simulated changes are shown.';
+      if(moversEl)moversEl.textContent='Awaiting live quotes';
+      return;
+    }
+    const sentiment=spy.pct>.3?'bull':spy.pct<-.3?'bear':'neutral';
+    if(badgeEl){
+      badgeEl.className='briefing-badge '+sentiment;
+      badgeEl.textContent=sentiment==='bull'?'Positive session':sentiment==='bear'?'Negative session':'Mixed session';
+    }
+    const pct=v=>(v>=0?'+':'')+v.toFixed(2)+'%';
+    textEl.textContent='Latest available ETF moves: SPY '+pct(spy.pct)+' · QQQ '+pct(qqq.pct)+'. Past performance does not predict future returns.';
+    if(moversEl){
+      available.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
+      moversEl.innerHTML=available.slice(0,4).map(d=>
+        `<div class="briefing-mover ${d.pct>=0?'up':'down'}">${d.sym} ${pct(d.pct)}</div>`).join('');
     }
   }
 
@@ -844,55 +854,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Portfolio sparkline ───────────────────────────────────────────────────
   function renderPortfolioChart(rows) {
-    const canvas = document.getElementById('port-sparkline'); if (!canvas) return;
-    const W = canvas.parentElement.clientWidth || 600, H = 80;
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0,0,W,H);
-
-    if (!rows || !rows.length) {
-      ctx.fillStyle='rgba(100,116,139,0.4)'; ctx.font='13px Inter'; ctx.textAlign='center';
-      ctx.fillText('Add holdings to see portfolio chart',W/2,H/2+5); return;
-    }
-
-    // Anchor start to actual cost basis and end to actual current value
-    const totalCost  = rows.reduce((a,r) => a + r.cost, 0);
-    const totalValue = rows.reduce((a,r) => a + r.value, 0);
-
-    // 30-day path interpolating from cost to current value with realistic noise
-    const days = 30;
-    const values = Array.from({length: days}, (_, i) => {
-      const t = i / (days - 1);
-      const base = totalCost + (totalValue - totalCost) * t;
-      const noise = Math.sin(i * 0.8 + 1.3) * 0.022 + Math.cos(i * 1.4 + 0.5) * 0.014;
-      return base * (1 + noise);
-    });
-    values[0] = totalCost;
-    values[days - 1] = totalValue;
-
-    const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
-    const pts = values.map((v,i)=>({ x:(i/(days-1))*W, y:H-4-((v-min)/range)*(H-10) }));
-    const isUp = totalValue >= totalCost;
-    const color = isUp?'#00ff88':'#ff4466';
-
-    const grad = ctx.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0, isUp?'rgba(0,255,136,0.25)':'rgba(255,68,102,0.25)');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-
-    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
-    pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
-    ctx.fillStyle=grad; ctx.fill();
-
-    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
-    pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.shadowColor=color; ctx.shadowBlur=6; ctx.stroke(); ctx.shadowBlur=0;
-
-    const fmt = v=>`$${v.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
-    ctx.fillStyle='rgba(100,116,139,0.8)'; ctx.font='10px Inter'; ctx.textAlign='left';
-    ctx.fillText(fmt(totalCost),4,H-4);
-    ctx.textAlign='right'; ctx.fillStyle=color;
-    ctx.fillText(fmt(totalValue),W-4,H-4);
+    const canvas=document.getElementById('port-sparkline');
+    if(!canvas)return;
+    const width=canvas.parentElement.clientWidth || 600;
+    canvas.width=width;canvas.height=80;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,width,80);
+    ctx.fillStyle='#96adbe';
+    ctx.font='12px Inter,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(rows?.length
+      ? 'Historical portfolio values are not stored yet · no synthetic chart.'
+      : 'Add holdings to begin tracking.',width/2,42,Math.max(140,width-18));
   }
 
   // ── Portfolio v2 — real prices via Yahoo Finance + CoinGecko ─────────────
@@ -958,7 +931,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!listEl) return;
 
     if (!holdings.length) {
-      listEl.innerHTML = '<div class="port-empty">No holdings yet — add your first position above.</div>';
+      listEl.innerHTML = Portfolio.lastError
+        ? '<div class="port-empty" style="color:var(--gold)">Your saved holdings could not be loaded. They have NOT been deleted. Please retry after the API responds.</div>'
+        : '<div class="port-empty">No holdings yet — add your first position above.</div>';
       ['port-invested','port-value','port-pl','port-pct','port-best','port-count'].forEach(id=>{
         const el=document.getElementById(id); if(el){ el.textContent=id==='port-count'?'0':'—'; el.className='psc-val'; }
       });
@@ -983,28 +958,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pd      = priceData[h.symbol] || {};
       const hasLive = pd.price != null && pd.price > 0;
 
-      // Price source priority: 1) live API price  2) simulated market price  3) avg cost (last resort)
-      let curPrice, priceSource;
-      if (hasLive) {
-        curPrice    = pd.price;
-        priceSource = 'live';
-      } else {
-        // Use simulated price so gain/loss reflects market movement, NOT avg cost
-        try {
-          StockAPI._initSeed(h.symbol);
-          curPrice    = StockAPI._simQuote(h.symbol).price;
-          priceSource = 'sim';
-        } catch(e) {
-          curPrice    = h.buyPrice;
-          priceSource = 'cost';
-        }
-      }
+      // No fabricated quotes: temporary cost-basis estimate when price is missing.
+      const curPrice=hasLive ? pd.price : h.buyPrice;
+      const priceSource=hasLive ? 'live' : 'cost';
 
       const chg24h = hasLive ? (pd.change24h ?? null) : null;
       const cost   = h.shares * h.buyPrice;
       const value  = h.shares * curPrice;
-      const pl     = value - cost;
-      const plPct  = cost ? (pl / cost) * 100 : 0;
+      const pl     = hasLive ? value - cost : null;
+      const plPct  = hasLive && cost ? (pl / cost) * 100 : null;
       totalCost  += cost;
       totalValue += value;
       return { ...h, curPrice, chg24h, priceSource, cost, value, pl, plPct,
@@ -1013,12 +975,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                accountType: h.accountType || 'taxable' };
     });
 
+    const partialQuotes=rows.some(r=>r.priceSource!=='live');
+    let pricingNotice=document.getElementById('port-pricing-notice');
+    if(!pricingNotice){
+      pricingNotice=document.createElement('div');
+      pricingNotice.id='port-pricing-notice';
+      pricingNotice.className='data-warning';
+      listEl.parentElement.insertBefore(pricingNotice,listEl);
+    }
+    pricingNotice.style.display=partialQuotes?'block':'none';
+    if(partialQuotes)pricingNotice.textContent='Some prices cannot be verified. Cost basis is shown temporarily for those holdings; total value is an estimate and portfolio P/L is withheld.';
     // Stats
     const totalPL    = totalValue - totalCost;
     const totalPLPct = totalCost ? (totalPL / totalCost) * 100 : 0;
     const up    = totalPL >= 0;
-    const best  = rows.length ? rows.reduce((a,b) => b.plPct > a.plPct ? b : a) : null;
-    const worst = rows.length ? rows.reduce((a,b) => b.plPct < a.plPct ? b : a) : null;
+    const pricedRows=rows.filter(r=>r.plPct!==null);
+    const best=pricedRows.length?pricedRows.reduce((a,b)=>b.plPct>a.plPct?b:a):null;
+    const worst=pricedRows.length?pricedRows.reduce((a,b)=>b.plPct<a.plPct?b:a):null;
 
     // ── Big stat cards ────────────────────────────────────────────────────────
     const setText = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
@@ -1029,8 +1002,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     setText('port-count-sub', rows.length + ' position' + (rows.length !== 1 ? 's' : ''));
 
     const plEl = document.getElementById('port-pl');
-    if (plEl) { plEl.textContent = (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)); plEl.className = 'pt-stat-val ' + (up?'up':'down'); }
-    setHTML('port-pl-badge', `<span class="pt-stat-badge ${up?'up':'down'}">${up?'▲':'▼'} ${up?'+':''}${_fmtD(totalPLPct)}%</span>`);
+    if(plEl){plEl.textContent=partialQuotes?'—':(up?'+':'-')+'$'+_fmtD(Math.abs(totalPL));plEl.className='pt-stat-val '+(partialQuotes?'':(up?'up':'down'));}
+    setHTML('port-pl-badge',partialQuotes?'<span class="pt-stat-badge">Waiting for all quotes</span>':
+      `<span class="pt-stat-badge ${up?'up':'down'}">${up?'▲':'▼'} ${up?'+':''}${_fmtD(totalPLPct)}%</span>`);
 
     if (best) {
       const bEl = document.getElementById('port-best');
@@ -1056,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (wpEl) { wpEl.textContent = (wUp?'+':'') + _fmtD(worst.plPct) + '%'; wpEl.style.color = wUp?'var(--green)':'var(--red)'; }
     }
     const gainEl = document.getElementById('qs-gain');
-    if (gainEl) { gainEl.textContent = (up?'+':'-') + '$' + _fmtD(Math.abs(totalPL)); gainEl.style.color = up?'var(--green)':'var(--red)'; }
+    if(gainEl){gainEl.textContent=partialQuotes?'—':(up?'+':'-')+'$'+_fmtD(Math.abs(totalPL));gainEl.style.color=partialQuotes?'var(--muted)':(up?'var(--green)':'var(--red)');}
 
     // ── Update filter tab counts ──────────────────────────────────────────────
     const filterGroups = { all: rows.length, stock: 0, etf: 0, crypto: 0, roth_ira: 0, k401: 0 };
@@ -1100,18 +1074,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     listEl.innerHTML = filteredRows.map(row => {
-      const rUp       = row.pl >= 0;
+      const rUp       = (row.pl ?? 0) >= 0;
       const iconCls   = _portIconCls(row);
       const acctLabel = _acctLabels[row.accountType] || row.accountType;
       const allocPct  = totalValue > 0 ? ((row.value / totalValue) * 100).toFixed(1) : '0.0';
-      const plSign    = rUp ? '+' : '';
+      const plSign    = rUp ? '+' : '-';
       const sharesStr = row.shares % 1 === 0 ? row.shares : parseFloat(row.shares.toFixed(6));
 
-      const srcBadge = row.priceSource === 'live'
-        ? `<span style="font-size:.55rem;color:var(--green);font-weight:700;vertical-align:middle;margin-left:.3rem">⚡</span>`
-        : row.priceSource === 'sim'
-        ? `<span style="font-size:.55rem;color:var(--gold);font-weight:700;vertical-align:middle;margin-left:.3rem" title="Simulated price">~</span>`
-        : `<span style="font-size:.55rem;color:var(--red);font-weight:700;vertical-align:middle;margin-left:.3rem" title="Price unavailable">⚠</span>`;
+      const srcBadge=row.priceSource==='live'
+        ? '<span style="color:var(--green);margin-left:.3rem" title="Provider quote">●</span>'
+        : '<span style="color:var(--gold);margin-left:.3rem" title="Cost basis; no live price">⚠ cost</span>';
+      const rowPL=row.pl===null?'—':plSign+'$'+_fmtD(Math.abs(row.pl));
+      const rowReturn=row.plPct===null?'—':plSign+Math.abs(row.plPct).toFixed(2)+'%';
 
       return `<div class="port-table-row new-cols">
         <div style="display:flex;align-items:center;gap:.65rem;min-width:0">
@@ -1121,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <button class="port-sym-btn" onclick="window.loadPortfolioStock('${row.symbol}')">${row.symbol}</button>
               <span class="port-acct-badge ${row.accountType}">${acctLabel}</span>
             </div>
-            <div style="font-size:.67rem;color:var(--muted);margin-top:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${row.name}</div>
+            <div style="font-size:.67rem;color:var(--muted);margin-top:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${escapeHTML(row.name)}</div>
           </div>
         </div>
         <div>
@@ -1138,13 +1112,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div>
           <div style="font-weight:700">$${_fmtD(row.value)}${srcBadge}</div>
-          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">@ $${_fmtD(row.curPrice)}</div>
+          <div style="font-size:.62rem;color:var(--muted);margin-top:.06rem">${row.priceSource==='live'?'@ $'+_fmtD(row.curPrice):'unpriced · cost basis'}</div>
         </div>
         <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">
-          ${plSign}$${_fmtD(Math.abs(row.pl))}
+          ${rowPL}
         </div>
         <div style="font-weight:700;color:${rUp?'var(--green)':'var(--red)'}">
-          ${plSign}${Math.abs(row.plPct).toFixed(2)}%
+          ${rowReturn}
         </div>
         <div style="display:flex;gap:.3rem;align-items:center;justify-content:flex-end">
           <button class="port-act-btn edit" onclick="window.openEditHolding('${row.id}')" title="Edit">✏</button>
@@ -1253,7 +1227,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const hint = similar.length ? `\n\nDid you mean: ${similar.join(', ')}?` : '\n\nDouble-check the ticker symbol.';
       if (!confirm(`⚠️ "${sym}" not found in known tickers.${hint}\n\nAdd it anyway?`)) return;
     }
-    await Portfolio.add(sym, sh, price, account, type, name);
+    try { await Portfolio.add(sym, sh, price, account, type, name); }
+    catch(error) { showToast('Not saved: '+error.message); return; }
     ['port-sym','port-name','port-shares','port-price'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value = '';
     });
@@ -1264,9 +1239,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.removeHolding = async function(id) {
     if (!confirm('Remove this holding?')) return;
-    await Portfolio.remove(id);
-    await renderPortfolio();
-    showToast('Holding removed');
+    try {
+      await Portfolio.remove(id);
+      await renderPortfolio();
+      showToast('Holding removed');
+    } catch(error) { showToast('Delete failed: '+error.message); }
   };
 
   window.openEditHolding = function(id) {
@@ -1292,10 +1269,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isNaN(shares) || shares <= 0 || isNaN(price) || price <= 0) {
       showToast('Invalid shares or price'); return;
     }
-    await Portfolio.update(id, { shares, buyPrice: price, assetType: type, accountType: account, name: name || undefined });
-    document.getElementById('edit-hold-modal').classList.add('hidden');
-    await renderPortfolio();
-    showToast('Holding updated');
+    try {
+      await Portfolio.update(id, { shares, buyPrice: price, assetType: type, accountType: account, name: name || undefined });
+      document.getElementById('edit-hold-modal').classList.add('hidden');
+      await renderPortfolio();
+      showToast('Holding updated');
+    } catch(error) { showToast('Update failed: '+error.message); }
   };
 
   // ── Export CSV ────────────────────────────────────────────────────────────
@@ -1308,18 +1287,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       const r = await fetch(`/api/portfolio-prices?symbols=${uniqueSyms.join(',')}`);
       if (r.ok) priceData = await r.json();
     } catch(e) {}
-    const header = ['Symbol','Name','Shares','Avg Buy Price','Current Price','Market Value','P&L $','P&L %','Asset Type','Account'];
-    const csvRows = [header, ...holdings.map(h => {
-      const pd     = priceData[h.symbol] || {};
-      const cur    = pd.price ?? h.buyPrice;
-      const value  = h.shares * cur;
-      const pl     = value - h.shares * h.buyPrice;
-      const plPct  = h.buyPrice ? (pl / (h.shares * h.buyPrice)) * 100 : 0;
-      return [h.symbol, h.name||h.symbol, h.shares, h.buyPrice.toFixed(2), cur.toFixed(2),
-              value.toFixed(2), pl.toFixed(2), plPct.toFixed(2)+'%',
-              h.assetType||'stock', h.accountType||'taxable'];
+    const header=['Symbol','Name','Shares','Avg Buy Price','Current Price','Market Value','P&L $','P&L %','Asset Type','Account','Price Source'];
+    const csvRows=[header,...holdings.map(h=>{
+      const pd=priceData[h.symbol]||{};
+      const verified=Number.isFinite(pd.price)&&pd.price>0;
+      const current=verified?pd.price:null;
+      const value=verified?h.shares*current:null;
+      const cost=h.shares*h.buyPrice;
+      const pl=verified?value-cost:null;
+      const percent=verified&&cost?pl/cost*100:null;
+      return [h.symbol,h.name||h.symbol,h.shares,h.buyPrice.toFixed(2),
+        current===null?'':current.toFixed(2),
+        value===null?'':value.toFixed(2),
+        pl===null?'':pl.toFixed(2),
+        percent===null?'':percent.toFixed(2)+'%',
+        h.assetType||'stock',h.accountType||'taxable',
+        verified?'Provider quote':'Unavailable'];
     })];
-    const csv = csvRows.map(r=>r.join(',')).join('\n');
+    // Escape CSV syntax, commas/newlines and spreadsheet-formula prefixes.
+    const escapeCsv=value=>{
+      let v=String(value??'');
+      if (/^[=+@-]/.test(v.trimStart()))v="'"+v;
+      return '"'+v.replace(/"/g,'""')+'"';
+    };
+    const csv=csvRows.map(row=>row.map(escapeCsv).join(',')).join('\n');
     const a = document.createElement('a');
     a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
     a.download = `portfolio_${new Date().toISOString().slice(0,10)}.csv`;
@@ -1342,157 +1333,95 @@ document.addEventListener('DOMContentLoaded', async () => {
     'DIS','UBER','LYFT','SPOT','SNAP','TWTR','PINS','RBLX','HOOD','MA',
   ];
 
-  function _scrRSI(sym, period=14) {
-    try {
-      const bars = StockAPI._simCandles(sym, period + 5);
-      if (bars.length < period + 1) return 50;
-      let gains=0, losses=0;
-      for (let i=bars.length-period; i<bars.length; i++) {
-        const d = bars[i].close - bars[i-1].close;
-        if (d>0) gains+=d; else losses-=d;
-      }
-      const avgG=gains/period, avgL=losses/period;
-      return avgL===0 ? 100 : Math.round(100 - 100/(1+avgG/avgL));
-    } catch { return 50; }
-  }
-
-  function _scrMktCap(price, sym) {
-    const largeBase = { AAPL:3200, MSFT:3100, NVDA:2200, GOOGL:2100, AMZN:1900, META:1300, TSLA:800, V:550, MA:450, JPM:550 };
-    if (largeBase[sym]) return largeBase[sym];
-    if (price > 300) return 80 + Math.random()*120;
-    if (price > 100) return 15 + Math.random()*70;
-    return 2 + Math.random()*12;
+  function verifiedRSI(bars) {
+    if (!Array.isArray(bars) || bars.length < 30) return null;
+    const values = AIPredictor.rsi(bars.map(bar => bar.close));
+    const last = values[values.length - 1];
+    return Number.isFinite(last) ? Math.round(last) : null;
   }
 
   window.runScreener = async function() {
-    const grid = document.getElementById('scr-results'); if (!grid) return;
-    grid.innerHTML = Array.from({length:10},()=>`
-      <div class="scr-card" style="pointer-events:none">
-        <div class="scr-card-inner"><div class="scr-card-front">
-          <div class="scr-badge" style="background:rgba(255,255,255,0.05)"></div>
-          <div class="scr-info">
-            <div class="skel" style="width:55px;height:.82em;margin-bottom:.4rem"></div>
-            <div class="skel" style="width:130px;height:.7em;margin-bottom:.3rem"></div>
-            <div class="skel" style="width:80px;height:.65em"></div>
-          </div>
-          <div class="scr-metrics">
-            <div class="skel" style="width:65px;height:.9em;margin-bottom:.35rem"></div>
-            <div class="skel" style="width:50px;height:.75em"></div>
-          </div>
-        </div></div>
-      </div>`).join('');
-
-    const sectorBtn = document.querySelector('.schip.active');
-    const sector    = sectorBtn ? sectorBtn.dataset.val : '';
-    const perf      = document.getElementById('scr-perf')?.value || '';
-    const rsiFilter = document.getElementById('scr-rsi')?.value || '';
-    const mktCapF   = document.getElementById('scr-mktcap')?.value || '';
-    const minPx     = parseFloat(document.getElementById('scr-min')?.value) || 0;
-    const maxPx     = parseFloat(document.getElementById('scr-max')?.value) || Infinity;
-    const sortBy    = document.getElementById('scr-sort')?.value || 'chg-desc';
-
-    // Fetch quotes + compute RSI for all symbols in parallel
-    const results = (await Promise.all(SCREENER_SYMS.map(async sym => {
-      try {
-        StockAPI._initSeed(sym);
-        const info    = StockAPI.getCompanyInfo(sym);
-        const q       = await StockAPI.getQuote(sym);
-        const rsi     = _scrRSI(sym);
-        const mktCap  = _scrMktCap(q.price, sym);
-        const hi52    = +(q.price * (1.08 + Math.random()*0.28)).toFixed(2);
-        const lo52    = +(q.price * (0.62 + Math.random()*0.24)).toFixed(2);
-        const vol     = +(q.price * (800000 + Math.random()*5e6) / 1e6).toFixed(1);
-        return { sym, name:info.name||sym, sector:info.sector||'Unknown', price:q.price, changePct:q.changePct, volume:q.volume||0, rsi, mktCap, hi52, lo52, vol };
-      } catch { return null; }
-    }))).filter(Boolean);
-
-    let filtered = results;
-    if (sector)              filtered = filtered.filter(r => (r.sector||'').toLowerCase().includes(sector.toLowerCase()));
-    if (perf==='gainers')    filtered = filtered.filter(r => r.changePct > 0);
-    if (perf==='losers')     filtered = filtered.filter(r => r.changePct < 0);
-    if (perf==='big')        filtered = filtered.filter(r => Math.abs(r.changePct) >= 2);
-    if (rsiFilter==='oversold')    filtered = filtered.filter(r => r.rsi < 30);
-    if (rsiFilter==='neutral')     filtered = filtered.filter(r => r.rsi >= 30 && r.rsi <= 70);
-    if (rsiFilter==='overbought')  filtered = filtered.filter(r => r.rsi > 70);
-    if (mktCapF==='large')   filtered = filtered.filter(r => r.mktCap >= 100);
-    if (mktCapF==='mid')     filtered = filtered.filter(r => r.mktCap >= 10 && r.mktCap < 100);
-    if (mktCapF==='small')   filtered = filtered.filter(r => r.mktCap < 10);
-    filtered = filtered.filter(r => r.price >= minPx && r.price <= maxPx);
-
-    const sorters = {
-      'chg-desc':   (a,b)=>b.changePct-a.changePct,
-      'chg-asc':    (a,b)=>a.changePct-b.changePct,
-      'price-desc': (a,b)=>b.price-a.price,
-      'price-asc':  (a,b)=>a.price-b.price,
-      'rsi-desc':   (a,b)=>b.rsi-a.rsi,
-      'rsi-asc':    (a,b)=>a.rsi-b.rsi,
-      'vol-desc':   (a,b)=>b.volume-a.volume,
+    const grid=document.getElementById('scr-results'); if (!grid) return;
+    const meta=document.getElementById('scr-meta');
+    const sector=document.querySelector('.schip.active')?.dataset.val || '';
+    const perf=document.getElementById('scr-perf')?.value || '';
+    const rsiFilter=document.getElementById('scr-rsi')?.value || '';
+    const capFilter=document.getElementById('scr-mktcap')?.value || '';
+    const sort=document.getElementById('scr-sort')?.value || 'chg-desc';
+    const minPrice=Number(document.getElementById('scr-min')?.value)||0;
+    const maxPrice=Number(document.getElementById('scr-max')?.value)||Infinity;
+    const needsRSI=!!rsiFilter || sort.startsWith('rsi');
+    const needsCap=!!capFilter;
+    grid.innerHTML='<div class="scr-empty">⟳ Requesting provider data. Historical filters can take longer.</div>';
+    const symbols=[...new Set(SCREENER_SYMS)].slice(0,30);
+    const results=[];
+    let cursor=0;
+    const tasks=Array.from({length:6},async()=>{
+      while(cursor<symbols.length){
+        const sym=symbols[cursor++];
+        try {
+          const q=await StockAPI.getQuote(sym);
+          const info=StockAPI.getCompanyInfo(sym);
+          let rsi=null, cap=null;
+          if(needsRSI){
+            try { rsi=verifiedRSI(await StockAPI.getCandles(sym,'D',365)); }
+            catch(_) {}
+          }
+          if(needsCap){
+            try {
+              const p=await StockAPI.getCompanyProfile(sym);
+              if(Number.isFinite(p.marketCap)&&p.marketCap>0)cap=p.marketCap/1000;
+            }catch(_){}
+          }
+          results.push({sym,name:info.name||sym,sector:info.sector||'Unknown',
+            price:q.price,changePct:q.changePct,rsi,cap});
+        }catch(_) {}
+      }
+    });
+    await Promise.all(tasks);
+    let filtered=results.filter(r=>r.price>=minPrice && r.price<=maxPrice);
+    if(sector) filtered=filtered.filter(r=>r.sector.toLowerCase().includes(sector.toLowerCase()));
+    if(perf==='gainers') filtered=filtered.filter(r=>r.changePct>0);
+    if(perf==='losers') filtered=filtered.filter(r=>r.changePct<0);
+    if(perf==='big') filtered=filtered.filter(r=>Math.abs(r.changePct)>=2);
+    if(rsiFilter==='oversold') filtered=filtered.filter(r=>r.rsi!==null && r.rsi<30);
+    if(rsiFilter==='neutral') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>=30 && r.rsi<=70);
+    if(rsiFilter==='overbought') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>70);
+    if(capFilter==='large') filtered=filtered.filter(r=>r.cap!==null && r.cap>=100);
+    if(capFilter==='mid') filtered=filtered.filter(r=>r.cap!==null && r.cap>=10 && r.cap<100);
+    if(capFilter==='small') filtered=filtered.filter(r=>r.cap!==null && r.cap<10);
+    const sorters={
+      'chg-desc':(x,y)=>y.changePct-x.changePct,
+      'chg-asc':(x,y)=>x.changePct-y.changePct,
+      'price-desc':(x,y)=>y.price-x.price,
+      'price-asc':(x,y)=>x.price-y.price,
+      'rsi-desc':(x,y)=>(y.rsi??-1)-(x.rsi??-1),
+      'rsi-asc':(x,y)=>(x.rsi??101)-(y.rsi??101)
     };
-    filtered.sort(sorters[sortBy] || sorters['chg-desc']);
-
-    const metaEl = document.getElementById('scr-meta');
-    if (metaEl) metaEl.textContent = `${filtered.length} of ${results.length} stocks match your filters`;
-
-    if (!filtered.length) { grid.innerHTML='<div class="scr-empty">No stocks match — try broadening your filters.</div>'; return; }
-
-    const rsiCls = v => v < 30 ? 'rsi-low' : v > 70 ? 'rsi-high' : 'rsi-mid';
-    const rsiLabel = v => v < 30 ? '😱 Oversold' : v > 70 ? '🔥 Overbought' : '⚖ Neutral';
-
-    grid.innerHTML = filtered.map(r => {
-      const up = r.changePct >= 0;
-      const capStr = r.mktCap >= 1000 ? `$${(r.mktCap/1000).toFixed(1)}T` : `$${r.mktCap.toFixed(0)}B`;
-      return `<div class="scr-card" data-tilt data-tilt-max="8" data-tilt-scale="1.02"
-          onclick="window.selectSearch('${r.sym}');switchTab(null,'dashboard')">
-        <div class="scr-card-inner">
-          <div class="scr-card-front">
-            <div class="scr-badge">${r.sym.slice(0,2)}</div>
-            <div class="scr-info">
-              <div class="scr-sym">${r.sym}</div>
-              <div class="scr-name">${r.name}</div>
-              <div class="scr-sector">${r.sector}</div>
-              <span class="scr-rsi-badge ${rsiCls(r.rsi)}">RSI ${r.rsi} · ${rsiLabel(r.rsi)}</span>
-            </div>
-            <div class="scr-metrics">
-              <div class="scr-price">$${r.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-              <div class="scr-chg ${up?'up':'down'}">${up?'+':''}${r.changePct.toFixed(2)}%</div>
-            </div>
-          </div>
-          <div class="scr-card-back">
-            <div class="scr-back-row"><span class="scr-back-label">Mkt Cap</span><span class="scr-back-val">${capStr}</span></div>
-            <div class="scr-back-row"><span class="scr-back-label">Volume</span><span class="scr-back-val">${r.vol}M</span></div>
-            <div class="scr-back-row"><span class="scr-back-label">52W High</span><span class="scr-back-val" style="color:var(--green)">$${r.hi52}</span></div>
-            <div class="scr-back-row"><span class="scr-back-label">52W Low</span><span class="scr-back-val" style="color:var(--red)">$${r.lo52}</span></div>
-          </div>
-        </div>
-      </div>`;
+    filtered.sort(sorters[sort] || sorters['chg-desc']);
+    if(meta)meta.textContent=filtered.length+' matches from '+results.length+' verified quotes · scanning '+symbols.length+' tracked stocks · no estimated metrics';
+    if(!filtered.length){
+      grid.innerHTML='<div class="scr-empty">No verified quotes match these filters. Try fewer filters or refresh later.</div>';
+      return;
+    }
+    grid.innerHTML=filtered.map(r=>{
+      const up=r.changePct>=0;
+      const cap=r.cap===null?'Not available':(r.cap>=1000?'$'+(r.cap/1000).toFixed(2)+'T':'$'+r.cap.toFixed(1)+'B');
+      const rsi=r.rsi===null?'Not loaded':String(r.rsi);
+      return '<button type="button" class="pro-screener-result" onclick="window.selectSearch(\''+r.sym+'\');switchTab(null,\'dashboard\')">'+
+        '<span class="pro-scr-symbol">'+r.sym+'<small>'+r.name+'</small></span>'+
+        '<span class="pro-scr-price">$'+r.price.toFixed(2)+'<small>'+r.sector+'</small></span>'+
+        '<span class="pro-scr-change '+(up?'up':'down')+'">'+(up?'+':'')+r.changePct.toFixed(2)+'%<small>Session change</small></span>'+
+        '<span class="pro-scr-metrics">RSI '+rsi+'<small>Cap '+cap+'</small></span></button>';
     }).join('');
-    if (typeof initTilt==='function') initTilt('[data-tilt]', grid);
-    if (typeof animateCardsIn==='function') animateCardsIn('.scr-card', grid);
   };
 
   // ── Earnings Calendar ─────────────────────────────────────────────────────
   function renderEarnings() {
-    const tbody = document.getElementById('earnings-tbody'); if (!tbody) return;
-    const list = getEarningsCalendar();
-    tbody.innerHTML = list.map(e=>{
-      const upcoming = e.act===null;
-      const rowCls = upcoming?'earn-upcoming':'earn-past';
-      const badge  = upcoming?'<span class="earn-badge upcoming">Upcoming</span>':'<span class="earn-badge reported">Reported</span>';
-      const actual = upcoming
-        ? '<span style="color:var(--muted)">—</span>'
-        : `<span class="${e.beat?'earn-beat':'earn-miss'}">${e.beat?'▲':'▼'} $${e.act.toFixed(2)}</span>`;
-      const status = upcoming
-        ? '<span style="color:var(--muted);font-size:.75rem">TBA</span>'
-        : `<span class="${e.beat?'earn-beat':'earn-miss'}">${e.beat?'✓ Beat':'✗ Missed'}</span>`;
-      return `<tr class="${rowCls}">
-        <td><span class="earn-sym" onclick="window.selectSearch('${e.sym}');switchTab(null,'dashboard')">${e.sym}</span><br><span style="font-size:.7rem;color:var(--muted)">${e.name}</span></td>
-        <td class="earn-date ${upcoming?'upcoming':'past'}">${e.date}</td>
-        <td style="font-size:.75rem;color:var(--muted)">${e.time}</td>
-        <td class="earn-est">$${e.est.toFixed(2)}</td>
-        <td>${actual}</td>
-        <td>${badge} ${status}</td>
-      </tr>`;
-    }).join('');
+    const tbody=document.getElementById('earnings-tbody');
+    if(!tbody)return;
+    // No licensed earnings feed is connected. Never present invented EPS or dates.
+    tbody.innerHTML='<tr><td colspan="6" style="padding:1.3rem;color:var(--muted);text-align:center">Verified earnings data not connected. Forecast EPS and dates are not shown.</td></tr>';
   }
 
   // ── News ──────────────────────────────────────────────────────────────────
@@ -1510,14 +1439,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!articles.length) { container.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:2rem;text-align:center;grid-column:1/-1">No news available</div>'; return; }
     container.innerHTML = articles.map((a,i)=>{
       const emoji = NEWS_EMOJIS[i%NEWS_EMOJIS.length];
-      const imgContent = a.image
-        ? `<img src="${a.image}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${emoji}'">`
+      const imgContent = a.image && safeExternalLink(a.image) !== '#'
+        ? `<img src="${safeExternalLink(a.image)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='${emoji}'">`
         : emoji;
-      return `<a class="news-card" href="${a.url}" target="_blank" rel="noopener">
+      return `<a class="news-card" href="${safeExternalLink(a.url)}" target="_blank" rel="noopener noreferrer">
         <div class="news-card-img">${imgContent}</div>
         <div class="news-card-body">
-          <div class="news-card-source">${a.source}</div>
-          <div class="news-card-headline">${a.headline}</div>
+          <div class="news-card-source">${escapeHTML(a.source)}</div>
+          <div class="news-card-headline">${escapeHTML(a.headline)}</div>
           <div class="news-card-meta">
             <span>${NewsAPI.timeAgo(a.datetime)}</span>
             <span class="news-card-tag">${newsMode==='stock'?(sym||'Stock'):'Markets'}</span>
@@ -1568,8 +1497,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       PriceAlerts.notify(a);
       NotifCenter.push(
         `${symbol} Alert Triggered`,
-        `${symbol} crossed $${a.price.toFixed(2)} (${a.direction}). Current: $${price.toFixed(2)}`,
-        price >= a.price ? 'up' : 'down'
+        `${symbol} crossed ${a.targetPrice.toFixed(2)} (${a.direction}). Current: ${price.toFixed(2)}`,
+        a.direction === 'above' ? 'up' : 'down'
       );
     });
     if (fired.length) renderAlerts();
@@ -1661,6 +1590,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   function showChartLoader(show) {
     let el=document.getElementById('chart-loader');
     if (!el){ el=document.createElement('div'); el.id='chart-loader'; el.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,11,31,0.7);border-radius:10px;font-size:.85rem;color:#64748b;z-index:10;pointer-events:none'; el.innerHTML='<span>⟳ Loading chart data…</span>'; const cw=document.getElementById('price-chart'); cw.style.position='relative'; cw.appendChild(el); }
+    el.style.display=show?'flex':'none';
+  }
+
+  function showChartUnavailable(show) {
+    const host=document.getElementById('price-chart');
+    let el=document.getElementById('chart-unavailable');
+    if(!el){
+      el=document.createElement('div');
+      el.id='chart-unavailable';
+      el.className='chart-unavailable';
+      el.setAttribute('role','status');
+      el.textContent='Verified candle history is unavailable. No simulated prices are shown.';
+      host.appendChild(el);
+    }
     el.style.display=show?'flex':'none';
   }
 
