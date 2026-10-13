@@ -1417,7 +1417,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
     <div class="tab-view" id="view-ai">
       <div class="view-header">
         <div>
-          <div class="view-title">🤖 AI Predictions</div>
+          <div class="view-title">📊 Technical Signals & Evidence</div>
           <div class="view-subtitle" id="ai-view-subtitle">Analyzing current stock…</div>
         </div>
         <button onclick="switchTab(null,'dashboard')" style="padding:.5rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:9px;color:var(--muted);font-size:.82rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">← Back to Chart</button>
@@ -1480,6 +1480,33 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
           </table>
         </div>
       </div>
+
+      <!-- Historical signal evidence: no historical win rate is invented -->
+      <section class="card signal-evidence" aria-labelledby="evidence-heading">
+        <div class="signal-evidence-header">
+          <div>
+            <div class="card-title" id="evidence-heading">📊 Historical Signal Check <span class="evidence-tag">5 trading sessions</span></div>
+            <p class="evidence-muted">See how this exact indicator rule performed on earlier price bars. This is not a trained probability model or a recommendation.</p>
+          </div>
+          <button type="button" class="btn-scr-run evidence-run" id="btn-backtest" onclick="window.runHistoricalCheck?.()">Run Historical Check →</button>
+        </div>
+        <div id="evidence-status" class="evidence-status" role="status" aria-live="polite">Select a stock and run a historical check. Requires up to three years of daily prices.</div>
+        <div id="evidence-results" hidden>
+          <div class="evidence-metrics">
+            <div class="evidence-metric"><small>Direction correct</small><strong id="evidence-hit">—</strong><span id="evidence-hit-ci">—</span></div>
+            <div class="evidence-metric"><small>Directional samples</small><strong id="evidence-n">—</strong><span id="evidence-window">Non-overlapping windows</span></div>
+            <div class="evidence-metric"><small>Avg hypothetical strategy</small><strong id="evidence-strategy">—</strong><span>After estimated trade cost</span></div>
+            <div class="evidence-metric"><small>Avg benchmark long</small><strong id="evidence-benchmark">—</strong><span>Same evaluation windows</span></div>
+          </div>
+          <div class="evidence-table-scroll">
+            <table class="evidence-table">
+              <thead><tr><th>Signal date</th><th>Signal</th><th>5-session move</th><th>Direction right?</th></tr></thead>
+              <tbody id="evidence-rows"></tbody>
+            </table>
+          </div>
+          <p class="evidence-disclaimer" id="evidence-disclaimer"></p>
+        </div>
+      </section>
 
       <!-- Earnings Calendar -->
       <div class="card">
@@ -1989,6 +2016,7 @@ PORT=3001</pre>
 <script src="js/auth.js"></script>
 <script src="js/stockApi.js"></script>
 <script src="js/aiPredictor.js"></script>
+<script src="js/signalEvidence.js"></script>
 <script src="js/features.js"></script>
 <script src="js/chat.js"></script>
 
