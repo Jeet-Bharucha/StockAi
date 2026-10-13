@@ -1447,13 +1447,15 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 
         <!-- Price Targets row -->
         <div class="price-targets" id="price-targets">
-          <div class="pt-item bear"><div class="pt-label">🐻 Bear Case</div><div class="pt-val" id="pt-bear">—</div></div>
+          <div class="pt-item bear"><div class="pt-label">Lower 2×ATR range</div><div class="pt-val" id="pt-bear">—</div></div>
           <div class="pt-track-wrap">
             <div class="pt-track"><div class="pt-fill" id="pt-fill"></div><div class="pt-dot" id="pt-dot"></div></div>
             <div class="pt-current" id="pt-current">Current</div>
           </div>
-          <div class="pt-item bull"><div class="pt-label">🐂 Bull Case</div><div class="pt-val" id="pt-bull">—</div></div>
+          <div class="pt-item bull"><div class="pt-label">Upper 2×ATR range</div><div class="pt-val" id="pt-bull">—</div></div>
         </div>
+
+        <p class="evidence-muted" style="text-align:center;margin:.55rem 0 0">Volatility scenarios based on 2× daily ATR, not price targets or probabilities.</p>
 
         <!-- Risk + reasoning -->
         <div class="ai-bottom-row">
