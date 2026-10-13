@@ -153,12 +153,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Candles
     showChartLoader(true);
-    try { currentBars = await StockAPI.getCandles(symbol,'D',365); }
-    catch (e) {
-      console.warn('Chart unavailable:', e.message);
-      currentBars = [];
-    }
+    let loadedBars = [];
+    try { loadedBars = await StockAPI.getCandles(symbol,'D',365); }
+    catch (e) { console.warn('Chart unavailable:', e.message); }
+    // A slow older response must not overwrite the newer ticker selection.
     if (requestVersion !== stockRequestVersion) return;
+    currentBars = loadedBars;
     window.fullBars = currentBars;
 
     candleSeries.setData(currentBars);
