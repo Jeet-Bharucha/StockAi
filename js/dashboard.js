@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   let currentSymbol = 'AAPL';
+  let stockRequestVersion = 0;
   let verifiedPrevClose = null;
   let chart = null;
   let candleSeries = null;
@@ -87,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    const requestVersion = ++stockRequestVersion;
     verifiedPrevClose = null;
 
     // Update UI chrome
@@ -101,6 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Company profile
     const info = await StockAPI.getCompanyProfile(symbol);
+    if (requestVersion !== stockRequestVersion) return;
     document.getElementById('company-name').textContent   = info.name;
     document.getElementById('company-sector').textContent = info.sector;
 
@@ -119,6 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.warn('Chart unavailable:', e.message);
       currentBars = [];
     }
+    if (requestVersion !== stockRequestVersion) return;
     window.fullBars = currentBars;
 
     candleSeries.setData(currentBars);
@@ -132,6 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (compareSeries) clearCompare();
 
     await refreshQuote();
+    if (requestVersion !== stockRequestVersion) return;
     if (currentBars.length >= 50) runAI();
     else {
       const q=document.getElementById('quick-direction');
@@ -155,10 +160,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Real-time handlers ────────────────────────────────────────────────────
   function onWSTrade({ price, volume, time }) {
+    if (!Number.isFinite(price) || price <= 0) return;
     const nowSec = Math.floor((time||Date.now())/1000);
     const close  = +price.toFixed(4);
     const dayBucket = Math.floor(nowSec/86400)*86400;
     const last = currentBars[currentBars.length-1];
+    if (last && dayBucket < last.time) return;
     let newBar;
     if (last && last.time===dayBucket) {
       newBar = {...last, high:Math.max(last.high,close), low:Math.min(last.low,close), close, volume:(last.volume||0)+(volume||0)};
@@ -1490,8 +1497,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       PriceAlerts.notify(a);
       NotifCenter.push(
         `${symbol} Alert Triggered`,
-        `${symbol} crossed $${a.price.toFixed(2)} (${a.direction}). Current: $${price.toFixed(2)}`,
-        price >= a.price ? 'up' : 'down'
+        `${symbol} crossed ${a.targetPrice.toFixed(2)} (${a.direction}). Current: ${price.toFixed(2)}`,
+        a.direction === 'above' ? 'up' : 'down'
       );
     });
     if (fired.length) renderAlerts();
