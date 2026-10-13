@@ -71,12 +71,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     chart = LightweightCharts.createChart(container, {
       width: container.clientWidth, height: 320,
       layout: { background:{type:'solid',color:'transparent'}, textColor:'#94a3b8' },
-      grid: { vertLines:{color:'rgba(0,212,255,0.07)'}, horzLines:{color:'rgba(0,212,255,0.07)'} },
+      grid: { vertLines:{color:'rgba(132,157,193,0.07)'}, horzLines:{color:'rgba(132,157,193,0.07)'} },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-      rightPriceScale: { borderColor:'rgba(0,212,255,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
-      timeScale: { borderColor:'rgba(0,212,255,0.2)', timeVisible:true },
+      rightPriceScale: { borderColor:'rgba(132,157,193,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
+      timeScale: { borderColor:'rgba(132,157,193,0.2)', timeVisible:true },
     });
-    candleSeries = chart.addCandlestickSeries({ upColor:'#00ff88', downColor:'#ff4466', borderUpColor:'#00ff88', borderDownColor:'#ff4466', wickUpColor:'#00ff88', wickDownColor:'#ff4466' });
+    candleSeries = chart.addCandlestickSeries({ upColor:'#4bbf8d', downColor:'#e27889', borderUpColor:'#4bbf8d', borderDownColor:'#e27889', wickUpColor:'#4bbf8d', wickDownColor:'#e27889' });
     volumeSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'', scaleMargins:{top:0.82,bottom:0} });
     window._chart = chart; window._candleSeries = candleSeries; window._volSeries = volumeSeries;
     window.addEventListener('resize', resizeChart);
@@ -111,9 +111,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       timeScale:{borderColor:light?'#cedee4':'#284251'}
     });
     candleSeries?.applyOptions({
-      upColor:light?'#158568':'#37c7ac',downColor:light?'#c13d51':'#ff7784',
-      borderUpColor:light?'#158568':'#37c7ac',borderDownColor:light?'#c13d51':'#ff7784',
-      wickUpColor:light?'#158568':'#37c7ac',wickDownColor:light?'#c13d51':'#ff7784'
+      upColor:light?'#158568':'#4bbf8d',downColor:light?'#c13d51':'#ff7784',
+      borderUpColor:light?'#158568':'#4bbf8d',borderDownColor:light?'#c13d51':'#ff7784',
+      wickUpColor:light?'#158568':'#4bbf8d',wickDownColor:light?'#c13d51':'#ff7784'
     });
     resizeChart();
   }
@@ -373,7 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Gradient arc (full sweep)
       const grad = ctx.createLinearGradient(cx-R,0,cx+R,0);
-      grad.addColorStop(0,'#ff4466'); grad.addColorStop(0.5,'#ffd700'); grad.addColorStop(1,'#00ff88');
+      grad.addColorStop(0,'#e27889'); grad.addColorStop(0.5,'#d9b676'); grad.addColorStop(1,'#4bbf8d');
       ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,0,false);
       ctx.lineWidth=lw; ctx.strokeStyle=grad; ctx.globalAlpha=0.18; ctx.stroke();
       ctx.globalAlpha=1;
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const conf = r.confidence/100;
       const startAngle = Math.PI;
       const endAngle = Math.PI + conf * Math.PI;
-      const color = r.direction==='UP'?'#00ff88':r.direction==='DOWN'?'#ff4466':'#ffd700';
+      const color = r.direction==='UP'?'#4bbf8d':r.direction==='DOWN'?'#e27889':'#d9b676';
       ctx.beginPath(); ctx.arc(cx,cy,R,startAngle,endAngle,false);
       ctx.lineWidth=lw; ctx.strokeStyle=color;
       ctx.shadowColor=color; ctx.shadowBlur=18; ctx.stroke(); ctx.shadowBlur=0;
@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Risk needle
     const riskPct = r.atrPct ? Math.min(100, parseFloat(r.atrPct) / 4 * 100) : 50;
-    const riskColor = riskPct < 35 ? '#00ff88' : riskPct < 65 ? '#ffd700' : '#ff4466';
+    const riskColor = riskPct < 35 ? '#4bbf8d' : riskPct < 65 ? '#d9b676' : '#e27889';
     const needleEl = document.getElementById('risk-needle');
     if (!needleEl) {
       const track = document.querySelector('.risk-track');
@@ -520,10 +520,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           const intensity = Math.min(1, Math.abs(chg) / 4);
           if (chg >= 0) {
             cell.style.background = `rgba(0,255,136,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#00ff88';
+            cell.style.color = '#4bbf8d';
           } else {
             cell.style.background = `rgba(255,68,102,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#ff4466';
+            cell.style.color = '#e27889';
           }
           if (chgEl) chgEl.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
         } catch (_) {}
@@ -847,7 +847,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (wrap) wrap.style.display='';
 
     const total = rows.reduce((a,r) => a + r.value, 0) || 1;
-    const colors = ['#00d4ff','#00ff88','#60a5fa','#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#a78bfa','#fb923c'];
+    const colors = ['#91a9cf','#4bbf8d','#60a5fa','#d9b676','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#a78bfa','#fb923c'];
     const colored = rows.map((r,i) => ({ ...r, color: colors[i % colors.length] }));
 
     // Draw donut using actual portfolio values (canvas is 140×140)
@@ -1176,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!totalValue) return;
 
     // Group by assetType
-    const typeMap = { stock:'#3b82f6', etf:'#06b6d4', crypto:'#f59e0b' };
+    const typeMap = { stock:'#3b82f6', etf:'#7e99c4', crypto:'#f59e0b' };
     const typeLabels = { stock:'Stocks', etf:'ETFs', crypto:'Crypto' };
     const byType = {};
     rows.forEach(r => {
