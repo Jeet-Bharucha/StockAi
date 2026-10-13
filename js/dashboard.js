@@ -1499,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // ── Price Alerts ──────────────────────────────────────────────────────────
-  PriceAlerts.requestPermission();
+  // Ask notification permission only after the user chooses to set an alert.
 
   function renderAlerts() {
     const list=PriceAlerts.get(), el=document.getElementById('alert-list'); if (!el) return;
@@ -1521,6 +1521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dir=document.getElementById('alert-dir')?.value||'above';
     if (!sym||isNaN(price)||price<=0) { showToast('Fill in symbol and target price'); return; }
     PriceAlerts.add(sym,price,dir);
+    PriceAlerts.requestPermission();
     document.getElementById('alert-sym').value=''; document.getElementById('alert-price').value='';
     renderAlerts(); showToast(`Alert set: ${sym} ${dir} $${price}`);
   };
