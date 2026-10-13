@@ -381,3 +381,28 @@ body.stockai-pro.light .terminal-refresh-btn {
 @media (prefers-reduced-motion:reduce) {
   .stockai-pro .sidebar { transition:none; }
 }
+
+/* Historical Signal Check — restrained real-finance evidence panel */
+.stockai-pro .signal-evidence { overflow:hidden; }
+.stockai-pro .signal-evidence-header { display:flex;align-items:flex-start;justify-content:space-between;gap:1rem; }
+.stockai-pro .evidence-run { flex-shrink:0;min-height:39px;padding:.55rem 1rem; }
+.stockai-pro .evidence-muted { color:var(--muted);font-size:.79rem;line-height:1.55;margin-top:.4rem; }
+.stockai-pro .evidence-tag { padding:.2rem .5rem;border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:.68rem;text-transform:none;letter-spacing:0;white-space:nowrap;margin-left:.3rem; }
+.stockai-pro .evidence-status { margin:1rem 0;color:var(--muted);font-size:.8rem;line-height:1.6; }
+.stockai-pro .evidence-status.warning { color:var(--gold); }
+.stockai-pro .evidence-status.success { color:var(--text); }
+.stockai-pro .evidence-metrics { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;margin:.8rem 0 1.1rem; }
+.stockai-pro .evidence-metric { background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:.82rem;min-width:0; }
+.stockai-pro .evidence-metric small { display:block;color:var(--muted);font-size:.67rem;font-weight:700;line-height:1.35;margin-bottom:.4rem; }
+.stockai-pro .evidence-metric strong { display:block;color:var(--text);font-size:1.3rem;line-height:1.25;font-variant-numeric:tabular-nums; }
+.stockai-pro .evidence-metric span { display:block;color:var(--muted);font-size:.65rem;line-height:1.4;margin-top:.35rem; }
+.stockai-pro .evidence-table-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
+.stockai-pro .evidence-table { width:100%;border-collapse:collapse;font-size:.77rem;white-space:nowrap;font-variant-numeric:tabular-nums; }
+.stockai-pro .evidence-table th { text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:.65rem;color:var(--muted);padding:.7rem .6rem;border-bottom:1px solid var(--border); }
+.stockai-pro .evidence-table td { padding:.75rem .6rem;border-bottom:1px solid var(--border2); }
+.stockai-pro .evidence-table tr:last-child td { border-bottom:0; }
+.stockai-pro .evidence-disclaimer { margin-top:.85rem;color:var(--muted);font-size:.7rem;line-height:1.6; }
+.stockai-pro .evidence-positive { color:var(--green); }
+.stockai-pro .evidence-negative { color:var(--red); }
+@media(max-width:1000px){ .stockai-pro .evidence-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }}
+@media(max-width:600px){ .stockai-pro .signal-evidence-header{flex-direction:column;}.stockai-pro .evidence-run{width:100%;}.stockai-pro .evidence-metrics{gap:.5rem;}.stockai-pro .evidence-metric{padding:.7rem;}.stockai-pro .evidence-metric strong{font-size:1.13rem;} }
