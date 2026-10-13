@@ -6,7 +6,7 @@
 <title>Dashboard — StockAI</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#00c9a7">
+<meta name="theme-color" content="#0b121b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/effects.css">
@@ -1212,7 +1212,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 
 <div class="app">
   <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
     <div class="sidebar-header">
       <div class="logo-icon">📈</div>
       <div class="logo-text">StockAI</div>
@@ -1251,11 +1251,14 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
     </div>
   </aside>
 
+  <!-- Mobile drawer scrim (closed by default; no desktop impact) -->
+  <button type="button" id="sidebar-backdrop" class="sidebar-backdrop hidden" aria-label="Close navigation" tabindex="-1"></button>
+
   <!-- MAIN -->
   <div class="main">
     <!-- TOPBAR (always visible) -->
     <div class="topbar">
-      <button id="sidebar-toggle">☰</button>
+      <button type="button" id="sidebar-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" title="Menu">☰</button>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
         <input type="text" id="stock-search" placeholder="Search symbol or company…">
@@ -1267,8 +1270,8 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         <button id="notif-btn" onclick="NotifCenter.toggle()" title="Notifications">
           🔔<span id="notif-badge" class="notif-badge" style="display:none">0</span>
         </button>
-        <button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark">🌙</button>
-        <div style="width:32px;height:32px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.9rem" onclick="location.reload()" title="Refresh">🔄</div>
+        <button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark" aria-label="Switch color mode">🌙</button>
+        <button type="button" id="btn-refresh-market" class="terminal-refresh-btn" onclick="window.refreshMarketData?.()" title="Refresh market data" aria-label="Refresh market data">↻</button>
       </div>
     </div>
 
