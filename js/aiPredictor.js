@@ -295,20 +295,20 @@ const AIPredictor = {
     const strongSignals = signals.filter(s => Math.abs(s.score) === 2);
     const lines = [];
     if (direction === 'UP') {
-      lines.push(`AI analysis indicates a BULLISH outlook with a composite score of ${score.toFixed(2)}.`);
+      lines.push(`Technical indicator rules show a BULLISH setup with a composite score of ${score.toFixed(2)}.`);
       lines.push(`${signals.filter(s=>s.score>0).length} of ${signals.length} indicators are signaling buying pressure.`);
     } else if (direction === 'DOWN') {
-      lines.push(`AI analysis indicates a BEARISH outlook with a composite score of ${score.toFixed(2)}.`);
+      lines.push(`Technical indicator rules show a BEARISH setup with a composite score of ${score.toFixed(2)}.`);
       lines.push(`${signals.filter(s=>s.score<0).length} of ${signals.length} indicators are signaling selling pressure.`);
     } else {
-      lines.push(`AI analysis shows NEUTRAL momentum — market is consolidating.`);
+      lines.push(`Technical indicators currently show a MIXED setup. This is not a forecast.`);
       lines.push(`Indicators are evenly split between bullish and bearish signals.`);
     }
     if (strongSignals.length > 0) {
       lines.push(`Strong signals from: ${strongSignals.map(s=>s.name).join(', ')}.`);
     }
     lines.push(`Volatility (ATR): ${atrPct}% — ${atrPct > 3 ? 'HIGH risk environment' : atrPct > 1.5 ? 'MODERATE volatility' : 'LOW volatility'}.`);
-    lines.push(`Note: AI predictions are for educational purposes only. Always do your own research.`);
+    lines.push(`Indicator strength is a rule-based score, not the probability of a correct prediction. Check historical evidence before interpreting this signal.`);
     return lines;
   }
 };
