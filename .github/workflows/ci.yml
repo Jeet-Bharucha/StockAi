@@ -1,0 +1,34 @@
+name: StockAI CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Check frontend and backend syntax
+        shell: bash
+        run: |
+          node --check server.js
+          node --check sw.js
+          for file in js/*.js tests/*.cjs; do node --check "$file"; done
+      - name: Run regression tests
+        run: npm test
