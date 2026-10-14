@@ -1,8 +1,8 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {completedBars,resolvedOutcome,summarize,wilson,installForwardTrackingRoutes}=require('../forwardTracking');
-const TODAY=Date.parse('2026-10-13T16:00:00Z');
+const {completedBars,resolvedOutcome,summarize,wilson,safeToSaveNow,installForwardTrackingRoutes}=require('../forwardTracking');
+const TODAY=Date.parse('2026-10-13T12:00:00Z');
 const DAY=86400000;
 
 function history(count=250) {
@@ -18,6 +18,17 @@ test('exclude incomplete same-day daily candle, never use it for a forward outco
  const today={time:Math.floor(TODAY/1000),open:103,high:104,low:102,close:103,volume:2};
  b.push(today);
  assert.equal(completedBars(b,TODAY).length,b.length-1);
+});
+
+test('cannot save a backdated prior-close signal after the next session opens',()=>{
+ assert.equal(safeToSaveNow(Date.parse('2026-10-13T12:00:00Z')),true); // 8 AM ET
+ assert.equal(safeToSaveNow(Date.parse('2026-10-13T16:00:00Z')),false); // noon ET
+ assert.equal(safeToSaveNow(Date.parse('2026-10-13T22:30:00Z')),true); // 6:30 PM ET
+ assert.equal(safeToSaveNow(Date.parse('2026-10-11T16:00:00Z')),true); // Sun
+ const sameDay={time:Date.parse('2026-10-13T19:30:00Z')/1000,
+   open:120,close:121,high:122,low:119,volume:100};
+ assert.equal(completedBars([sameDay],Date.parse('2026-10-13T19:40:00Z')).length,0);
+ assert.equal(completedBars([sameDay],Date.parse('2026-10-13T23:00:00Z')).length,1);
 });
 
 test('forward outcome uses NEXT session OPEN and FIFTH future CLOSE',()=>{
