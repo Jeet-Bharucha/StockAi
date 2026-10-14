@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    resetEvidenceUI();
     const requestVersion = ++stockRequestVersion;
     verifiedPrevClose = null;
 
@@ -313,20 +314,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // ── Render Claude's analysis ──────────────────────────────────────
       const driversHtml = Array.isArray(data.key_drivers) && data.key_drivers.length
-        ? `<ul class="claude-drivers">${data.key_drivers.map(d => `<li>${d}</li>`).join('')}</ul>`
+        ? `<ul class="claude-drivers">${data.key_drivers.slice(0,5).map(d => `<li>${escapeHTML(d)}</li>`).join('')}</ul>`
         : '';
 
       const riskHtml = data.risk
-        ? `<div class="claude-risk"><span class="claude-label">⚠ RISK</span>${data.risk}</div>`
+        ? `<div class="claude-risk"><span class="claude-label">⚠ RISK</span>${escapeHTML(data.risk)}</div>`
         : '';
 
       const watchHtml = data.watch
-        ? `<div class="claude-watch"><span class="claude-label">👁 WATCH</span>${data.watch}</div>`
+        ? `<div class="claude-watch"><span class="claude-label">👁 WATCH</span>${escapeHTML(data.watch)}</div>`
         : '';
 
       reasonEl.innerHTML = `
         <div class="claude-badge">✦ Claude AI</div>
-        <p class="claude-summary">${data.summary}</p>
+        <p class="claude-summary">${escapeHTML(data.summary)}</p>
         ${driversHtml}
         ${riskHtml}
         ${watchHtml}`;
@@ -345,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!r) return;
     reasonEl.innerHTML = `
       <div class="ta-badge">⚙ Technical Analysis</div>
-      ${r.reasoning.map(l => `<p>${l}</p>`).join('')}`;
+      ${r.reasoning.map(l => `<p>${escapeHTML(l)}</p>`).join('')}`;
   }
 
   function renderAI(r) {
@@ -354,8 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Direction pill
     const dirEl = document.getElementById('ai-direction');
     if (dirEl) {
-      const labels = { UP:'▲ STRONG BUY', DOWN:'▼ STRONG SELL', NEUTRAL:'● HOLD' };
-      if (r.confidence < 55) labels.UP = '▲ BUY'; if (r.confidence < 55) labels.DOWN = '▼ SELL';
+      const labels = { UP:'▲ BULLISH SETUP', DOWN:'▼ BEARISH SETUP', NEUTRAL:'● MIXED SETUP' };
       dirEl.textContent = labels[r.direction] || '● HOLD';
       dirEl.className = `ai-direction ${r.direction.toLowerCase()}`;
     }
@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ctx.fillStyle='#fff'; ctx.font='bold 36px Inter,sans-serif'; ctx.textAlign='center';
       ctx.fillText(`${r.confidence}%`, cx, cy-22);
       ctx.fillStyle='#64748b'; ctx.font='600 11px Inter,sans-serif';
-      ctx.fillText('AI CONFIDENCE', cx, cy-4);
+      ctx.fillText('INDICATOR SCORE', cx, cy-4);
 
       // Zone labels
       ctx.font='500 10px Inter,sans-serif'; ctx.fillStyle='rgba(255,68,102,0.8)';
@@ -411,19 +411,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     vc('ai-buy-count',r.buyCount); vc('ai-sell-count',r.sellCount); vc('ai-neutral-count',r.neutralCount);
     vc('ai-support',`$${r.support}`); vc('ai-resistance',`$${r.resistance}`); vc('ai-atr',`${r.atrPct}%`); vc('ai-rsi',r.rsi??'—');
 
-    // Price targets
+    // ATR scenarios are risk bands, NOT modeled price forecasts.
     const curPrice = currentBars.length ? currentBars[currentBars.length-1].close : 0;
     if (curPrice) {
-      const bullTarget = (curPrice * (1 + 0.08 + r.confidence/1000)).toFixed(2);
-      const bearTarget = (curPrice * (1 - 0.05 - (100-r.confidence)/1500)).toFixed(2);
-      vc('pt-bear', `$${bearTarget}`);
-      vc('pt-bull', `$${bullTarget}`);
-      vc('pt-current', `$${curPrice.toFixed(2)}`);
-      // Position dot: where current sits between bear and bull
-      const range = bullTarget - bearTarget;
-      const pos = range > 0 ? Math.min(100, Math.max(0, ((curPrice - bearTarget)/range)*100)) : 50;
+      const atr = curPrice * (r.atrPct || 0) / 100;
+      const bear = atr > 0 ? Math.max(0,curPrice-2*atr) : null;
+      const bull = atr > 0 ? curPrice+2*atr : null;
+      vc('pt-bear',bear===null?'—':'$'+bear.toFixed(2));
+      vc('pt-bull',bull===null?'—':'$'+bull.toFixed(2));
+      vc('pt-current','$'+curPrice.toFixed(2));
       const dotEl = document.getElementById('pt-dot');
-      if (dotEl) dotEl.style.left = `${pos}%`;
+      if (dotEl) dotEl.style.left='50%';
     }
 
     // Risk needle
@@ -469,6 +467,98 @@ document.addEventListener('DOMContentLoaded', async () => {
     vc('quick-conf-text',`Indicator score: ${r.confidence}% (not probability)`);
     vc('q-buy',r.buyCount); vc('q-sell',r.sellCount); vc('q-neutral',r.neutralCount);
   }
+
+  // ── On-demand walk-forward evidence (historical, never marketed as certainty)
+  let evidenceRequest = 0;
+  function resetEvidenceUI() {
+    evidenceRequest++;
+    const results = document.getElementById('evidence-results');
+    const status = document.getElementById('evidence-status');
+    if (results) results.hidden = true;
+    if (status) {
+      status.className = 'evidence-status';
+      status.textContent = 'Select Run Historical Check to inspect ' + currentSymbol + ' using earlier market data.';
+    }
+    const button = document.getElementById('btn-backtest');
+    if (button) { button.disabled = false; button.textContent = 'Run Historical Check →'; }
+  }
+
+  window.runHistoricalCheck = async function () {
+    if (!currentSymbol || typeof SignalEvidence === 'undefined') return;
+    const symbol = currentSymbol, request = ++evidenceRequest;
+    const status = document.getElementById('evidence-status');
+    const results = document.getElementById('evidence-results');
+    const button = document.getElementById('btn-backtest');
+    const format = value => value == null ? '—' : (value >= 0 ? '+' : '') + value.toFixed(2) + '%';
+    if (results) results.hidden = true;
+    if (button) { button.disabled = true; button.textContent = 'Checking history…'; }
+    if (status) { status.className = 'evidence-status'; status.textContent = 'Fetching up to three years of verified daily candles for ' + symbol + '…'; }
+    try {
+      const history = await StockAPI.getCandles(symbol,'D',1095);
+      if (request !== evidenceRequest || symbol !== currentSymbol) return;
+      const report = await SignalEvidence.evaluateAsync(history, (done,total) => {
+        if (status && request === evidenceRequest) status.textContent =
+          'Replaying historical signals: ' + done + ' of ' + total + ' windows…';
+      });
+      if (request !== evidenceRequest || symbol !== currentSymbol) return;
+      if (!report.evaluations || report.directionalSignals < 1) {
+        if (status) {
+          status.className = 'evidence-status warning';
+          status.textContent = 'Not enough complete price history or non-neutral signals to evaluate. No historical accuracy is claimed.';
+        }
+        return;
+      }
+      const set=(id,value)=>{
+        const el=document.getElementById(id);if(el)el.textContent=value;
+      };
+      // Avoid marketing tiny-sample noise as a meaningful accuracy figure.
+      const enough = report.evidenceLevel !== 'insufficient';
+      set('evidence-hit', enough ? report.hitRatePct.toFixed(1) + '%' : 'Not enough');
+      set('evidence-hit-ci', enough
+        ? '95% Wilson interval: ' + report.hitRate95Pct.join('–') + '%'
+        : 'At least 10 directional samples required');
+      set('evidence-n', String(report.directionalSignals));
+      set('evidence-window', report.evaluations + ' sampled windows · ' + report.neutralSignals + ' neutral');
+      set('evidence-strategy',enough ? format(report.avgDirectionalReturnPct) : '—');
+      set('evidence-benchmark',enough ? format(report.avgBaselineLongReturnPct) : '—');
+      set('evidence-disclaimer',report.note);
+      const table = document.getElementById('evidence-rows');
+      if (table) {
+        table.replaceChildren();
+        for (const row of report.rows) {
+          const tr=document.createElement('tr');
+          const date=new Date(row.signalTime*1000).toLocaleDateString('en-US',
+            {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
+          for (const value of [date,
+            row.direction==='UP'?'Bullish':row.direction==='DOWN'?'Bearish':'Neutral',
+            format(row.marketReturnPct),row.correct===null?'—':row.correct?'Yes':'No']) {
+            const td=document.createElement('td'); td.textContent=value;
+            tr.appendChild(td);
+          }
+          table.appendChild(tr);
+        }
+      }
+      if (results) results.hidden=false;
+      if (status) {
+        status.className = 'evidence-status '+(report.evidenceLevel==='insufficient'?'warning':'success');
+        status.textContent = symbol + ': ' + report.directionalSignals + ' historical directional samples (' +
+          report.evidenceLevel + ' evidence). ' +
+          (report.evidenceLevel==='insufficient'
+            ? 'Too few outcomes for a reliable hit-rate estimate. '
+            : 'Historical results are exploratory, not expected future accuracy. ') +
+          (report.errors.length ? report.errors.length + ' samples could not be computed.' : '');
+      }
+    } catch(err) {
+      if (request===evidenceRequest && status) {
+        status.className = 'evidence-status warning';
+        status.textContent = 'Historical check unavailable: '+err.message+'. No made-up success rate is shown.';
+      }
+    } finally {
+      if (request===evidenceRequest && button) {
+        button.disabled=false; button.textContent='Run Historical Check →';
+      }
+    }
+  };
 
   // ── Market strip ──────────────────────────────────────────────────────────
   async function updateMarket() {
