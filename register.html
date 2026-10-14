@@ -266,7 +266,8 @@ input.valid-field{border-color:var(--green)!important}
           </button>
         </form>
 
-        <p class="terms">StockAI provides educational market analysis, not financial advice. Never rely on a prediction as a guaranteed outcome.</p>
+        <div id="verify-pending" style="display:none;margin:1rem 0;padding:1rem;border-radius:10px;background:rgba(126,160,204,.1);border:1px solid #718eb7;color:var(--text);font-size:.86rem;line-height:1.6" role="status" aria-live="polite"></div>
+                <p class="terms">StockAI provides educational market analysis, not financial advice. Never rely on a prediction as a guaranteed outcome.</p>
         <div class="auth-switch">Already have an account? <a href="login.html">Sign in</a></div>
       </div>
     </div>
@@ -296,6 +297,13 @@ Auth.getSiteConfig().then(cfg => {
     const btn = document.querySelector('#submit-btn .btn-text');
     if (btn) btn.textContent = 'Create Owner Account →';
     document.getElementById('owner-setup-wrap').style.display = 'block';
+  } else if (!cfg.registrationOpen) {
+    notice.style.display = 'block';
+    notice.textContent = 'Public signup is not open yet. The operator must configure verified email delivery before allowing new accounts.';
+    document.getElementById('submit-btn').disabled = true;
+  } else {
+    notice.style.display = 'block';
+    notice.textContent = 'Public StockAI: create an account, verify your email, and sign in. Each person gets their own private portfolio and watchlist.';
   }
 });
 </script>
@@ -384,8 +392,18 @@ document.getElementById('reg-form').addEventListener('submit',async function(e){
   await new Promise(r=>setTimeout(r,800));
   const result = await Auth.register(`${fname} ${lname}`, email, pwd, document.getElementById('owner-setup-key').value.trim());
   btn.classList.remove('loading');
-  if(result.success) window.location.href='dashboard.html';
-  else{errEl.textContent=result.error;errEl.classList.add('show');}
+  if (result.success) window.location.href='dashboard.html';
+  else if (result.pendingVerification) {
+    document.getElementById('reg-form').style.display = 'none';
+    const pending = document.getElementById('verify-pending');
+    pending.style.display = 'block';
+    pending.textContent = result.message + ' ';
+    const link = document.createElement('a');
+    link.href = 'verify-email.html';
+    link.textContent = 'Verify or resend confirmation →';
+    link.style.cssText = 'display:block;color:var(--cyan);margin-top:.75rem';
+    pending.appendChild(link);
+  } else { errEl.textContent = result.error; errEl.classList.add('show'); }
 });
 </script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
