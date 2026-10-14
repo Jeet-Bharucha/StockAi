@@ -10,6 +10,7 @@
   deterministic rule-based indicator signal from verified Yahoo-backed daily
   candles; ignores client-supplied signal/score. Saves an immutable timestamped
   observation per user, per symbol, per daily close, per rule version.
+- To prevent hindsight, save is permitted **before 9 AM ET or after 6 PM ET** (or weekends). From 9 AM to 6 PM ET on weekdays the server refuses to backdate a signal. After 6 PM it requires the completed daily bar for that day. This conservative schedule can reject late or holiday data rather than claiming false accuracy.
 - Upon viewing the journal in a later session, matures any pending prediction
   when at least **five future completed trading sessions** of candles exist.
   It measures entry at next session's open and exit at session five's close;
