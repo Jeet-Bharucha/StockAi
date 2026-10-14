@@ -7,22 +7,39 @@ const MODEL_VERSION = 'indicators-v1-2026';
 const HORIZON_SESSIONS = 5;
 const COST_PCT = .10;
 const tickerPattern = /^[A-Z0-9.^=-]{1,15}$/;
+const ET='America/New_York';
 const etDay = timestamp => new Intl.DateTimeFormat('en-CA', {
-  timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'
+  timeZone:ET,year:'numeric',month:'2-digit',day:'2-digit'
 }).format(new Date(timestamp*1000));
+function marketClock(now){
+  const parts=new Intl.DateTimeFormat('en-US',{
+    timeZone:ET,weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+  }).formatToParts(new Date(now));
+  const get=k=>parts.find(p=>p.type===k)?.value;
+  return {weekday:get('weekday'),hour:Number(get('hour')),minute:Number(get('minute')||0)};
+}
+function safeToSaveNow(now){
+  const {weekday,hour}=marketClock(now);
+  const workday=weekday!=='Sat'&&weekday!=='Sun';
+  // Conservative window. Don't allow an alleged prior-close signal to be
+  // submitted after the next market session has already opened.
+  return !workday || hour<9 || hour>=18;
+}
 
 function completedBars(bars, now = Date.now()) {
   if (!Array.isArray(bars)) throw new Error('Missing historical market data');
-  const currentDay = etDay(Math.floor(now/1000));
-  const valid = bars.filter(b=>b && Number.isFinite(b.time) &&
+  const currentDay=etDay(Math.floor(now/1000));
+  const {weekday,hour}=marketClock(now);
+  const closeFinal=weekday!=='Sat'&&weekday!=='Sun'&&hour>=18;
+  const valid = bars.filter(b=>b && Number.isFinite(b.time) && b.time<=Math.floor(now/1000) &&
     Number.isFinite(b.open)&&b.open>0 &&
     Number.isFinite(b.close)&&b.close>0 &&
     Number.isFinite(b.high)&&Number.isFinite(b.low)&&
     b.high>=Math.max(b.open,b.close,b.low)&&
     b.low<=Math.min(b.open,b.close,b.high));
-  // Deliberately exclude a same-day bar even after close to avoid partially
-  // updated provider data or exchange closing-time assumptions.
-  return valid.filter(b=>etDay(b.time)!==currentDay);
+  // Allow today's completed session only after 6 PM ET; earlier bar updates
+  // can be provisional. This deliberately favors integrity over freshness.
+  return valid.filter(b=>etDay(b.time)!==currentDay || closeFinal);
 }
 
 function resolvedOutcome(bars, signalTime, now=Date.now()) {
@@ -94,6 +111,9 @@ function installForwardTrackingRoutes(app,{
     if(!tickerPattern.test(symbol))
       return res.status(400).json({error:'Choose a valid stock or ETF ticker.'});
     try {
+      if(!safeToSaveNow(now())) return res.status(422).json({
+        error:'Verified daily signals can be saved before 9 AM ET or after 6 PM ET, not during the trading session. This prevents hindsight results.'
+      });
       const count=await Prediction.countDocuments({userId:req.user.id});
       if(count>=400)
         return res.status(409).json({error:'Signal journal capacity reached. Export your history before creating more.'});
@@ -101,6 +121,10 @@ function installForwardTrackingRoutes(app,{
       if(bars.length<210)
         return res.status(422).json({error:'Insufficient completed verified daily candles to save a signal.'});
       const last=bars[bars.length-1];
+      const sessionClock=marketClock(now());
+      if(sessionClock.weekday!=='Sat'&&sessionClock.weekday!=='Sun'&&sessionClock.hour>=18 &&
+        etDay(last.time)!==etDay(Math.floor(now()/1000)))
+        return res.status(422).json({error:'Today’s finalized daily candle is not available yet. Try tomorrow before 9 AM ET.'});
       if(now()-last.time*1000>8*86400000)
         return res.status(422).json({error:'Market history is stale; no new prediction has been saved.'});
       // Independently recompute the rule from price data. Never trust browser
@@ -130,7 +154,7 @@ function installForwardTrackingRoutes(app,{
       // Lazy settlement makes this work on sleeping Render services that miss
       // scheduled jobs; bounded by the most recent pending signals per request.
       const pending=await Prediction.find({userId:req.user.id,status:'pending'})
-        .sort({signalTime:1}).limit(8);
+        .sort({signalTime:1}).limit(3);
       const cached=new Map();
       for(const p of pending){
         try {
@@ -166,4 +190,4 @@ function installForwardTrackingRoutes(app,{
     }
   });
 }
-module.exports={MODEL_VERSION,HORIZON_SESSIONS,completedBars,resolvedOutcome,wilson,summarize,installForwardTrackingRoutes};
+module.exports={MODEL_VERSION,HORIZON_SESSIONS,marketClock,safeToSaveNow,completedBars,resolvedOutcome,wilson,summarize,installForwardTrackingRoutes};
