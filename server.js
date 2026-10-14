@@ -9,6 +9,8 @@ const bcrypt   = require('bcryptjs');
 const { installAccountRoutes } = require('./accountRoutes');
 const { createRateLimiter } = require('./security');
 const { publicSettings, registerPublic, installVerificationRoutes } = require('./publicSignup');
+const { AIPredictor } = require('./js/aiPredictor');
+const { installForwardTrackingRoutes } = require('./forwardTracking');
 const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
 const _anthropicMod = require('@anthropic-ai/sdk');
@@ -91,6 +93,23 @@ const HoldingSchema = new mongoose.Schema({
   addedAt:     { type: Date, default: Date.now }
 });
 const Holding = mongoose.model('Holding', HoldingSchema);
+
+const PredictionSchema = new mongoose.Schema({
+  userId: {type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},
+  symbol: {type:String,required:true,uppercase:true},
+  modelVersion: {type:String,required:true},
+  signalTime: {type:Number,required:true},
+  horizonSessions: {type:Number,required:true},
+  direction: {type:String,enum:['UP','DOWN','NEUTRAL'],required:true},
+  indicatorScore: {type:Number,required:true},
+  status: {type:String,enum:['pending','resolved'],default:'pending'},
+  createdAt: {type:Date,default:Date.now},
+  entryTime:Number,exitTime:Number,entryPrice:Number,exitPrice:Number,
+  marketReturnPct:Number,correct:Boolean,hypotheticalNetReturnPct:Number,resolvedAt:Date
+});
+PredictionSchema.index({userId:1,symbol:1,signalTime:1,modelVersion:1,horizonSessions:1},{unique:true});
+PredictionSchema.index({userId:1,createdAt:-1});
+const Prediction = mongoose.model('Prediction',PredictionSchema);
 
 // ── Auth middleware ───────────────────────────────────────────────────────
 async function authMW(req, res, next) {
@@ -269,7 +288,9 @@ app.post('/api/auth/login', limiterLogin, dbRequired, async (req, res) => {
   }
 });
 
-installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedEmail: ALLOWED_EMAIL });
+installAccountRoutes(app,{User,Holding,Prediction,authMW,dbRequired,allowedEmail:ALLOWED_EMAIL});
+const forwardLimiter = createRateLimiter({windowMs:60*60*1000,max:80,namespace:'forward',keyFn:req=>req.user?.id||req.ip});
+installForwardTrackingRoutes(app,{Prediction,authMW,dbRequired,fetchHistoricalBars,AIPredictor,rateLimit:forwardLimiter});
 
 // ── Portfolio routes (protected) ──────────────────────────────────────────
 app.get('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
