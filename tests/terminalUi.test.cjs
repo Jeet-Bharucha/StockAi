@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const pages = [
   'index.html', 'login.html', 'register.html', 'dashboard.html',
   'profile.html', 'forgot-password.html', 'reset-password.html',
-  'owner-recovery.html'
+  'owner-recovery.html', 'verify-email.html'
 ];
 
 for (const page of pages) {
