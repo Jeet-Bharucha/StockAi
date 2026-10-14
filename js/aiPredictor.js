@@ -312,3 +312,7 @@ const AIPredictor = {
     return lines;
   }
 };
+
+
+// Shared deterministic technical rules for server-verified forward signals.
+if (typeof module !== 'undefined' && module.exports) module.exports = { AIPredictor };
