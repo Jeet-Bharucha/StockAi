@@ -560,6 +560,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  // Forward evidence: only future matured outcomes count toward the displayed
+  // hit rate. Saving recomputes rules on the server, not from browser inputs.
+  let loadingForward = false;
+  async function loadForwardSignals() {
+    if (loadingForward) return;
+    const state = document.getElementById('forward-status');
+    const tbody = document.getElementById('forward-rows');
+    if (!state || !tbody) return;
+    if (Auth.isGuest()) {
+      state.textContent = 'Sign in to keep a private, timestamped record of your signals.';
+      return;
+    }
+    loadingForward = true;
+    state.textContent = 'Loading verified signal history and checking matured outcomes…';
+    try {
+      const resp = await fetch('/api/user/forward-signals',{
+        headers:Auth._authHeader(),cache:'no-store'
+      });
+      const data = await resp.json();
+      if(!resp.ok) throw Error(data.error||'Unable to read forward signals.');
+      const p=data.performance;
+      const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+      set('forward-total',String(p.allSaved));
+      set('forward-resolved',String(p.directionalResolved));
+      set('forward-pending',String(p.pending));
+      set('forward-hit',p.hitRatePct===null?'Not enough data':p.hitRatePct.toFixed(1)+'%');
+      set('forward-interval',p.hitRate95Pct
+        ? '95% Wilson interval '+p.hitRate95Pct.join('–')+'%'
+        : 'Need 30 matured directional outcomes');
+      tbody.replaceChildren();
+      for(const item of data.signals){
+        const date=new Date(item.signalTime*1000).toLocaleDateString('en-US',{
+          month:'short',day:'numeric',year:'numeric',timeZone:'UTC'
+        });
+        const move=item.marketReturnPct==null?'—':
+          (item.marketReturnPct>0?'+':'')+item.marketReturnPct.toFixed(2)+'%';
+        const columns=[
+          item.symbol,date,item.direction,
+          item.status==='resolved'?'Measured':'Pending',
+          move,item.correct===null?'—':item.correct?'Yes':'No'
+        ];
+        const tr=document.createElement('tr');
+        for(const col of columns){const td=document.createElement('td');td.textContent=col;tr.appendChild(td);}
+        tbody.appendChild(tr);
+      }
+      if(!data.signals.length){
+        const tr=document.createElement('tr');
+        const td=document.createElement('td');td.colSpan=6;
+        td.textContent='No signals saved yet. Select a stock and save today’s technical signal.';
+        tr.appendChild(td);tbody.appendChild(tr);
+      }
+      state.textContent='Evidence is based on '+p.resolved+' actually matured outcomes from your account. '+
+        (p.hitRatePct===null?'No performance percentage is claimed yet.':
+        'Measured hit rate is descriptive, not a future accuracy guarantee.');
+    }catch(e){
+      state.textContent='Could not load forward evidence: '+e.message;
+    }finally{loadingForward=false;}
+  }
+
+  window.saveForwardSignal = async function(){
+    if (Auth.isGuest()) { showGuestModal(); return; }
+    const button=document.getElementById('btn-save-forward');
+    const status=document.getElementById('forward-status');
+    if(button){button.disabled=true;button.textContent='Saving verified signal…';}
+    try{
+      const symbol=currentSymbol;
+      const resp=await fetch('/api/user/forward-signals',{
+        method:'POST',headers:Auth._authHeader(),body:JSON.stringify({symbol})
+      });
+      const data=await resp.json();
+      if(!resp.ok)throw Error(data.error||'Unable to save a verified signal.');
+      if(status)status.textContent=symbol+': '+data.note;
+      await loadForwardSignals();
+    }catch(e){if(status)status.textContent=e.message;}
+    finally{if(button){button.disabled=false;button.textContent='Save Current Signal';}}
+  };
+  document.addEventListener('stockai:tab',event=>{
+    if(event.detail==='ai') void loadForwardSignals();
+  });
+
   // ── Market strip ──────────────────────────────────────────────────────────
   async function updateMarket() {
     const el = document.getElementById('market-overview');
