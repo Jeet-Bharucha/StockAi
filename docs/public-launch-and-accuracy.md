@@ -30,6 +30,73 @@ selection bias, overlapping signal samples, market regimes, stock splits,
 dividends, bid/ask spreads, fees, tax, and slippage remain limitations.
 Do not advertise the resulting hit rate as a guaranteed future probability.
 
+## One-website rollout: keep `stockai-main.onrender.com`
+
+You said `stockai-main.onrender.com` is the **only** StockAI website, so
+there is no need to require a second deployment. This code adds an **explicit,
+reversible single-service launch switch**. Your existing owner's MongoDB
+`_id`, JWT secret, login, private holdings, watchlist and prediction journal
+are not migrated or erased.
+
+**Before turning public on:** back up the database, resolve the security
+findings in Issue #9, confirm the market-data vendor permits the intended
+public use, verify email sender/delivery, and smoke-test data isolation for
+at least two independent accounts. CI alone is NOT a production audit.
+
+**Stage 1 — deploy this PR with default settings:**
+
+- Keep `ALLOWED_EMAIL`, `SITE_PASSWORD`, `MONGO_URI`, `JWT_SECRET` and
+  any existing private owner settings **unchanged**.
+- Set `PUBLIC_SITE_ENABLED=false` (or omit it). All existing private rules
+  remain active. Setting `PUBLIC_SIGNUPS_ENABLED=true` alone CANNOT open
+  the site.
+- Verify the current owner can still sign in and their saved portfolio loads.
+
+**Stage 2 — prepare public signups on the same Render service:**
+
+- Set `OWNER_EMAIL` to your **existing** account's email. Keep
+  `ALLOWED_EMAIL` unchanged: it remains the owner's legacy identity in
+  private mode and is **not** an access restriction when public mode is on.
+- Set `SITE_URL=https://stockai-main.onrender.com`.
+- Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` with a sender domain
+  verified for sending to arbitrary external addresses.
+- Test delivery using provider-native tools; never put API keys in GitHub,
+  chat or screenshots.
+
+**Stage 3 — controlled switch, after security and end-to-end testing:**
+
+- In Render Environment, set `PUBLIC_SITE_ENABLED=true` to open the *pages*
+  and allow public users to log in. This bypasses the old `SITE_PASSWORD`
+  Basic Auth popup for HTML pages. The Basic Auth secret remains configured
+  but is inactive while the explicit public switch is on.
+- Set `PUBLIC_SIGNUPS_ENABLED=true` only when verified delivery works.
+  The site **does not** issue login sessions to new accounts until they
+  verify email.
+- Check `/api/auth/config`: it should show `mode:"public"`,
+  `registrationOpen:true`.
+- Public accounts cannot sign up with `OWNER_EMAIL`; owner-only API routes
+  continue to check the owner email in the verified MongoDB user record.
+- Test with two independently verified emails in different browsers.
+  Confirm private portfolios, watchlists and journals do not cross accounts,
+  and a non-owner cannot reach private admin alert-testing routes.
+
+**Rollback:** set `PUBLIC_SITE_ENABLED=false` and redeploy. The personal
+allowlist and old site password will again protect the site; the public
+accounts stay safely in MongoDB but cannot login until reopening. Do not
+delete public MongoDB records during rollback. Do not change the old JWT
+secret during this rollout.
+
+**Operational note:** this is a staged path, not an instruction to flip the
+switch today. Opening this one domain publicly exposes the same deployment
+to public traffic. Budget for upgrades, robust throttling and security
+hardening as soon as public demand increases.
+
+## Alternative: separate public service (not required)
+
+If traffic grows, a dedicated public service/database is safer for isolation.
+Follow the separate-service template below when needed, not as a prerequisite
+for today's one-website design.
+
 ## Do NOT expose the private owner site by simply deleting its settings
 
 Your existing `stockai-main.onrender.com` uses `ALLOWED_EMAIL` and potentially

@@ -11,10 +11,14 @@ function publicSettings({ allowedEmail = '', env = process.env } = {}) {
   try { validUrl = new URL(url).protocol === 'https:' && new URL(url).origin === url; }
   catch (_) {}
   const emailReady = Boolean(env.RESEND_API_KEY && env.RESEND_FROM_EMAIL && validUrl);
-  const configured = !allowedEmail && env.PUBLIC_SIGNUPS_ENABLED === 'true';
+  // A previously owner-only service can explicitly enter public mode while
+  // retaining ALLOWED_EMAIL as the stable owner identity. No variable is
+  // implicitly opened or removed. Public registration remains a separate flag.
+  const publicEnabled = env.PUBLIC_SITE_ENABLED === 'true';
   return {
-    mode: allowedEmail ? 'private' : 'public',
-    registrationOpen: configured && emailReady,
+    mode: publicEnabled || !allowedEmail ? 'public' : 'private',
+    publicEnabled,
+    registrationOpen: publicEnabled && env.PUBLIC_SIGNUPS_ENABLED === 'true' && emailReady,
     emailReady,
     siteUrl: url
   };

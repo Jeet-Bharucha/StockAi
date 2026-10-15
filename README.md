@@ -188,6 +188,10 @@ service warm when allowed by the hosting plan.
 
 ---
 
+## Single-website public beta (preserves existing owner account)
+
+No second domain is required. Leave `PUBLIC_SITE_ENABLED=false` while testing: this preserves the original owner-only StockAI deployment. A deliberate `PUBLIC_SITE_ENABLED=true` switch allows public account logins on the **same** service, without clearing `ALLOWED_EMAIL` or replacing your database/JWT secret. Public registration separately requires `PUBLIC_SIGNUPS_ENABLED=true` and verified Resend email. **Do not enable a public launch until security, vendor rights and account-isolation checks are complete.** See [single-website rollout instructions](docs/public-launch-and-accuracy.md#one-website-rollout-keep-stockai-mainonrendercom).
+
 ## Public beta and forward-verified signal performance
 
 For verified public email accounts and timestamped, genuinely forward-measured technical signals, see **[Public launch & accuracy guide](docs/public-launch-and-accuracy.md)**. The original owner deployment remains private. This release adds opt-in public signup and a five-session forward signal journal, but does not claim the existing seven-indicator algorithm has a scientifically established prediction accuracy.
