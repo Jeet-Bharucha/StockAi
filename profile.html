@@ -525,7 +525,8 @@ async function loadProfile() {
     const [r] = await Promise.all([
       fetch('/api/user/profile', { headers: Auth._authHeader(), cache: 'no-store' }),
       Auth.loadWatchlist(),
-      Portfolio.load()
+      Portfolio.load(),
+      PriceAlerts.load()
     ]);
     if (!r.ok) throw new Error('Could not load account from MongoDB');
     user = await r.json();
@@ -677,7 +678,7 @@ async function changePassword() {
 
 // ── Data export ────────────────────────────────────────────────────────────
 async function exportAllData() {
-  await Promise.all([Auth.loadWatchlist(), Portfolio.load()]);
+  await Promise.all([Auth.loadWatchlist(), Portfolio.load(), PriceAlerts.load()]);
   let forwardSignals = [];
   try {
     const r=await fetch('/api/user/forward-signals',{headers:Auth._authHeader(),cache:'no-store'});
