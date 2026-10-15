@@ -188,6 +188,26 @@ service warm when allowed by the hosting plan.
 
 ---
 
+## MongoDB-saved price alerts
+
+Price alerts now persist in MongoDB under the authenticated user's ID and can
+be viewed from another device. Previous browser-local alerts are offered for
+one-time import when the API is available; browser copies are preserved if
+import fails. A server-verified quote with a provider timestamp is required
+before an alert can be marked triggered. Once triggered, an alert is resolved
+atomically and won't fire twice. Users can delete alerts individually or
+clear them with their account data.
+
+**This is NOT unattended 24/7 price monitoring.** The signed-in dashboard
+checks outstanding alerts when opened and approximately every two minutes
+while the page remains visible and online. The free Render service can
+sleep; there are no guaranteed background checks, push delivery, or emails
+while the user is offline. Price feeds may be delayed or temporarily
+unavailable, in which case no alert is falsely reported as triggered.
+Real background alert delivery requires a separately budgeted always-on
+worker/cron service, provider licensing, email/push opt-in and monitoring.
+Per-account checks use a bounded number of unique symbols per request.
+
 ## Public beta and forward-verified signal performance
 
 For verified public email accounts and timestamped, genuinely forward-measured technical signals, see **[Public launch & accuracy guide](docs/public-launch-and-accuracy.md)**. The original owner deployment remains private. This release adds opt-in public signup and a five-session forward signal journal, but does not claim the existing seven-indicator algorithm has a scientifically established prediction accuracy.
