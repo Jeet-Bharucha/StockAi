@@ -1510,6 +1510,30 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         </div>
       </section>
 
+      <section class="card signal-evidence" aria-labelledby="forward-title">
+        <div class="signal-evidence-header">
+          <div>
+            <div class="card-title" id="forward-title">🧭 Forward Signal Journal <span class="evidence-tag">Real outcomes only</span></div>
+            <p class="evidence-muted">Save today's technical signal to your account. StockAI locks it with a timestamp, then checks the actual outcome after 5 completed trading sessions. You can't edit or backdate signals.</p>
+          </div>
+          <button type="button" class="btn-scr-run evidence-run" id="btn-save-forward" onclick="window.saveForwardSignal?.()">Save Current Signal</button>
+        </div>
+        <div id="forward-status" class="evidence-status" role="status" aria-live="polite">No market outcomes have been invented.</div>
+        <div class="evidence-metrics">
+          <div class="evidence-metric"><small>Saved signals</small><strong id="forward-total">—</strong><span>Your private journal</span></div>
+          <div class="evidence-metric"><small>Resolved directional outcomes</small><strong id="forward-resolved">—</strong><span>Five sessions later</span></div>
+          <div class="evidence-metric"><small>Measured directional hit rate</small><strong id="forward-hit">Not enough data</strong><span id="forward-interval">Need ≥30 resolved signals</span></div>
+          <div class="evidence-metric"><small>Still pending</small><strong id="forward-pending">—</strong><span>Not counted as successes</span></div>
+        </div>
+        <div class="evidence-table-scroll">
+          <table class="evidence-table">
+            <thead><tr><th>Symbol</th><th>Signal date</th><th>Signal</th><th>State</th><th>Actual 5-session move</th><th>Correct?</th></tr></thead>
+            <tbody id="forward-rows"><tr><td colspan="6">Sign in to save and inspect forward outcomes.</td></tr></tbody>
+          </table>
+        </div>
+        <p class="evidence-disclaimer">All forecasts are deterministic technical-rule observations, not calibrated AI probabilities. Outcomes measure next-session open to the fifth trading-session close, not guaranteed executable trades. No success rate is displayed before 30 matured directional signals.</p>
+      </section>
+
       <!-- Earnings Calendar -->
       <div class="card">
         <div class="card-title">📅 Earnings Calendar <span style="font-weight:400;font-size:.7rem;color:var(--muted);text-transform:none;letter-spacing:0">— Recent &amp; upcoming reports</span></div>

@@ -62,6 +62,12 @@ const Auth = {
         if (res.status === 404) {
           return { success: false, error: 'Login API not found. Check the /api proxy configuration and backend deployment.' };
         }
+        if (data.code === 'EMAIL_NOT_VERIFIED') {
+          return { success:false, verificationRequired:true, error:'Please verify your email before signing in. Check your inbox or request another link on the verification page.' };
+        }
+        if (data.code === 'PUBLIC_REGISTRATION_CLOSED') {
+          return { success:false, error:'Public registration is not enabled yet. The site owner must configure verified email delivery and activate public signups.' };
+        }
         if (data.code === 'OWNER_SETUP_REQUIRED') {
           return { success: false, error: 'Private owner registration requires OWNER_SETUP_KEY in Render and the same value in the Owner Setup Key field. Use a long random key; remove it from Render after creating the account.' };
         }
@@ -72,6 +78,10 @@ const Auth = {
           return { success: false, error: 'Email or password was not recognized in MongoDB. On private StockAI, use Restore Owner Access to set a new password without deleting your existing portfolio. Public users should use the public website. This can also happen when an older account was never moved to MongoDB.' };
         }
         return { success: false, error: data.error || 'Authentication failed (HTTP ' + res.status + ').' };
+      }
+      if (res.status === 202 && data.pendingVerification) {
+        return { success:false,pendingVerification:true,message:data.message ||
+          'Check your email for the verification link.' };
       }
       if (!data.token || !data.user || !data.user.id) {
         return { success: false, error: 'The login server returned an incomplete response. Please try again.' };

@@ -678,11 +678,17 @@ async function changePassword() {
 // ── Data export ────────────────────────────────────────────────────────────
 async function exportAllData() {
   await Promise.all([Auth.loadWatchlist(), Portfolio.load()]);
+  let forwardSignals = [];
+  try {
+    const r=await fetch('/api/user/forward-signals',{headers:Auth._authHeader(),cache:'no-store'});
+    if (r.ok) forwardSignals=(await r.json()).signals || [];
+  } catch (e) { console.warn('Forward signal history unavailable for export',e); }
   const data = {
     exportedAt:  new Date().toISOString(),
     profile:     { name: session.name, email: session.email },
     watchlist:   Auth.getWatchlist(),
     portfolio:   Portfolio.get(),
+    forwardSignals,
     alerts:      PriceAlerts.get(),
     preferences: JSON.parse(localStorage.getItem('stockai_prefs') || '{}'),
   };

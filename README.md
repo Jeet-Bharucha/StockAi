@@ -188,6 +188,10 @@ service warm when allowed by the hosting plan.
 
 ---
 
+## Public beta and forward-verified signal performance
+
+For verified public email accounts and timestamped, genuinely forward-measured technical signals, see **[Public launch & accuracy guide](docs/public-launch-and-accuracy.md)**. The original owner deployment remains private. This release adds opt-in public signup and a five-session forward signal journal, but does not claim the existing seven-indicator algorithm has a scientifically established prediction accuracy.
+
 ## Owner login versus public user login
 
 **Do not point a public Netlify website at the private Render backend.**

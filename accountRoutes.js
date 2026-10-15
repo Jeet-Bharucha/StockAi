@@ -5,8 +5,10 @@
 const crypto = require('node:crypto');
 const bcrypt = require('bcryptjs');
 const { Resend } = require('resend');
+const { publicSettings } = require('./publicSignup');
+const { createRateLimiter } = require('./security');
 
-function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedEmail }) {
+function installAccountRoutes(app, { User, Holding, Prediction, authMW, dbRequired, allowedEmail }) {
   const siteUrl = (process.env.SITE_URL || '').replace(/\/$/, '');
   const fromEmail = process.env.RESEND_FROM_EMAIL || '';
   const mailReady = Boolean(process.env.RESEND_API_KEY && fromEmail && /^https:\/\/[^/]+$/i.test(siteUrl));
@@ -19,14 +21,18 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
   // Exposes settings, never secrets or the owner email.
   app.get('/api/auth/config', (_req, res) => {
     res.set('Cache-Control', 'no-store');
-    res.json({ mode: allowedEmail ? 'private' : 'public', passwordResetAvailable: mailReady });
+    const publicConfig = publicSettings({allowedEmail});
+    res.json({mode:publicConfig.mode,passwordResetAvailable:mailReady,
+      registrationOpen:publicConfig.registrationOpen, verificationRequired:publicConfig.mode==='public'});
   });
 
+  const recoverLimiter = createRateLimiter({windowMs:60*60*1000,max:12,namespace:'recovery'});
+  const ownerLimiter = createRateLimiter({windowMs:60*60*1000,max:8,namespace:'ownerRecovery'});
   // One-time owner account restoration, usable even when email sending
   // is not configured.  This NEVER deletes/recreates an existing user record:
   // its _id, portfolio, watchlist and history remain unchanged.
   // OWNER_SETUP_KEY must be set privately in Render, then removed after use.
-  app.post('/api/auth/restore-owner', dbRequired, async (req, res) => {
+  app.post('/api/auth/restore-owner', ownerLimiter, dbRequired, async (req, res) => {
     if (!allowedEmail) return res.status(404).json({ error: 'Not available on this deployment.' });
     const genericError = { error: 'Owner email or setup key is incorrect, or owner recovery is disabled.' };
     const submitted = req.body || {};
@@ -78,7 +84,7 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
     }
   });
 
-  app.post('/api/auth/forgot-password', dbRequired, async (req, res) => {
+  app.post('/api/auth/forgot-password', recoverLimiter, dbRequired, async (req, res) => {
     const message = 'If the account exists and email recovery is configured, a reset link will be sent.';
     // Always respond generically so nobody can enumerate user emails.
     if (!mailReady) return res.json({ ok: true, message });
@@ -112,7 +118,7 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
     res.json({ ok: true, message });
   });
 
-  app.post('/api/auth/reset-password', dbRequired, async (req, res) => {
+  app.post('/api/auth/reset-password', recoverLimiter, dbRequired, async (req, res) => {
     const { token, password } = req.body || {};
     if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token) ||
         typeof password !== 'string' || password.length < 8 || password.length > 128) {
@@ -192,6 +198,7 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
   app.delete('/api/user/data', authMW, dbRequired, async (req, res) => {
     try {
       await Holding.deleteMany({ userId: req.user.id });
+      if (Prediction) await Prediction.deleteMany({userId:req.user.id});
       await User.findByIdAndUpdate(req.user.id, { watchlist: [] });
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: 'Could not clear data' }); }
@@ -206,6 +213,7 @@ function installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedE
       if (!user || !(await bcrypt.compare(password, user.password)))
         return res.status(401).json({ error: 'Current password is incorrect' });
       await Holding.deleteMany({ userId: user._id });
+      if (Prediction) await Prediction.deleteMany({userId:user._id});
       await User.deleteOne({ _id: user._id });
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: 'Account deletion failed.' }); }

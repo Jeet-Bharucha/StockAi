@@ -1,0 +1,31 @@
+# Separate public StockAI web service. This does NOT change stockai-main.
+# Deploy as a distinct Render service from this repository and this blueprint.
+# Use a SEPARATE MongoDB database name and JWT secret from private StockAI.
+services:
+  - type: web
+    name: stockai-public
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /ping
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: PUBLIC_SIGNUPS_ENABLED
+        value: 'false' # turn on only after email sender is verified and end-to-end tested
+      - key: MONGO_URI
+        sync: false
+      - key: FINNHUB_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SITE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+# Intentionally DO NOT set ALLOWED_EMAIL, SITE_PASSWORD, OWNER_SETUP_KEY.

@@ -7,6 +7,10 @@ const mongoose = require('mongoose');
 const { fetchHistoricalBars, toFinnhubCandleFormat } = require('./marketData');
 const bcrypt   = require('bcryptjs');
 const { installAccountRoutes } = require('./accountRoutes');
+const { createRateLimiter } = require('./security');
+const { publicSettings, registerPublic, installVerificationRoutes } = require('./publicSignup');
+const { AIPredictor } = require('./js/aiPredictor');
+const { installForwardTrackingRoutes } = require('./forwardTracking');
 const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
 const _anthropicMod = require('@anthropic-ai/sdk');
@@ -17,7 +21,9 @@ const app    = express();
 const server = createServer(app);
 const wss    = new WebSocket.Server({ server, path: '/ws' });
 
-app.use(express.json());
+app.set('trust proxy', 1); // Render sits behind one trusted ingress proxy
+app.disable('x-powered-by');
+app.use(express.json({limit:'32kb'}));
 
 const FINNHUB_KEY      = process.env.FINNHUB_KEY;
 const MONGO_URI        = process.env.MONGO_URI;
@@ -69,7 +75,10 @@ const UserSchema = new mongoose.Schema({
   created:   { type: Date, default: Date.now },
   tokenVersion: { type: Number, default: 0 },
   passwordResetHash: { type: String, default: undefined, select: false },
-  passwordResetExpires: { type: Date, default: undefined, select: false }
+  passwordResetExpires: { type: Date, default: undefined, select: false },
+  emailVerified: { type: Boolean, default: true }, // historical accounts remain valid
+  emailVerifyHash: { type: String, default: undefined, select: false },
+  emailVerifyExpires: { type: Date, default: undefined, select: false }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -85,6 +94,23 @@ const HoldingSchema = new mongoose.Schema({
 });
 const Holding = mongoose.model('Holding', HoldingSchema);
 
+const PredictionSchema = new mongoose.Schema({
+  userId: {type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},
+  symbol: {type:String,required:true,uppercase:true},
+  modelVersion: {type:String,required:true},
+  signalTime: {type:Number,required:true},
+  horizonSessions: {type:Number,required:true},
+  direction: {type:String,enum:['UP','DOWN','NEUTRAL'],required:true},
+  indicatorScore: {type:Number,required:true},
+  status: {type:String,enum:['pending','resolved'],default:'pending'},
+  createdAt: {type:Date,default:Date.now},
+  entryTime:Number,exitTime:Number,entryPrice:Number,exitPrice:Number,
+  marketReturnPct:Number,correct:Boolean,hypotheticalNetReturnPct:Number,resolvedAt:Date
+});
+PredictionSchema.index({userId:1,symbol:1,signalTime:1,modelVersion:1,horizonSessions:1},{unique:true});
+PredictionSchema.index({userId:1,createdAt:-1});
+const Prediction = mongoose.model('Prediction',PredictionSchema);
+
 // ── Auth middleware ───────────────────────────────────────────────────────
 async function authMW(req, res, next) {
   const h = req.headers.authorization;
@@ -99,6 +125,8 @@ async function authMW(req, res, next) {
     if (!user || (decoded.v ?? 0) !== (user.tokenVersion || 0)) {
       return res.status(401).json({ error: 'Session expired. Sign in again.' });
     }
+    if (!ALLOWED_EMAIL && user.emailVerified === false)
+      return res.status(403).json({error:'Verify your email before using StockAI.'});
     if (ALLOWED_EMAIL && user.email !== ALLOWED_EMAIL) {
       return res.status(403).json({ error: 'This instance is restricted to the owner.' });
     }
@@ -183,8 +211,17 @@ function normalizeAccountEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
 
+// Public launch is opt-in; rate limits help but are not distributed across instances.
+const limiterSignup = createRateLimiter({windowMs:60*60*1000,max:6,namespace:'register'});
+const limiterLogin = createRateLimiter({windowMs:15*60*1000,max:30,namespace:'login'});
+const limiterVerify = createRateLimiter({windowMs:60*60*1000,max:15,namespace:'verification'});
+const limiterProvider = createRateLimiter({windowMs:15*60*1000,max:240,namespace:'provider'});
+const limiterAI = createRateLimiter({windowMs:24*60*60*1000,max:20,namespace:'ai',keyFn:req=>req.user?.id || req.ip});
+app.use(['/api/quote','/api/candle','/api/profile','/api/news','/api/portfolio-prices'],limiterProvider);
+installVerificationRoutes(app,{User,dbRequired,allowedEmail:ALLOWED_EMAIL,rateLimit:limiterVerify});
+
 // ── Auth routes ───────────────────────────────────────────────────────────
-app.post('/api/auth/register', dbRequired, async (req, res) => {
+app.post('/api/auth/register', limiterSignup, dbRequired, async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
     const normalizedEmail = normalizeAccountEmail(email);
@@ -211,6 +248,15 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
     if (await User.findOne({ email: normalizedEmail }))
       return res.status(400).json({ error: 'An account with that email already exists' });
     const hashed = await bcrypt.hash(password, 12);
+    if (!ALLOWED_EMAIL) {
+      // Public accounts must prove email ownership before a JWT is issued.
+      if (!publicSettings().registrationOpen) {
+        return res.status(503).json({error:'Public signups are not enabled or verified email delivery is not configured.',code:'PUBLIC_REGISTRATION_CLOSED'});
+      }
+      const result = await registerPublic({User,email:normalizedEmail,name:name.trim(),hashedPassword:hashed});
+      res.set('Cache-Control','no-store');
+      return res.status(202).json(result);
+    }
     const user   = await User.create({ name: name.trim(), email: normalizedEmail, password: hashed });
     const token  = signAccessToken(user);
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
@@ -220,7 +266,7 @@ app.post('/api/auth/register', dbRequired, async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', dbRequired, async (req, res) => {
+app.post('/api/auth/login', limiterLogin, dbRequired, async (req, res) => {
   try {
     const { email, password } = req.body || {};
     const normalizedEmail = normalizeAccountEmail(email);
@@ -232,6 +278,8 @@ app.post('/api/auth/login', dbRequired, async (req, res) => {
     const user = await User.findOne({ email: normalizedEmail });
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid email or password' });
+    if (!ALLOWED_EMAIL && user.emailVerified === false)
+      return res.status(403).json({error:'Confirm your email address before signing in.',code:'EMAIL_NOT_VERIFIED'});
     const token = signAccessToken(user);
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
   } catch(e) {
@@ -240,7 +288,9 @@ app.post('/api/auth/login', dbRequired, async (req, res) => {
   }
 });
 
-installAccountRoutes(app, { User, Holding, authMW, dbRequired, allowedEmail: ALLOWED_EMAIL });
+installAccountRoutes(app,{User,Holding,Prediction,authMW,dbRequired,allowedEmail:ALLOWED_EMAIL});
+const forwardLimiter = createRateLimiter({windowMs:60*60*1000,max:80,namespace:'forward',keyFn:req=>req.user?.id||req.ip});
+installForwardTrackingRoutes(app,{Prediction,authMW,dbRequired,fetchHistoricalBars,AIPredictor,rateLimit:forwardLimiter});
 
 // ── Portfolio routes (protected) ──────────────────────────────────────────
 app.get('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
@@ -560,7 +610,7 @@ app.get('/api/portfolio-prices', async (req, res) => {
 });
 
 // ── Claude AI Stock Analysis ──────────────────────────────────────────────
-app.post('/api/ai-analysis', authMW, async (req, res) => {
+app.post('/api/ai-analysis', authMW, limiterAI, async (req, res) => {
   if (!ANTHROPIC_API_KEY) {
     return res.status(503).json({ error: 'AI analysis not configured — add ANTHROPIC_API_KEY to .env' });
   }

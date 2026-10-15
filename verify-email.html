@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Verify Email — StockAI</title>
+<link rel="stylesheet" href="css/pro-terminal.css">
+<style>
+body{font-family:Inter,system-ui,sans-serif;background:#0d1119;color:#e5ebf3;min-height:100vh;padding:1.2rem}
+main{max-width:450px;margin:9vh auto;padding:2rem;background:#171f2b;border:1px solid #32435b;border-radius:16px}
+h1{margin-top:1.5rem;font-size:1.6rem}p{font-size:.93rem;line-height:1.55;color:#b8c5d3}
+a{color:#a5bad8}form label{display:block;margin:1rem 0 .4rem}form input{width:100%;background:#0f1928;color:white;border:1px solid #50627a;border-radius:7px;padding:.8rem;font:inherit;box-sizing:border-box}
+button{display:block;margin-top:.9rem;padding:.82rem 1rem;background:#657fa7;color:white;border:0;border-radius:7px;font:inherit;cursor:pointer}
+#status{min-height:2.5rem;padding:.75rem 0;line-height:1.5}
+</style></head>
+<body class="stockai-pro"><main>
+<a href="login.html">← Back to sign in</a>
+<h1>✉ Verify your email</h1>
+<p>StockAI requires email confirmation before you can sign in on the public website.</p>
+<div id="status" role="status" aria-live="polite">Checking for your verification link…</div>
+<form id="resend">
+<label for="email">Didn't receive an email? Request another link.</label>
+<input id="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com">
+<button type="submit" id="resend-btn">Resend confirmation</button>
+</form>
+<p><small>Check your spam folder. Links expire after 24 hours. Never share your verification link.</small></p>
+</main><script>
+(async function(){
+  const params=new URLSearchParams(location.hash.slice(1));
+  const token=params.get('token');
+  if(location.hash)history.replaceState(null,'',location.pathname);
+  const status=document.getElementById('status');
+  if(!token){status.textContent='Open the link sent to your email, or request another below.';return;}
+  if(!/^[a-f0-9]{64}$/.test(token)){status.textContent='Invalid verification link.';return;}
+  try {
+    const resp=await fetch('/api/auth/verify-email',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+    const data=await resp.json();
+    status.textContent=data.message||data.error||'Verification was not successful.';
+    if(resp.ok){const link=document.createElement('a');link.href='login.html';link.textContent=' Continue to sign in →';status.appendChild(link);}
+  }catch(_){status.textContent='Could not contact StockAI. Please try again later.';}
+})();
+document.getElementById('resend').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const btn=document.getElementById('resend-btn');btn.disabled=true;
+ const status=document.getElementById('status');
+ try{
+   const r=await fetch('/api/auth/resend-verification',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value.trim()})});
+   const data=await r.json();
+   status.textContent=data.message||data.error||'Request completed.';
+ }catch(_){status.textContent='Could not send a verification request. Please try later.';}
+ btn.disabled=false;
+});
+</script></body></html>

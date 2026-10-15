@@ -245,6 +245,9 @@ input::placeholder{color:var(--muted);opacity:.55}
         </div>
 
         <div class="auth-switch">Don't have an account? <a href="register.html">Create one free</a></div>
+        <div class="auth-switch" id="public-verify-hint" style="display:none;margin-top:.5rem">
+          Didn't get a confirmation? <a href="verify-email.html">Verify or resend email</a>
+        </div>
       </div>
     </div>
   </main>
@@ -263,6 +266,7 @@ async function updateServerStatus() {
 document.getElementById('server-retry').addEventListener('click', updateServerStatus);
 updateServerStatus();
 Auth.getSiteConfig().then(cfg => {
+  if (cfg?.mode === 'public') document.getElementById('public-verify-hint').style.display='block';
   if (!cfg) return;
   const notice = document.getElementById('instance-notice');
   if (cfg.mode === 'private') {
