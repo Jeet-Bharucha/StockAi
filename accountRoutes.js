@@ -8,7 +8,7 @@ const { Resend } = require('resend');
 const { publicSettings } = require('./publicSignup');
 const { createRateLimiter } = require('./security');
 
-function installAccountRoutes(app, { User, Holding, Prediction, authMW, dbRequired, allowedEmail }) {
+function installAccountRoutes(app, { User, Holding, Prediction, PriceAlert, authMW, dbRequired, allowedEmail }) {
   const siteUrl = (process.env.SITE_URL || '').replace(/\/$/, '');
   const fromEmail = process.env.RESEND_FROM_EMAIL || '';
   const mailReady = Boolean(process.env.RESEND_API_KEY && fromEmail && /^https:\/\/[^/]+$/i.test(siteUrl));
@@ -199,6 +199,7 @@ function installAccountRoutes(app, { User, Holding, Prediction, authMW, dbRequir
     try {
       await Holding.deleteMany({ userId: req.user.id });
       if (Prediction) await Prediction.deleteMany({userId:req.user.id});
+      if (PriceAlert) await PriceAlert.deleteMany({userId:req.user.id});
       await User.findByIdAndUpdate(req.user.id, { watchlist: [] });
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: 'Could not clear data' }); }
@@ -214,6 +215,7 @@ function installAccountRoutes(app, { User, Holding, Prediction, authMW, dbRequir
         return res.status(401).json({ error: 'Current password is incorrect' });
       await Holding.deleteMany({ userId: user._id });
       if (Prediction) await Prediction.deleteMany({userId:user._id});
+      if (PriceAlert) await PriceAlert.deleteMany({userId:user._id});
       await User.deleteOne({ _id: user._id });
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: 'Account deletion failed.' }); }
