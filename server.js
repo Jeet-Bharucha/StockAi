@@ -29,10 +29,17 @@ const FINNHUB_KEY      = process.env.FINNHUB_KEY;
 const MONGO_URI        = process.env.MONGO_URI;
 const ALLOWED_EMAIL    = (process.env.ALLOWED_EMAIL || '').toLowerCase().trim();
 const SITE_PASSWORD    = process.env.SITE_PASSWORD || '';
+const PUBLIC_SITE_ENABLED = process.env.PUBLIC_SITE_ENABLED === 'true';
+// ALLOWED_EMAIL remains the owner's original identity when the site opens.
+// No migration of the existing MongoDB user or their portfolio is required.
+const OWNER_EMAIL = (process.env.OWNER_EMAIL || ALLOWED_EMAIL || '').toLowerCase().trim();
+if (PUBLIC_SITE_ENABLED && !OWNER_EMAIL) {
+  throw new Error('Set OWNER_EMAIL (existing owner's email) before opening StockAI publicly.');
+}
 
 // ── Private-mode gate — only you can access this site ────────────────────────
 // Layer 1: HTTP Basic Auth on all HTML pages (browser shows a password popup)
-if (SITE_PASSWORD) {
+if (SITE_PASSWORD && !PUBLIC_SITE_ENABLED) {
   app.use((req, res, next) => {
     // Skip basic-auth for API routes, PWA static assets, and uptime monitors
     if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) return next();
@@ -125,9 +132,9 @@ async function authMW(req, res, next) {
     if (!user || (decoded.v ?? 0) !== (user.tokenVersion || 0)) {
       return res.status(401).json({ error: 'Session expired. Sign in again.' });
     }
-    if (!ALLOWED_EMAIL && user.emailVerified === false)
+    if ((PUBLIC_SITE_ENABLED || !ALLOWED_EMAIL) && user.emailVerified === false)
       return res.status(403).json({error:'Verify your email before using StockAI.'});
-    if (ALLOWED_EMAIL && user.email !== ALLOWED_EMAIL) {
+    if (!PUBLIC_SITE_ENABLED && ALLOWED_EMAIL && user.email !== ALLOWED_EMAIL) {
       return res.status(403).json({ error: 'This instance is restricted to the owner.' });
     }
     req.user = { id: String(user._id), email: user.email, name: user.name };
@@ -150,7 +157,7 @@ function dbRequired(req, res, next) {
 }
 
 function ownerOnly(req, res, next) {
-  if (!ALLOWED_EMAIL || req.user?.email !== ALLOWED_EMAIL) {
+  if (!OWNER_EMAIL || req.user?.email !== OWNER_EMAIL) {
     return res.status(403).json({ error: 'Private owner access required' });
   }
   next();
@@ -218,7 +225,8 @@ const limiterVerify = createRateLimiter({windowMs:60*60*1000,max:15,namespace:'v
 const limiterProvider = createRateLimiter({windowMs:15*60*1000,max:240,namespace:'provider'});
 const limiterAI = createRateLimiter({windowMs:24*60*60*1000,max:20,namespace:'ai',keyFn:req=>req.user?.id || req.ip});
 app.use(['/api/quote','/api/candle','/api/profile','/api/news','/api/portfolio-prices'],limiterProvider);
-installVerificationRoutes(app,{User,dbRequired,allowedEmail:ALLOWED_EMAIL,rateLimit:limiterVerify});
+installVerificationRoutes(app,{User,dbRequired,
+  allowedEmail:PUBLIC_SITE_ENABLED ? '' : ALLOWED_EMAIL,rateLimit:limiterVerify});
 
 // ── Auth routes ───────────────────────────────────────────────────────────
 app.post('/api/auth/register', limiterSignup, dbRequired, async (req, res) => {
@@ -228,11 +236,11 @@ app.post('/api/auth/register', limiterSignup, dbRequired, async (req, res) => {
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 80 || !normalizedEmail)
       return res.status(400).json({ error: 'A valid name (up to 80 characters) and email are required' });
     // Layer 2: block registration for any email that isn't the owner's
-    if (ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
+    if (!PUBLIC_SITE_ENABLED && ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
       return res.status(403).json({ error: 'Registration is restricted to the owner on this private instance.', code: 'PRIVATE_ACCESS_ONLY' });
     // A public /api request must never be able to claim the private owner's
     // email, even if the account does not yet exist in MongoDB.
-    if (ALLOWED_EMAIL) {
+    if (!PUBLIC_SITE_ENABLED && ALLOWED_EMAIL) {
       const ownerKey = Buffer.from(process.env.OWNER_SETUP_KEY || '');
       const presented = Buffer.from(req.get('X-StockAI-Owner-Setup-Key') || '');
       if (ownerKey.length < 24 || presented.length !== ownerKey.length ||
@@ -248,7 +256,11 @@ app.post('/api/auth/register', limiterSignup, dbRequired, async (req, res) => {
     if (await User.findOne({ email: normalizedEmail }))
       return res.status(400).json({ error: 'An account with that email already exists' });
     const hashed = await bcrypt.hash(password, 12);
-    if (!ALLOWED_EMAIL) {
+    if (PUBLIC_SITE_ENABLED || !ALLOWED_EMAIL) {
+      // The owner's email is reserved for their existing MongoDB identity:
+      // never let a public signup take over that address.
+      if (OWNER_EMAIL && normalizedEmail === OWNER_EMAIL)
+        return res.status(403).json({error:'This address cannot register as a new public account.'});
       // Public accounts must prove email ownership before a JWT is issued.
       if (!publicSettings().registrationOpen) {
         return res.status(503).json({error:'Public signups are not enabled or verified email delivery is not configured.',code:'PUBLIC_REGISTRATION_CLOSED'});
@@ -259,7 +271,7 @@ app.post('/api/auth/register', limiterSignup, dbRequired, async (req, res) => {
     }
     const user   = await User.create({ name: name.trim(), email: normalizedEmail, password: hashed });
     const token  = signAccessToken(user);
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: OWNER_EMAIL && user.email === OWNER_EMAIL ? 'owner' : 'user' } });
   } catch(e) {
     console.error('Register:', e.message);
     res.status(500).json({ error: 'Server error — try again' });
@@ -273,22 +285,23 @@ app.post('/api/auth/login', limiterLogin, dbRequired, async (req, res) => {
     if (!normalizedEmail || typeof password !== 'string')
       return res.status(400).json({ error: 'Email and password are required' });
     // Layer 3: block login for anyone who isn't the owner
-    if (ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
+    if (!PUBLIC_SITE_ENABLED && ALLOWED_EMAIL && normalizedEmail !== ALLOWED_EMAIL)
       return res.status(403).json({ error: 'This is the private owner-only instance. Use the public website for other accounts.', code: 'PRIVATE_ACCESS_ONLY' });
     const user = await User.findOne({ email: normalizedEmail });
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid email or password' });
-    if (!ALLOWED_EMAIL && user.emailVerified === false)
+    if ((PUBLIC_SITE_ENABLED || !ALLOWED_EMAIL) && user.emailVerified === false)
       return res.status(403).json({error:'Confirm your email address before signing in.',code:'EMAIL_NOT_VERIFIED'});
     const token = signAccessToken(user);
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: ALLOWED_EMAIL && user.email === ALLOWED_EMAIL ? 'owner' : 'user' } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: OWNER_EMAIL && user.email === OWNER_EMAIL ? 'owner' : 'user' } });
   } catch(e) {
     console.error('Login:', e.message);
     res.status(500).json({ error: 'Server error — try again' });
   }
 });
 
-installAccountRoutes(app,{User,Holding,Prediction,authMW,dbRequired,allowedEmail:ALLOWED_EMAIL});
+installAccountRoutes(app,{User,Holding,Prediction,authMW,dbRequired,
+  allowedEmail:PUBLIC_SITE_ENABLED ? '' : ALLOWED_EMAIL});
 const forwardLimiter = createRateLimiter({windowMs:60*60*1000,max:80,namespace:'forward',keyFn:req=>req.user?.id||req.ip});
 installForwardTrackingRoutes(app,{Prediction,authMW,dbRequired,fetchHistoricalBars,AIPredictor,rateLimit:forwardLimiter});
 
@@ -531,8 +544,8 @@ app.get('/api/news', (req, res) => {
 app.get('/api/status', (req, res) => res.json({
   hasKey: !!FINNHUB_KEY, wsConnected,
   dbConnected: mongoose.connection.readyState === 1,
-  clients: wss.clients.size,
-  symbols: [...symbolClients.keys()]
+  // Show internal connection metadata only on the private owner deployment.
+  ...(!PUBLIC_SITE_ENABLED ? {clients:wss.clients.size,symbols:[...symbolClients.keys()]} : {})
 }));
 
 // ── Portfolio Prices (Finnhub + CoinGecko) ────────────────────────────────
