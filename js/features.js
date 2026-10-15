@@ -202,7 +202,9 @@ const PriceAlerts = {
   // Local-only legacy fallback. Server alerts trigger atomically using
   // provider-verified quotes rather than client-submitted prices.
   check(symbol,price) {
-    if(this._cache) return [];
+    // Signed-in users must never "confirm" an alert with browser-supplied
+    // prices. Only the backend is allowed to verify a hit.
+    if(!this._guest()) return [];
     const list=this._legacy(), fired=[];
     for(const a of list) {
       if(a.symbol!==symbol||a.triggered)continue;
