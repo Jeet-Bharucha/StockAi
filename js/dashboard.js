@@ -1755,8 +1755,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw Error('Maximum price must be greater than or equal to minimum price.');
       // Market-data quotas are finite. Scan a sector-balanced, named universe
       // and show scope/coverage; never call this "all market stocks".
-      const universe=ResearchTools.UNIVERSE.filter(([sym,group])=>!sector||group===sector)
-        .slice(0,30);
+      const universe=ResearchTools.sampleUniverse(30,sector);
       const results=[];
       let cursor=0,unavailable=0;
       await Promise.all(Array.from({length:5},async()=>{
