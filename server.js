@@ -13,6 +13,7 @@ const { AIPredictor } = require('./js/aiPredictor');
 const { installForwardTrackingRoutes } = require('./forwardTracking');
 const { installPriceAlertRoutes } = require('./priceAlerts');
 const { siteAccess } = require('./siteAccess');
+const { getMarketQuote } = require('./marketQuotes');
 const { securityHeaders, protectStaticFiles } = require('./siteSecurity');
 const {
   MAX_BROWSER_WS_CLIENTS, normalizeMarketSymbol, parseWsMessage, canSubscribe
@@ -560,10 +561,20 @@ async function finnhubREST(endpoint, res) {
   }
 }
 
-app.get('/api/quote', (req, res) => {
+app.get('/api/quote', async (req, res) => {
   const symbol=normalizeMarketSymbol(req.query.symbol);
   if (!symbol) return res.status(400).json({error:'Invalid market symbol'});
-  return finnhubREST('/quote?symbol='+encodeURIComponent(symbol),res);
+  try {
+    const quote=await getMarketQuote(symbol,{key:FINNHUB_KEY});
+    res.set('Cache-Control','public, max-age=15');
+    return res.json(quote);
+  } catch(e) {
+    console.warn('[VerifiedQuote] '+symbol+': '+e.message);
+    return res.status(502).json({
+      error:'Verified stock quote unavailable. Retry in a moment or check provider access.',
+      code:'QUOTE_UNAVAILABLE'
+    });
+  }
 });
 app.get('/api/candle', async (req, res) => {
   const { symbol, resolution = 'D', from, to } = req.query;

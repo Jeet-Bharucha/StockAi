@@ -1753,6 +1753,10 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
           <div class="view-title">🌐 Markets Overview</div>
           <div class="view-subtitle">Provider quotes for US market ETFs · values may be delayed or temporarily unavailable</div>
         </div>
+        <button type="button" class="research-btn" id="markets-refresh" onclick="window.refreshMarketsTab?.()">↻ Refresh market quotes</button>
+      </div>
+      <div id="markets-data-status" class="markets-data-status" role="status" aria-live="polite">
+        Open this tab to load latest available ETF quotes. No simulated data is displayed.
       </div>
 
       <section class="research-panel" aria-labelledby="market-breadth-title" style="margin-bottom:1.1rem">
@@ -1766,15 +1770,15 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       </div>
       <div class="markets-section">
         <div class="markets-section-title">🇺🇸 US Indices</div>
-        <div class="markets-grid" id="mkt-indices"></div>
+        <div class="markets-grid" id="mkt-indices"><div class="market-placeholder">Waiting to load US index ETF quotes…</div></div>
       </div>
       <div class="markets-section">
         <div class="markets-section-title">🏭 Sector ETFs</div>
-        <div class="markets-grid" id="mkt-sectors"></div>
+        <div class="markets-grid" id="mkt-sectors"><div class="market-placeholder">Waiting to load sector ETF quotes…</div></div>
       </div>
       <div class="markets-section">
         <div class="markets-section-title">⚡ Commodities</div>
-        <div class="markets-grid" id="mkt-commodities"></div>
+        <div class="markets-grid" id="mkt-commodities"><div class="market-placeholder">Waiting to load commodity ETF quotes…</div></div>
       </div>
     </div>
 
