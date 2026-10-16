@@ -1,0 +1,47 @@
+name: Repair StockAI dependency lockfile (temporary)
+
+on:
+  push:
+    branches: [security/dependency-fixes]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/security/dependency-fixes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Regenerate lockfile for Nodemailer 10
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+      - name: Upgrade vulnerable runtime transitive dependencies within supported ranges
+        run: npm audit fix --package-lock-only --omit=dev --ignore-scripts
+      - name: Verify clean install
+        run: npm ci
+      - name: Run regression tests
+        run: npm test
+      - name: Require zero reported production dependencies advisories
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: Commit tested lockfile to the repair branch
+        shell: bash
+        run: |
+          git diff --check
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "No lockfile changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "security: regenerate and audit-fix locked production dependencies"
+          git push origin HEAD:security/dependency-fixes
