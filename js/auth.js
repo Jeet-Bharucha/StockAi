@@ -264,6 +264,11 @@ const Auth = {
     // Serialize writes so rapid add/remove clicks cannot overwrite each other.
     const previous = this._watchlistWrite || Promise.resolve();
     const operation = previous.catch(() => {}).then(async () => {
+      // Never replace an existing saved watchlist with an empty local view if
+      // the initial account read failed while Render was sleeping.
+      if (this._watchlistCache === null) await this.loadWatchlist();
+      if (this._watchlistCache === null)
+        throw new Error('Saved watchlist is not loaded. Retry after the server connects.');
       const current = this.getWatchlist();
       const next = transform([...current]);
       if (next.length>100) throw new Error('Watchlist is limited to 100 symbols.');
