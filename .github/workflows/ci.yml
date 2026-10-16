@@ -32,3 +32,30 @@ jobs:
           for file in js/*.js tests/*.cjs; do node --check "$file"; done
       - name: Run regression tests
         run: npm test
+      - name: Inspect production dependency advisories (public launch blocker)
+        continue-on-error: true
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > runtime-audit.json || true
+          node - <<'NODE'
+          const fs = require('node:fs');
+          let report = {};
+          try { report = JSON.parse(fs.readFileSync('runtime-audit.json','utf8')); }
+          catch (_) { console.log('Production audit unavailable; check npm registry connectivity.'); process.exit(1); }
+          const counts = report.metadata?.vulnerabilities || {};
+          console.log('Production dependency audit:', counts);
+          const rows = Object.entries(report.vulnerabilities || {});
+          rows.sort((a,b)=>({critical:0,high:1,moderate:2,low:3,info:4}[a[1]?.severity]||5)-({critical:0,high:1,moderate:2,low:3,info:4}[b[1]?.severity]||5));
+          for(const [name,entry] of rows.slice(0,40)) {
+            console.log(entry.severity.toUpperCase(), name, 'fix available:', JSON.stringify(entry.fixAvailable));
+          }
+          if ((counts.critical || 0) + (counts.high || 0) > 0)
+            console.log('WARNING: high/critical production dependency advisories remain. Do not enable public registration yet.');
+          NODE
+      - name: Upload production audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-npm-audit
+          path: runtime-audit.json
+          if-no-files-found: ignore
