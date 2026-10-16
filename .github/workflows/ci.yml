@@ -32,8 +32,8 @@ jobs:
           for file in js/*.js tests/*.cjs; do node --check "$file"; done
       - name: Run regression tests
         run: npm test
-      - name: Inspect production dependency advisories (public launch blocker)
-        continue-on-error: true
+      - name: Enforce zero production dependency advisories
+        # This is a release-blocking check. Do not mark audit failures as green.
         shell: bash
         run: |
           npm audit --omit=dev --json > runtime-audit.json || true
@@ -49,8 +49,13 @@ jobs:
           for(const [name,entry] of rows.slice(0,40)) {
             console.log(entry.severity.toUpperCase(), name, 'fix available:', JSON.stringify(entry.fixAvailable));
           }
-          if ((counts.critical || 0) + (counts.high || 0) > 0)
-            console.log('WARNING: high/critical production dependency advisories remain. Do not enable public registration yet.');
+          const count = ['critical','high','moderate','low'].reduce((total,k)=>total+(counts[k]||0),0);
+          if (count > 0) {
+            console.error('BLOCKED: '+count+' production dependency advisories remain. Public launch is not approved.');
+            process.exitCode = 1;
+          } else {
+            console.log('PASS: no currently reported production dependency advisories.');
+          }
           NODE
       - name: Upload production audit report
         if: always()
