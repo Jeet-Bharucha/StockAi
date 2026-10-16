@@ -244,16 +244,19 @@ const Auth = {
 
   async loadWatchlist() {
     if (this.isGuest()) { this._watchlistCache = []; return []; }
+    const readGeneration=this._watchlistGeneration||0;
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const timer = setTimeout(() => ctrl.abort(), 55000);
       let r;
       try { r = await fetch('/api/user/watchlist', { headers: this._authHeader(), signal: ctrl.signal }); }
       finally { clearTimeout(timer); }
       if (r.ok) {
         const data = await r.json();
-        this._watchlistCache = data.watchlist || [];
-        return this._watchlistCache;
+        if (readGeneration === (this._watchlistGeneration || 0))
+          this._watchlistCache = Array.isArray(data.watchlist) ? data.watchlist : [];
+        // Ignore stale reads that completed after an accepted mutation.
+        return this.getWatchlist();
       }
     } catch(e) { console.warn('loadWatchlist failed:', e.message); }
     return this.getWatchlist();
@@ -281,6 +284,7 @@ const Auth = {
         throw new Error(info.error||'Watchlist could not be saved (HTTP '+response.status+').');
       }
       // Only report an item as saved after MongoDB accepts the update.
+      this._watchlistGeneration=(this._watchlistGeneration||0)+1;
       this._watchlistCache=next;
       return next;
     });
