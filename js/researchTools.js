@@ -23,6 +23,31 @@ const ResearchTools = {
     ['AEP','Utilities'],['PCG','Utilities']
   ]),
 
+  sampleUniverse(limit=30, sector='') {
+    const maximum=Math.max(0,Math.min(100,Math.floor(Number(limit)||0)));
+    const eligible=this.UNIVERSE.filter(row=>!sector||row[1]===sector);
+    if(sector)return eligible.slice(0,maximum);
+    // Round-robin by sector, avoiding a tech/finance-only sample when rate
+    // limits cap the all-sectors scan to 30 symbols.
+    const groups=new Map();
+    for(const row of eligible){
+      if(!groups.has(row[1]))groups.set(row[1],[]);
+      groups.get(row[1]).push(row);
+    }
+    const selected=[];
+    while(selected.length<maximum){
+      let progress=false;
+      for(const rows of groups.values()){
+        if(!rows.length)continue;
+        selected.push(rows.shift());
+        progress=true;
+        if(selected.length===maximum)break;
+      }
+      if(!progress)break;
+    }
+    return selected;
+  },
+
   sector(symbol) {
     return this.UNIVERSE.find(row=>row[0]===symbol)?.[1] || 'Other';
   },
