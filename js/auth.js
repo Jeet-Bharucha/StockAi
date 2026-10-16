@@ -238,8 +238,8 @@ const Auth = {
   // ── Watchlist — API-backed, in-memory cache ────────────────────────────
   getWatchlist() {
     if (this.isGuest()) return [];
-    // Return in-memory cache if loaded, else show a default starter list
-    return this._watchlistCache ?? ['AAPL','GOOGL','MSFT','TSLA','AMZN'];
+    // No fabricated starter holdings: the MongoDB watchlist is authoritative.
+    return this._watchlistCache ?? [];
   },
 
   async loadWatchlist() {
@@ -259,29 +259,40 @@ const Auth = {
     return this.getWatchlist();
   },
 
-  async addToWatchlist(symbol) {
-    if (this.isGuest()) return;
-    const list = [...this.getWatchlist()];
-    if (list.includes(symbol)) return;
-    list.push(symbol);
-    this._watchlistCache = list;
-    try {
-      await fetch('/api/user/watchlist', {
-        method: 'PUT', headers: this._authHeader(),
-        body:   JSON.stringify({ watchlist: list })
+  async _mutateWatchlist(transform) {
+    if (this.isGuest()) throw new Error('Sign in to save a watchlist.');
+    // Serialize writes so rapid add/remove clicks cannot overwrite each other.
+    const previous = this._watchlistWrite || Promise.resolve();
+    const operation = previous.catch(() => {}).then(async () => {
+      const current = this.getWatchlist();
+      const next = transform([...current]);
+      if (next.length>100) throw new Error('Watchlist is limited to 100 symbols.');
+      if (JSON.stringify(next)===JSON.stringify(current)) return current;
+      const response=await fetch('/api/user/watchlist',{
+        method:'PUT',headers:this._authHeader(),body:JSON.stringify({watchlist:next})
       });
-    } catch(e) { console.warn('addToWatchlist failed:', e.message); }
+      if(!response.ok) {
+        const info=await response.json().catch(()=>({}));
+        throw new Error(info.error||'Watchlist could not be saved (HTTP '+response.status+').');
+      }
+      // Only report an item as saved after MongoDB accepts the update.
+      this._watchlistCache=next;
+      return next;
+    });
+    this._watchlistWrite=operation.catch(()=>{});
+    return operation;
+  },
+
+  async addToWatchlist(symbol) {
+    const normalized=typeof symbol==='string'?symbol.trim().toUpperCase():'';
+    if(!/^[A-Z0-9.\\^:-]{1,24}$/.test(normalized))
+      throw new Error('Enter a valid stock or ETF ticker symbol.');
+    return this._mutateWatchlist(list=>
+      list.includes(normalized)?list:[...list,normalized]);
   },
 
   async removeFromWatchlist(symbol) {
-    if (this.isGuest()) return;
-    const list = this.getWatchlist().filter(s => s !== symbol);
-    this._watchlistCache = list;
-    try {
-      await fetch('/api/user/watchlist', {
-        method: 'PUT', headers: this._authHeader(),
-        body:   JSON.stringify({ watchlist: list })
-      });
-    } catch(e) { console.warn('removeFromWatchlist failed:', e.message); }
+    const normalized=typeof symbol==='string'?symbol.trim().toUpperCase():'';
+    return this._mutateWatchlist(list=>list.filter(s=>s!==normalized));
   }
 };
