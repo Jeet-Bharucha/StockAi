@@ -6,7 +6,7 @@ services:
     name: stockai-main
     runtime: node
     plan: free
-    buildCommand: npm ci
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
     healthCheckPath: /ping
     envVars:
