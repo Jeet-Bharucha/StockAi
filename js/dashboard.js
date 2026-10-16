@@ -719,81 +719,218 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── Markets tab ───────────────────────────────────────────────────────────
-  async function renderMarketsTab() {
-    // ── Sector Heat Map ───────────────────────────────────────────────────
-    const HEAT_SECTORS = [
-      { sym:'XLK', name:'Technology', emoji:'💻' },
-      { sym:'XLF', name:'Financials',  emoji:'🏦' },
-      { sym:'XLV', name:'Health Care', emoji:'🏥' },
-      { sym:'XLE', name:'Energy',      emoji:'⚡' },
-      { sym:'XLI', name:'Industrials', emoji:'🏭' },
-      { sym:'XLY', name:'Consumer',    emoji:'🛍' },
-      { sym:'XLRE',name:'Real Estate', emoji:'🏘' },
-      { sym:'XLB', name:'Materials',   emoji:'⚗️' },
-    ];
-    const heatEl = document.getElementById('heat-map');
-    if (heatEl) {
-      heatEl.innerHTML = HEAT_SECTORS.map(s =>
-        `<div class="heat-cell" id="heat-${s.sym}" onclick="window.selectSearch('${s.sym}');switchTab(null,'dashboard')"
-          style="background:rgba(100,116,139,0.12)">
-          <div class="heat-cell-name">${s.emoji} ${s.name}</div>
-          <div class="heat-cell-chg" id="heat-chg-${s.sym}">—</div>
-          <div class="heat-cell-sym">${s.sym}</div>
-        </div>`).join('');
-      const sectorQuotes = await Promise.all(HEAT_SECTORS.map(async s => {
-        try {
-          const q = await StockAPI.getQuote(s.sym);
-          const chg = q.changePct;
-          const cell = document.getElementById(`heat-${s.sym}`);
-          const chgEl = document.getElementById(`heat-chg-${s.sym}`);
-          if (!cell) return;
-          const intensity = Math.min(1, Math.abs(chg) / 4);
-          if (chg >= 0) {
-            cell.style.background = `rgba(0,255,136,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#4bbf8d';
-          } else {
-            cell.style.background = `rgba(255,68,102,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#e27889';
-          }
-          if (chgEl) chgEl.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
-          return {sym:s.sym,price:q.price,changePct:chg};
-        } catch (_) { return {sym:s.sym,available:false}; }
-      }));
-      const breadth=ResearchTools.breadth(sectorQuotes);
-      const pct=v=>v===null?'Unavailable':(v>=0?'+':'')+v.toFixed(2)+'%';
-      renderResearchMetrics('mkt-breadth-summary',[
-        {label:'Verified ETF quotes',value:breadth.available+' / '+sectorQuotes.length},
-        {label:'Up / down / unchanged',value:breadth.up+' / '+breadth.down+' / '+breadth.flat},
-        {label:'Unweighted avg session move',value:pct(breadth.meanPct)},
-        {label:'Leader · laggard',value:breadth.leader&&breadth.laggard?
-          breadth.leader.sym+' · '+breadth.laggard.sym:'Unavailable'}
-      ]);
-    }
+  // Never block the grid behind 8 slow sector quotes: render ALL groups first.
+  // Finnhub free-tier throttling and sleeping Render previously left three
+  // market sections completely blank for up to ~55 seconds.
+  let marketRenderVersion=0;
+  let marketsLastStartedAt=0;
+  let marketsLoading=false;
+  const HEAT_SECTORS = [
+    {sym:'XLK',name:'Technology',emoji:'💻'},
+    {sym:'XLF',name:'Financials',emoji:'🏦'},
+    {sym:'XLV',name:'Health Care',emoji:'🏥'},
+    {sym:'XLE',name:'Energy',emoji:'⚡'},
+    {sym:'XLI',name:'Industrials',emoji:'🏭'},
+    {sym:'XLY',name:'Consumer',emoji:'🛍'},
+    {sym:'XLRE',name:'Real Estate',emoji:'🏘'},
+    {sym:'XLB',name:'Materials',emoji:'⚗️'}
+  ];
 
-    async function fillGrid(id, items) {
-      const el = document.getElementById(id); if (!el) return;
-      el.innerHTML = items.map(item => `
-        <div class="mkt-card" onclick="window.selectSearch('${item.sym}');switchTab(null,'dashboard')">
-          <div class="mkt-card-name"><span>${item.name}</span><span class="mkt-card-sym">${item.sym}</span></div>
-          <div class="mkt-card-price" id="mkt-px-${item.sym}">$—</div>
-          <div class="mkt-card-chg"  id="mkt-chg-${item.sym}">—</div>
-          <div class="mkt-card-bar"><div class="mkt-card-fill" id="mkt-bar-${item.sym}" style="width:50%"></div></div>
-        </div>`).join('');
-      await Promise.all(items.map(async item => {
-        try {
-          const q = await StockAPI.getQuote(item.sym); const up = q.changePct>=0;
-          el.querySelector(`[onclick*="'${item.sym}'"]`)?.classList.add(up?'up':'down');
-          const px  = document.getElementById(`mkt-px-${item.sym}`);
-          const chg = document.getElementById(`mkt-chg-${item.sym}`);
-          const bar = document.getElementById(`mkt-bar-${item.sym}`);
-          if (px)  px.textContent  = `$${q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-          if (chg) chg.textContent = `${up?'+':''}${q.changePct}%`;
-          if (bar) bar.style.width = `${Math.min(100,Math.max(5,50+q.changePct*5))}%`;
-        } catch (_) {}
-      }));
+  function createMarketCards() {
+    const heat=document.getElementById('heat-map');
+    if(heat){
+      heat.replaceChildren();
+      for(const sector of HEAT_SECTORS){
+        const cell=document.createElement('button');
+        cell.type='button';
+        cell.className='heat-cell market-heat-button';
+        cell.dataset.symbol=sector.sym;
+        cell.style.background='rgba(100,116,139,0.12)';
+        cell.style.color='var(--text)';
+        cell.addEventListener('click',()=>window.selectSearch(sector.sym));
+        const name=document.createElement('div');
+        name.className='heat-cell-name';
+        name.textContent=sector.emoji+' '+sector.name;
+        const change=document.createElement('div');
+        change.className='heat-cell-chg';
+        change.textContent='Loading…';
+        const symbol=document.createElement('div');
+        symbol.className='heat-cell-sym';
+        symbol.textContent=sector.sym;
+        cell.append(name,change,symbol);
+        heat.appendChild(cell);
+      }
     }
-    await Promise.all([fillGrid('mkt-indices',MARKET_GROUPS.indices), fillGrid('mkt-sectors',MARKET_GROUPS.sectors), fillGrid('mkt-commodities',MARKET_GROUPS.commodities)]);
+    for(const [group,items] of Object.entries(MARKET_GROUPS)){
+      const grid=document.getElementById('mkt-'+group);
+      if(!grid)continue;
+      grid.replaceChildren();
+      for(const item of items){
+        const card=document.createElement('button');
+        card.type='button';
+        card.className='mkt-card market-quote-button';
+        card.dataset.symbol=item.sym;
+        card.addEventListener('click',()=>window.selectSearch(item.sym));
+        card.setAttribute('aria-label','Open chart for '+item.name);
+        const heading=document.createElement('div');
+        heading.className='mkt-card-name';
+        const name=document.createElement('span');
+        name.textContent=item.name;
+        const symbol=document.createElement('span');
+        symbol.className='mkt-card-sym';
+        symbol.textContent=item.sym;
+        heading.append(name,symbol);
+        const price=document.createElement('div');
+        price.className='mkt-card-price';
+        price.textContent='Loading…';
+        const change=document.createElement('div');
+        change.className='mkt-card-chg';
+        change.textContent='Waiting for market data';
+        const indicator=document.createElement('div');
+        indicator.className='mkt-card-bar';
+        const fill=document.createElement('div');
+        fill.className='mkt-card-fill';
+        fill.style.width='0%';
+        indicator.appendChild(fill);
+        card.append(heading,price,change,indicator);
+        grid.appendChild(card);
+      }
+    }
   }
+
+  function paintMarketQuote(sym,quote){
+    const valid=quote&&Number.isFinite(quote.price)&&quote.price>0 &&
+      Number.isFinite(quote.changePct);
+    const up=valid&&quote.changePct>=0;
+    const fmt=n=>'$'+n.toLocaleString('en-US',{
+      minimumFractionDigits:2,maximumFractionDigits:2
+    });
+    const cell=document.querySelector('#heat-map .heat-cell[data-symbol="'+sym+'"]');
+    if(cell){
+      const change=cell.querySelector('.heat-cell-chg');
+      if(valid){
+        const intensity=Math.min(1,Math.abs(quote.changePct)/4);
+        cell.style.background=up
+          ?'rgba(44,171,114,'+(0.08+intensity*0.30)+')'
+          :'rgba(215,79,105,'+(0.08+intensity*0.30)+')';
+        cell.style.color=up?'var(--green)':'var(--red)';
+        change.textContent=(up?'+':'')+quote.changePct.toFixed(2)+'%';
+        cell.title=(quote.source||'Market provider')+
+          (quote.observedAt?' · observed '+new Date(quote.observedAt).toLocaleString():'');
+      }else{
+        change.textContent='Quote unavailable';
+        cell.style.color='var(--muted)';
+        cell.title='No verified quote available. Retry later.';
+      }
+    }
+    for(const group of Object.keys(MARKET_GROUPS)){
+      const grid=document.getElementById('mkt-'+group);
+      if(!grid)continue;
+      const card=grid.querySelector('.mkt-card[data-symbol="'+sym+'"]');
+      if(!card)continue;
+      const price=card.querySelector('.mkt-card-price');
+      const change=card.querySelector('.mkt-card-chg');
+      const fill=card.querySelector('.mkt-card-fill');
+      card.classList.remove('up','down');
+      if(valid){
+        card.classList.add(up?'up':'down');
+        price.textContent=fmt(quote.price);
+        change.textContent=(up?'+':'')+quote.changePct.toFixed(2)+'%';
+        if(fill)fill.style.width=Math.min(100,Math.max(5,50+quote.changePct*5))+'%';
+        card.title=(quote.source||'Market provider')+
+          (quote.observedAt?' · observed '+new Date(quote.observedAt).toLocaleString():'');
+      }else{
+        price.textContent='—';
+        change.textContent='Quote unavailable · retry';
+        if(fill)fill.style.width='0%';
+        card.title='The provider did not return a usable price. No simulated values are shown.';
+        card.classList.add('market-quote-unavailable');
+      }
+    }
+  }
+
+  async function renderMarketsTab(force=false) {
+    if(marketsLoading && !force)return;
+    const version=++marketRenderVersion;
+    marketsLoading=true;
+    marketsLastStartedAt=Date.now();
+    const retry=document.getElementById('markets-refresh');
+    if(retry){retry.disabled=true;retry.textContent='⟳ Loading…';}
+    createMarketCards(); // Synchronous: visible even if every API call fails.
+    const status=document.getElementById('markets-data-status');
+    if(status)status.textContent='Loading verified ETF quotes… Cards are ready while providers respond.';
+    const breadthHost=document.getElementById('mkt-breadth-summary');
+    if(breadthHost)breadthHost.textContent='Checking 8 sector ETFs. No sample values are being invented.';
+    const unique=[...new Set([
+      ...HEAT_SECTORS.map(s=>s.sym),
+      ...Object.values(MARKET_GROUPS).flat().map(s=>s.sym)
+    ])];
+    if(force)for(const sym of unique)delete StockAPI._cache['q_'+sym];
+    const result=new Map();
+    let cursor=0,failed=0,done=0;
+    try{
+      // Four concurrent requests, not 25 simultaneous upstream calls.
+      await Promise.all(Array.from({length:4},async()=>{
+        while(cursor<unique.length){
+          const sym=unique[cursor++];
+          let quote=null;
+          try{
+            const incoming=await StockAPI.getQuote(sym);
+            if(Number.isFinite(incoming?.price)&&incoming.price>0 &&
+              Number.isFinite(incoming?.changePct))quote=incoming;
+          }catch(error){
+            console.warn('[Markets] Quote unavailable for '+sym+': '+error.message);
+          }
+          if(version!==marketRenderVersion)return;
+          done++;
+          if(!quote)failed++;
+          result.set(sym,quote);
+          paintMarketQuote(sym,quote);
+          if(status)status.textContent=done+' / '+unique.length+
+            ' ETFs checked · '+(done-failed)+' verified · '+
+            failed+' unavailable';
+        }
+      }));
+      if(version!==marketRenderVersion)return;
+      // Breadth only considers the eight named sector ETFs, not broad-market
+      // prices or simulated changes. Avoid a hard dependency on cached scripts.
+      const sectorRows=HEAT_SECTORS.map(item=>{
+        const q=result.get(item.sym);
+        return q?{sym:item.sym,price:q.price,changePct:q.changePct}
+          :{sym:item.sym,available:false};
+      });
+      const available=sectorRows.filter(q=>Number.isFinite(q.price)&&q.price>0 &&
+        Number.isFinite(q.changePct));
+      const positive=available.filter(q=>q.changePct>0).length;
+      const negative=available.filter(q=>q.changePct<0).length;
+      const flat=available.length-positive-negative;
+      const ranked=[...available].sort((a,b)=>b.changePct-a.changePct);
+      const avg=available.length
+        ? available.reduce((sum,r)=>sum+r.changePct,0)/available.length:null;
+      renderResearchMetrics('mkt-breadth-summary',[
+        {label:'Verified sector ETFs',value:available.length+' / '+HEAT_SECTORS.length},
+        {label:'Up / down / unchanged',value:positive+' / '+negative+' / '+flat},
+        {label:'Mean sector ETF move',value:avg===null?'Unavailable':
+          (avg>=0?'+':'')+avg.toFixed(2)+'%'},
+        {label:'Leader · laggard',value:ranked.length
+          ?ranked[0].sym+' · '+ranked[ranked.length-1].sym:'Unavailable'}
+      ]);
+      if(status)status.textContent=failed
+        ?(done-failed)+' / '+unique.length+' usable quotes. Some provider data is unavailable. '
+          +'Retry to check again; no fake prices are shown.'
+        :unique.length+' ETFs loaded from provider quotes · latest available, possibly delayed.';
+    }catch(error){
+      console.error('[Markets] Rendering failed:',error);
+      if(status)status.textContent='Could not finish the market overview. Retry to check provider data.';
+      for(const sym of unique)if(!result.has(sym))paintMarketQuote(sym,null);
+    }finally{
+      if(version===marketRenderVersion){
+        marketsLoading=false;
+        if(retry){retry.disabled=false;retry.textContent='↻ Refresh market quotes';}
+      }
+    }
+  }
+  window.refreshMarketsTab=()=>renderMarketsTab(true);
 
   // ── Watchlist sidebar ─────────────────────────────────────────────────────
   function updateWatchlistUI() {
@@ -2135,7 +2272,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tab=e.detail;
     if (tab==='watchlist')  renderWatchlistTab();
     else if (tab==='portfolio') { renderPortfolio(); }
-    else if (tab==='markets')   { marketsLoaded=true; renderMarketsTab(); }
+    else if (tab==='markets') {
+      marketsLoaded=true;
+      // Avoid 25 provider requests when switching tabs repeatedly.
+      if(!marketsLastStartedAt || Date.now()-marketsLastStartedAt>120000){
+        void renderMarketsTab().catch(err=>console.error('[Markets] '+err.message));
+      }
+    }
     else if (tab==='news')      loadNews(currentSymbol);
     else if (tab==='trending')  {
       if(!trendingLoaded || Date.now()-moversFetchedAt > 120000) {
