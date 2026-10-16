@@ -8,7 +8,9 @@ const MAX_UPSTREAM_WS_SYMBOLS = 60;
 const MAX_WS_MESSAGE_BYTES = 2048;
 
 function normalizeMarketSymbol(value) {
-  if (typeof value !== 'string') return null;
+  // Ignore surrounding ordinary spaces, but never accept embedded control
+  // characters such as newlines, tabs or NUL in an upstream symbol.
+  if (typeof value !== 'string' || /[\x00-\x1F\x7F]/.test(value)) return null;
   const symbol = value.trim().toUpperCase();
   return /^[A-Z0-9^][A-Z0-9.\-^:=]{0,23}$/.test(symbol) ? symbol : null;
 }
