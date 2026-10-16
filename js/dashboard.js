@@ -1304,6 +1304,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!listEl) return;
 
     if (!holdings.length) {
+      renderResearchMetrics('port-risk-insights',[
+        {label:'Saved holdings',value:Portfolio.lastError?'Unable to verify':'0'},
+        {label:'Quoted positions',value:'—'},
+        {label:'Largest exposure',value:'—'},
+        {label:'Distinct tickers',value:'—'}
+      ]);
       listEl.innerHTML = Portfolio.lastError
         ? '<div class="port-empty" style="color:var(--gold)">Your saved holdings could not be loaded. They have NOT been deleted. Please retry after the API responds.</div>'
         : '<div class="port-empty">No holdings yet — add your first position above.</div>';
@@ -1358,6 +1364,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     pricingNotice.style.display=partialQuotes?'block':'none';
     if(partialQuotes)pricingNotice.textContent='Some prices cannot be verified. Cost basis is shown temporarily for those holdings; total value is an estimate and portfolio P/L is withheld.';
+    // Honest, actionable exposure diagnostics. Weights are estimated when
+    // market quotes are unavailable; never label them verified allocations.
+    const exposure=ResearchTools.portfolioInsights(rows);
+    renderResearchMetrics('port-risk-insights',[
+      {label:'Positions with verified quotes',value:exposure.priced+' / '+exposure.holdings},
+      {label:'Largest symbol exposure',value:exposure.topSymbol
+        ? exposure.topSymbol+' · '+exposure.topWeightPct+'%'+(exposure.usesCostBasis?'*':'')
+        : '—'},
+      {label:'Top three symbols',value:exposure.top3WeightPct===null?'—':
+        exposure.top3WeightPct+'%'+(exposure.usesCostBasis?'*':'')},
+      {label:'Distinct tickers',value:String(exposure.uniqueSymbols)}
+    ]);
     // Stats
     const totalPL    = totalValue - totalCost;
     const totalPLPct = totalCost ? (totalPL / totalCost) * 100 : 0;
