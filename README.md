@@ -218,6 +218,43 @@ service warm when allowed by the hosting plan.
 
 No second domain is required. Leave `PUBLIC_SITE_ENABLED=false` while testing: this preserves the original owner-only StockAI deployment. A deliberate `PUBLIC_SITE_ENABLED=true` switch allows public account logins on the **same** service, without clearing `ALLOWED_EMAIL` or replacing your database/JWT secret. Public registration separately requires `PUBLIC_SIGNUPS_ENABLED=true` and verified Resend email. **Do not enable a public launch until security, vendor rights and account-isolation checks are complete.** See [single-website rollout instructions](docs/public-launch-and-accuracy.md#one-website-rollout-keep-stockai-mainonrendercom).
 
+## StockAI Research Workspace refinements
+
+The main tabs now support practical, **provider-verified** research instead
+of generic static demo cards:
+
+- **Dashboard:** market ETF snapshot, tracked-symbol search, technical
+  indicators and a concise latest-available price chart.
+- **Technical Signals:** deterministic indicator explanations are free and
+  shown by default. Optional Claude commentary is only requested when the
+  user clicks **Explain with AI** (reduces accidental API costs); current
+  signal evidence/history and forward journal remain separate.
+- **Watchlist:** account-persisted symbols with verified quote coverage,
+  A–Z/gainer/decliner/largest-move sorting and actionable network errors.
+  Invalid/unavailable symbols are never shown as valid zero-move quotes.
+  To protect market API quotas, at most 30 saved symbols are fetched per visit.
+- **Portfolio:** symbol concentration, top-three allocation and live-quote
+  coverage. Estimated weights are marked when some positions use cost basis.
+  This is **not** a real historical portfolio return or a trading suggestion.
+- **Markets:** sector ETF sampling and verified up/down/unchanged counts,
+  leaders, laggards and unweighted sample session move (not total market
+  breadth).
+- **News:** recent, deduplicated provider headlines, manual refresh,
+  direct original publisher links and explicit unavailable states.
+- **Stock Movers (formerly Trending):** ranked **curated** movers by real
+  latest-available session price change, not fabricated internet trends.
+- **Screener:** curated, capped per-run universe with accurate taxonomy,
+  quote coverage, missing-data states, sector/price/RSI/cap filters, sorting,
+  and formula-safe CSV export. Scans up to 30 names at a time, not every
+  listed security or live exchange universe.
+- **Price Alerts:** remain MongoDB-backed, with actual provider checks while
+  StockAI is open—not guaranteed background monitoring.
+
+UI and API work can still fail when Finnhub/Yahoo providers are unavailable
+or delayed. No numeric prediction accuracy is claimed without forward evidence.
+All existing private owner/public feature flags, MongoDB accounts and
+portfolio records are unchanged by this research UI release.
+
 ## MongoDB-saved price alerts
 
 Price alerts now persist in MongoDB under the authenticated user's ID and can
