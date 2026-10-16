@@ -810,45 +810,112 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).join('');
   }
 
-  window.removeFromWL = async function(sym) { await Auth.removeFromWatchlist(sym); updateWatchlistUI(); renderWatchlistTab(); renderWatchlistMini(); };
+  window.removeFromWL = async function(sym) {
+    try{
+      await Auth.removeFromWatchlist(sym);
+      delete watchlistQuotes[sym];
+      updateWatchlistUI();
+      void renderWatchlistTab();
+      void renderWatchlistMini();
+      showToast(sym+' removed from saved watchlist.');
+    }catch(e){showToast('Could not update watchlist: '+e.message);}
+  };
 
-  // ── Watchlist tab ─────────────────────────────────────────────────────────
-  async function renderWatchlistTab() {
-    const grid = document.getElementById('wl-view-grid'); if (!grid) return;
-    const list = Auth.getWatchlist();
-    if (Auth.isGuest()) {
-      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.8rem">⭐</div><div style="margin-bottom:1.2rem">Create a free account to save your watchlist</div><a href="register.html" style="padding:.6rem 1.6rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:9px;color:#fff;font-weight:700;text-decoration:none;font-size:.88rem">Create Account →</a></div>`;
+  // ── Watchlist tab: sortable, account-persisted, provider-backed ─────────
+  const watchlistQuotes=Object.create(null);
+  let watchlistVersion=0;
+  function paintWatchlistRows() {
+    const grid=document.getElementById('wl-view-grid');
+    if(!grid)return;
+    const symbols=Auth.getWatchlist();
+    grid.replaceChildren();
+    if(Auth.isGuest()){
+      grid.textContent='Create an account to save and organize your watchlist.';
       return;
     }
-    if (!list.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.8rem">⭐</div><div>No stocks yet. Use the search box above to add some.</div></div>`; return; }
-    grid.innerHTML = list.map(sym => {
-      const info = StockAPI.getCompanyInfo(sym);
-      return `<div class="wl-full-item" onclick="window.selectSearch('${sym}');switchTab(null,'dashboard')">
-        <div class="wlf-badge">${sym.slice(0,2)}</div>
-        <div class="wlf-info"><div class="wlf-sym">${sym}</div><div class="wlf-name">${info.name}</div></div>
-        <div class="wlf-price"><div class="wlf-px" id="wlf-px-${sym}">$—</div><div class="wlf-chg" id="wlf-chg-${sym}">—</div></div>
-        <button onclick="event.stopPropagation();removeFromWL('${sym}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;opacity:.55;padding:.2rem;flex-shrink:0">×</button>
-      </div>`;
-    }).join('');
-    await Promise.all(list.map(async sym => {
-      try {
-        const q = await StockAPI.getQuote(sym); const up = q.changePct>=0;
-        const px  = document.getElementById(`wlf-px-${sym}`);
-        const chg = document.getElementById(`wlf-chg-${sym}`);
-        if (px)  px.textContent  = `$${q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-        if (chg) { chg.textContent=`${up?'+':''}${q.changePct}%`; chg.className=`wlf-chg ${up?'up':'down'}`; }
-      } catch (_) {}
+    if(!symbols.length){
+      grid.textContent='Your watchlist is empty. Add a ticker above to get started.';
+      const status=document.getElementById('watchlist-coverage');
+      if(status)status.textContent='0 saved tickers';
+      return;
+    }
+    const sorted=ResearchTools.watchlistRows(symbols,watchlistQuotes,
+      document.getElementById('watchlist-sort')?.value||'alpha');
+    const verified=sorted.filter(row=>row.price!==null).length;
+    const status=document.getElementById('watchlist-coverage');
+    if(status)status.textContent=symbols.length+' saved · '+verified+' verified quote'+
+      (verified===1?'':'s')+' · unavailable prices shown as —'+
+      (symbols.length>30?' · first 30 fetched per visit':'');
+    for(const item of sorted){
+      const sym=item.sym;
+      const info=StockAPI.getCompanyInfo(sym);
+      const row=document.createElement('div');
+      row.className='wl-full-item'+(item.price===null?' unavailable':'');
+      row.tabIndex=0;row.setAttribute('role','button');
+      row.setAttribute('aria-label','Open '+sym+' stock chart');
+      const badge=document.createElement('div');badge.className='wlf-badge';badge.textContent=sym.slice(0,2);
+      const infoBox=document.createElement('div');infoBox.className='wlf-info';
+      const name=document.createElement('div');name.className='wlf-name';name.textContent=info.name||sym;
+      const ticker=document.createElement('div');ticker.className='wlf-sym';ticker.textContent=sym;
+      infoBox.append(ticker,name);
+      const priced=document.createElement('div');priced.className='wlf-price';
+      const px=document.createElement('div');px.className='wlf-px';
+      px.textContent=item.price===null?'—':'$'+item.price.toLocaleString('en-US',
+        {minimumFractionDigits:2,maximumFractionDigits:2});
+      const ch=document.createElement('div');
+      ch.className='wlf-chg '+(item.changePct===null?'':item.changePct>=0?'up':'down');
+      ch.textContent=item.changePct===null?'Quote unavailable':
+        (item.changePct>=0?'+':'')+item.changePct.toFixed(2)+'%';
+      priced.append(px,ch);
+      const remove=document.createElement('button');remove.type='button';
+      remove.className='research-btn';remove.textContent='×';
+      remove.setAttribute('aria-label','Remove '+sym+' from watchlist');
+      remove.addEventListener('click',event=>{event.stopPropagation();void window.removeFromWL(sym);});
+      const open=()=>window.selectSearch(sym);
+      row.addEventListener('click',open);
+      row.addEventListener('keydown',event=>{
+        if(event.target===row && (event.key==='Enter'||event.key===' ')){
+          event.preventDefault();open();
+        }
+      });
+      row.append(badge,infoBox,priced,remove);grid.appendChild(row);
+    }
+  }
+
+  window.renderSortedWatchlist=paintWatchlistRows;
+  async function renderWatchlistTab() {
+    const version=++watchlistVersion;
+    paintWatchlistRows();
+    if(Auth.isGuest())return;
+    const list=Auth.getWatchlist().slice(0,30);
+    let cursor=0;
+    await Promise.all(Array.from({length:5},async()=>{
+      while(cursor<list.length){
+        const symbol=list[cursor++];
+        try{
+          const q=await StockAPI.getQuote(symbol);
+          if(version===watchlistVersion)watchlistQuotes[symbol]=q;
+        }catch(_){
+          if(version===watchlistVersion)delete watchlistQuotes[symbol];
+        }
+      }
     }));
+    if(version===watchlistVersion)paintWatchlistRows();
   }
 
   window.addToWLFromInput = async function() {
-    if (Auth.isGuest()) { showGuestModal(); return; }
-    const input = document.getElementById('wl-add-input');
-    const sym = (input?.value||'').toUpperCase().trim();
-    if (!sym) { showToast('Enter a stock symbol'); return; }
-    await Auth.addToWatchlist(sym); if (input) input.value='';
-    updateWatchlistUI(); renderWatchlistTab(); renderWatchlistMini();
-    showToast(`${sym} added to watchlist`);
+    if (Auth.isGuest()) { showGuestModal();return; }
+    const input=document.getElementById('wl-add-input');
+    const symbol=(input?.value||'').trim().toUpperCase();
+    if(!symbol) {showToast('Enter a ticker to add.');return;}
+    try{
+      await Auth.addToWatchlist(symbol);
+      if(input)input.value='';
+      updateWatchlistUI();
+      void renderWatchlistTab();
+      void renderWatchlistMini();
+      showToast(symbol+' saved to your watchlist.');
+    }catch(e){showToast('Watchlist not saved: '+e.message);}
   };
 
   // ── Watchlist mini (trending tab) ─────────────────────────────────────────
@@ -1884,7 +1951,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Watchlist add (dashboard tab) ─────────────────────────────────────────
   document.getElementById('btn-add-watch').addEventListener('click', async ()=>{
     if (Auth.isGuest()) { showGuestModal(); return; }
-    await Auth.addToWatchlist(currentSymbol); updateWatchlistUI(); showToast(`${currentSymbol} added to watchlist`);
+    try{
+      await Auth.addToWatchlist(currentSymbol);
+      updateWatchlistUI();
+      void renderWatchlistTab();
+      showToast(currentSymbol+' saved to your watchlist.');
+    }catch(e){showToast('Watchlist not saved: '+e.message);}
   });
 
   // ── Logout / Sidebar ─────────────────────────────────────────────────────
