@@ -111,53 +111,133 @@ const Portfolio = {
 
 // ── Price Alerts ──────────────────────────────────────────────────────────
 const PriceAlerts = {
-  // Keep alerts isolated per account on shared browsers.
+  _cache:null,
+  lastError:null,
   _key() {
-    const session = typeof Auth !== 'undefined' ? Auth.getSession() : null;
-    return 'stockai_alerts_' + (session?.userId || 'anonymous');
+    const session=typeof Auth!=='undefined'?Auth.getSession():null;
+    return 'stockai_alerts_' + (session?.userId||'anonymous');
   },
-
-  get() {
-    try { return JSON.parse(localStorage.getItem(this._key()) || '[]'); }
-    catch (_) { return []; }
+  _guest() {return typeof Auth!=='undefined'&&Auth.isGuest();},
+  _legacy() {
+    try {return JSON.parse(localStorage.getItem(this._key())||'[]');}
+    catch(_){return [];}
   },
-  save(data) { localStorage.setItem(this._key(), JSON.stringify(data)); },
+  get() {return this._cache||this._legacy();},
+  save(data) {localStorage.setItem(this._key(),JSON.stringify(data));},
 
-  add(symbol, targetPrice, direction) {
-    const list = this.get();
-    list.push({ id: Date.now(), symbol: symbol.toUpperCase(), targetPrice: +targetPrice, direction, triggered: false });
-    this.save(list);
-  },
-
-  remove(id) { this.save(this.get().filter(a => a.id !== id)); },
-
-  check(symbol, price) {
-    const list  = this.get();
-    let changed = false;
-    const fired = [];
-    list.forEach(a => {
-      if (a.symbol !== symbol || a.triggered) return;
-      const hit = (a.direction === 'above' && price >= a.targetPrice) ||
-                  (a.direction === 'below' && price <= a.targetPrice);
-      if (hit) { a.triggered = true; fired.push(a); changed = true; }
+  async _request(url,opts={}) {
+    const response=await fetch(url,{
+      ...opts,headers:{...Auth._authHeader(),...(opts.headers||{})}
     });
-    if (changed) this.save(list);
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw Error(data.error||'Alert service error ('+response.status+')');
+    return data;
+  },
+
+  async load() {
+    if(this._guest()) {this._cache=null;return this._legacy();}
+    try {
+      const result=await this._request('/api/user/alerts');
+      this._cache=result.alerts;
+      this.lastError=null;
+      // Import locally saved alerts only after confirmed server save.
+      // Deleting the browser copy on failure would lose someone's alerts.
+      const legacy=this._legacy().filter(a=>!a.triggered);
+      if(legacy.length) {
+        let migrated=true;
+        for(const item of legacy.slice(0,35)) {
+          try {
+            if(!['above','below'].includes(item.direction)||!Number.isFinite(Number(item.targetPrice))||
+               Number(item.targetPrice)<=0)continue;
+            await this._request('/api/user/alerts',{
+              method:'POST',body:JSON.stringify({
+                symbol:String(item.symbol||'').trim().toUpperCase(),
+                direction:item.direction,targetPrice:Number(item.targetPrice)
+              })
+            });
+          }catch(e) { migrated=false;console.warn('Legacy alert not imported:',e.message); }
+        }
+        if(migrated&&legacy.length<=35) {
+          localStorage.removeItem(this._key());
+          const latest=await this._request('/api/user/alerts');
+          this._cache=latest.alerts;
+        }
+      }
+    }catch(e) {
+      this.lastError=e.message;
+      console.warn('PriceAlerts.load failed:',e.message);
+    }
+    return this.get();
+  },
+
+  async add(symbol,targetPrice,direction) {
+    if(this._guest()) throw Error('Sign in to save alerts across devices.');
+    const result=await this._request('/api/user/alerts',{
+      method:'POST',body:JSON.stringify({
+        symbol:String(symbol||'').toUpperCase().trim(),
+        targetPrice:Number(targetPrice),direction
+      })
+    });
+    await this.load();
+    return result.alert;
+  },
+
+  async remove(id) {
+    if(this._guest()) {
+      this.save(this._legacy().filter(a=>String(a.id)!==String(id)));return;
+    }
+    await this._request('/api/user/alerts/'+encodeURIComponent(id),{method:'DELETE'});
+    if(this._cache) this._cache=this._cache.filter(a=>String(a.id)!==String(id));
+    this.lastError=null;
+  },
+
+  async clearAll() {
+    if(this._guest()) {this.save([]);return;}
+    await this._request('/api/user/alerts',{method:'DELETE'});
+    localStorage.removeItem(this._key());
+    this._cache=[];
+    this.lastError=null;
+  },
+
+  // Local-only legacy fallback. Server alerts trigger atomically using
+  // provider-verified quotes rather than client-submitted prices.
+  check(symbol,price) {
+    // Signed-in users must never "confirm" an alert with browser-supplied
+    // prices. Only the backend is allowed to verify a hit.
+    if(!this._guest()) return [];
+    const list=this._legacy(), fired=[];
+    for(const a of list) {
+      if(a.symbol!==symbol||a.triggered)continue;
+      if((a.direction==='above'&&price>=a.targetPrice)||
+         (a.direction==='below'&&price<=a.targetPrice)) {
+        a.triggered=true;fired.push(a);
+      }
+    }
+    if(fired.length)this.save(list);
     return fired;
   },
 
-  requestPermission() {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+  async checkServer() {
+    if(this._guest())return {fired:[],throttled:true};
+    const result=await this._request('/api/user/alerts/check',{method:'POST'});
+    if(result.fired?.length){
+      await this.load();
+      for(const alert of result.fired) this.notify(alert);
     }
+    return result;
+  },
+
+  requestPermission() {
+    if('Notification' in window&&Notification.permission==='default')
+      Notification.requestPermission();
   },
 
   notify(alert) {
-    const title = `📈 StockAI Alert — ${alert.symbol}`;
-    const body  = `Price ${alert.direction === 'above' ? 'rose above' : 'dropped below'} $${alert.targetPrice}`;
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, { body, icon: '/favicon.ico' });
-    }
-    window.showToast?.(`🔔 ${alert.symbol} ${body}`);
+    const body=alert.symbol+' '+(alert.direction==='above'?'reached or exceeded':'fell to or below')+
+      ' $'+Number(alert.targetPrice).toFixed(2);
+    if('Notification' in window&&Notification.permission==='granted')
+      new Notification('StockAI Price Alert',{body,icon:'/favicon.svg'});
+    window.showToast?.('🔔 '+body);
   }
 };
 

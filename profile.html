@@ -525,7 +525,8 @@ async function loadProfile() {
     const [r] = await Promise.all([
       fetch('/api/user/profile', { headers: Auth._authHeader(), cache: 'no-store' }),
       Auth.loadWatchlist(),
-      Portfolio.load()
+      Portfolio.load(),
+      PriceAlerts.load()
     ]);
     if (!r.ok) throw new Error('Could not load account from MongoDB');
     user = await r.json();
@@ -677,7 +678,7 @@ async function changePassword() {
 
 // ── Data export ────────────────────────────────────────────────────────────
 async function exportAllData() {
-  await Promise.all([Auth.loadWatchlist(), Portfolio.load()]);
+  await Promise.all([Auth.loadWatchlist(), Portfolio.load(), PriceAlerts.load()]);
   let forwardSignals = [];
   try {
     const r=await fetch('/api/user/forward-signals',{headers:Auth._authHeader(),cache:'no-store'});
@@ -724,7 +725,7 @@ const CLEAR_CONFIGS = {
   },
   alerts: {
     icon:'🔔', title:'Clear All Alerts?', body:'Remove your local price alerts?',
-    action: async () => PriceAlerts.save([])
+    action: async () => PriceAlerts.clearAll()
   }
 };
 
@@ -793,7 +794,7 @@ async function executeDanger() {
       if (!r.ok) throw new Error('Unable to delete MongoDB data');
       Auth._watchlistCache = [];
       Portfolio._cache = [];
-      PriceAlerts.save([]);
+      await PriceAlerts.clearAll();
       closeModal('danger-modal');
       await loadProfile();
       showToast('Account data cleared');

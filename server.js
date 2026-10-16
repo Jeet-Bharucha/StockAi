@@ -11,6 +11,7 @@ const { createRateLimiter } = require('./security');
 const { publicSettings, registerPublic, installVerificationRoutes } = require('./publicSignup');
 const { AIPredictor } = require('./js/aiPredictor');
 const { installForwardTrackingRoutes } = require('./forwardTracking');
+const { installPriceAlertRoutes } = require('./priceAlerts');
 const { siteAccess } = require('./siteAccess');
 const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
@@ -116,6 +117,21 @@ const PredictionSchema = new mongoose.Schema({
 PredictionSchema.index({userId:1,symbol:1,signalTime:1,modelVersion:1,horizonSessions:1},{unique:true});
 PredictionSchema.index({userId:1,createdAt:-1});
 const Prediction = mongoose.model('Prediction',PredictionSchema);
+
+// Alert records are stored per authenticated MongoDB user and persist across
+// browser/device restarts. Quotes are checked only during active sessions.
+const PriceAlertSchema = new mongoose.Schema({
+  userId: {type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,index:true},
+  symbol: {type:String,required:true,uppercase:true},
+  direction: {type:String,enum:['above','below'],required:true},
+  targetPrice: {type:Number,required:true,min:0},
+  triggered: {type:Boolean,default:false},
+  createdAt: {type:Date,default:Date.now},
+  triggeredAt:Date,observedPrice:Number,observedAt:Date,source:String
+});
+PriceAlertSchema.index({userId:1,createdAt:-1});
+PriceAlertSchema.index({userId:1,symbol:1,direction:1,targetPrice:1},{unique:true});
+const PriceAlert = mongoose.model('PriceAlert',PriceAlertSchema);
 
 // ── Auth middleware ───────────────────────────────────────────────────────
 async function authMW(req, res, next) {
@@ -299,8 +315,13 @@ app.post('/api/auth/login', limiterLogin, dbRequired, async (req, res) => {
   }
 });
 
-installAccountRoutes(app,{User,Holding,Prediction,authMW,dbRequired,
+installAccountRoutes(app,{User,Holding,Prediction,PriceAlert,authMW,dbRequired,
   allowedEmail:PUBLIC_SITE_ENABLED ? '' : ALLOWED_EMAIL});
+const alertLimiter=createRateLimiter({windowMs:60*60*1000,max:100,namespace:'saved-alerts',
+  keyFn:req=>req.user?.id||req.ip});
+installPriceAlertRoutes(app,{
+  Alert:PriceAlert,authMW,dbRequired,rateLimit:alertLimiter,fetchQuote:fetchVerifiedAlertQuote
+});
 const forwardLimiter = createRateLimiter({windowMs:60*60*1000,max:80,namespace:'forward',keyFn:req=>req.user?.id||req.ip});
 installForwardTrackingRoutes(app,{Prediction,authMW,dbRequired,fetchHistoricalBars,AIPredictor,rateLimit:forwardLimiter});
 
@@ -546,6 +567,41 @@ app.get('/api/status', (req, res) => res.json({
   // Show internal connection metadata only on the private owner deployment.
   ...(!PUBLIC_SITE_ENABLED ? {clients:wss.clients.size,symbols:[...symbolClients.keys()]} : {})
 }));
+
+// Verify the observed market timestamp before checking a saved price alert.
+// Prefer Finnhub; fall back to Yahoo's marked latest-available price, never a
+// fabricated quote. Provider prices may be delayed under free API plans.
+async function fetchVerifiedAlertQuote(symbol) {
+  if (!/^[A-Z0-9.\\-^]{1,16}$/.test(symbol)) throw Error('Invalid symbol');
+  if (FINNHUB_KEY) {
+    try {
+      const url='https://finnhub.io/api/v1/quote?symbol='+
+        encodeURIComponent(symbol)+'&token='+encodeURIComponent(FINNHUB_KEY);
+      const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+      if (r.ok) {
+        const d=await r.json();
+        if (Number.isFinite(d.c)&&d.c>0&&Number.isFinite(d.t)&&d.t>0)
+          return {price:d.c,observedAt:new Date(d.t*1000).toISOString(),source:'Finnhub'};
+      }
+    }catch(e){console.warn('[PriceAlerts] Finnhub failed:',e.message);}
+  }
+  const url='https://query2.finance.yahoo.com/v8/finance/chart/'+
+    encodeURIComponent(symbol)+'?interval=1d&range=5d';
+  const r=await fetch(url,{
+    signal:AbortSignal.timeout(10000),
+    headers:{'User-Agent':'Mozilla/5.0 StockAI/1.0'}
+  });
+  if(!r.ok)throw Error('Quote feed unavailable');
+  const d=await r.json(),meta=d?.chart?.result?.[0]?.meta;
+  if(!Number.isFinite(meta?.regularMarketPrice)||meta.regularMarketPrice<=0||
+     !Number.isFinite(meta?.regularMarketTime)||meta.regularMarketTime<=0)
+    throw Error('No provider-timestamped market quote');
+  return {
+    price:meta.regularMarketPrice,
+    observedAt:new Date(meta.regularMarketTime*1000).toISOString(),
+    source:'Yahoo latest available'
+  };
+}
 
 // ── Portfolio Prices (Finnhub + CoinGecko) ────────────────────────────────
 const CRYPTO_MAP_P = {

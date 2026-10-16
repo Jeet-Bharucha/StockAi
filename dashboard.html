@@ -1793,7 +1793,10 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
             </select>
             <button class="btn-set-alert" onclick="addAlert()">Set Alert</button>
           </div>
-          <div id="alert-list"><div style="color:var(--muted);font-size:.82rem;padding:.5rem 0">No alerts set yet.</div></div>
+          <p id="alert-service-status" role="status" aria-live="polite" style="font-size:.72rem;color:var(--muted);line-height:1.55;margin:.6rem 0">
+            MongoDB-saved alerts · verified prices checked while the site is open · no guaranteed background notifications.
+          </p>
+          <div id="alert-list"><div style="color:var(--muted);font-size:.82rem;padding:.5rem 0">Loading saved alerts…</div></div>
         </div>
         <div class="card">
           <div class="card-title">⭐ Your Watchlist</div>

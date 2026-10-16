@@ -1672,31 +1672,80 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Ask notification permission only after the user chooses to set an alert.
 
   function renderAlerts() {
-    const list=PriceAlerts.get(), el=document.getElementById('alert-list'); if (!el) return;
-    if (!list.length) { el.innerHTML='<div style="color:var(--muted);font-size:.82rem;padding:.5rem 0">No alerts set yet.</div>'; return; }
-    el.innerHTML = list.map(a=>`
-      <div class="alert-row">
-        <span class="alert-sym">${a.symbol}</span>
-        <span class="alert-dir-badge ${a.direction}">${a.direction==='above'?'↑ Above':'↓ Below'}</span>
-        <span class="alert-price-val">$${a.targetPrice}</span>
-        <span class="alert-status ${a.triggered?'triggered':''}">${a.triggered?'✓ Hit':'●'}</span>
-        <button onclick="window.removeAlert(${a.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;line-height:1;margin-left:auto">×</button>
-      </div>`).join('');
+    const list=PriceAlerts.get(),el=document.getElementById('alert-list');
+    const status=document.getElementById('alert-service-status');
+    if(!el)return;
+    if(status)status.textContent=PriceAlerts.lastError
+      ? '⚠ Alert sync unavailable: '+PriceAlerts.lastError+'. Old browser alerts have been preserved.'
+      : 'Saved to your account · checked while this page is open · not 24/7 monitoring.';
+    el.replaceChildren();
+    if(!list.length){
+      const empty=document.createElement('div');
+      empty.style.cssText='color:var(--muted);font-size:.82rem;padding:.5rem 0';
+      empty.textContent=PriceAlerts.lastError
+        ? 'Unable to load saved alerts right now. Please retry.'
+        : 'No price alerts set. Add one above.';
+      el.appendChild(empty);return;
+    }
+    for(const a of list){
+      const row=document.createElement('div');row.className='alert-row';
+      const sym=document.createElement('span');sym.className='alert-sym';sym.textContent=a.symbol;
+      const dir=document.createElement('span');
+      dir.className='alert-dir-badge '+(a.direction==='above'?'above':'below');
+      dir.textContent=a.direction==='above'?'↑ Above':'↓ Below';
+      const price=document.createElement('span');price.className='alert-price-val';
+      price.textContent='$'+Number(a.targetPrice).toFixed(2);
+      const trigger=document.createElement('span');
+      trigger.className='alert-status '+(a.triggered?'triggered':'');
+      trigger.textContent=a.triggered?'✓ Hit':'●';
+      if(a.triggeredAt)trigger.title='Triggered '+new Date(a.triggeredAt).toLocaleString();
+      const remove=document.createElement('button');remove.type='button';
+      remove.setAttribute('aria-label','Remove '+a.symbol+' alert');
+      remove.textContent='×';
+      remove.style.cssText='background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;line-height:1;margin-left:auto';
+      remove.addEventListener('click',()=>window.removeAlert(a.id));
+      row.append(sym,dir,price,trigger,remove);el.appendChild(row);
+    }
   }
 
-  window.addAlert = function() {
-    if (Auth.isGuest()) { showGuestModal(); return; }
+  window.addAlert = async function() {
+    if(Auth.isGuest()){showGuestModal();return;}
     const sym=(document.getElementById('alert-sym')?.value||currentSymbol).toUpperCase().trim();
-    const price=parseFloat(document.getElementById('alert-price')?.value);
+    const price=Number(document.getElementById('alert-price')?.value);
     const dir=document.getElementById('alert-dir')?.value||'above';
-    if (!sym||isNaN(price)||price<=0) { showToast('Fill in symbol and target price'); return; }
-    PriceAlerts.add(sym,price,dir);
-    PriceAlerts.requestPermission();
-    document.getElementById('alert-sym').value=''; document.getElementById('alert-price').value='';
-    renderAlerts(); showToast(`Alert set: ${sym} ${dir} $${price}`);
+    if(!/^[A-Z0-9.\-^]{1,16}$/.test(sym)||!Number.isFinite(price)||price<=0){
+      showToast('Enter a valid symbol and target price');return;
+    }
+    const btn=document.querySelector('.btn-set-alert');
+    if(btn)btn.disabled=true;
+    try{
+      await PriceAlerts.add(sym,price,dir);
+      PriceAlerts.requestPermission();
+      document.getElementById('alert-sym').value='';
+      document.getElementById('alert-price').value='';
+      renderAlerts();
+      showToast('Saved '+sym+' '+dir+' $'+price.toFixed(2)+' to your account');
+    }catch(e){showToast('Could not save price alert: '+e.message);}
+    finally{if(btn)btn.disabled=false;}
   };
 
-  window.removeAlert = function(id) { PriceAlerts.remove(id); renderAlerts(); };
+  window.removeAlert = async function(id) {
+    try{await PriceAlerts.remove(id);renderAlerts();showToast('Alert deleted');}
+    catch(e){showToast('Could not remove alert: '+e.message);}
+  };
+
+  async function refreshSavedAlerts() {
+    if(Auth.isGuest())return;
+    await PriceAlerts.load();
+    renderAlerts();
+    if(document.hidden||navigator.onLine===false)return;
+    try{await PriceAlerts.checkServer();renderAlerts();}
+    catch(e){
+      const status=document.getElementById('alert-service-status');
+      if(status)status.textContent='⚠ Verification unavailable: '+e.message+
+        '. Your saved alerts are not being checked right now.';
+    }
+  }
 
   function checkAlertsForPrice(symbol, price) {
     const fired=PriceAlerts.check(symbol,price);
@@ -1844,7 +1893,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (tab==='portfolio') { renderPortfolio(); }
     else if (tab==='markets')   { marketsLoaded=true; renderMarketsTab(); }
     else if (tab==='news')      loadNews(currentSymbol);
-    else if (tab==='trending')  { if(!trendingLoaded){trendingLoaded=true;renderTrending();} renderWatchlistMini(); renderAlerts(); }
+    else if (tab==='trending')  {
+      if(!trendingLoaded){trendingLoaded=true;renderTrending();}
+      renderWatchlistMini(); renderAlerts(); void refreshSavedAlerts();
+    }
     else if (tab==='ai')        { if(currentBars.length>=50) runAI(); renderEarnings(); }
     else if (tab==='screener')  { runScreener(); }
   });
@@ -1888,6 +1940,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { _prefs = JSON.parse(localStorage.getItem('stockai_prefs') || '{}'); }
   catch (_) { _prefs = {}; }
   renderAlerts();
+  void refreshSavedAlerts();
+  // Check latest provider quotes every 2 minutes while the browser is open.
+  // This is NOT guaranteed background monitoring when Render sleeps.
+  setInterval(()=>{
+    if(!document.hidden&&!Auth.isGuest())void refreshSavedAlerts();
+  },120000);
   renderEarnings();
   NotifCenter.init();
   void loadStock(_prefs.defaultStock || 'AAPL').catch(err => {
