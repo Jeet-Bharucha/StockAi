@@ -13,6 +13,10 @@ const { AIPredictor } = require('./js/aiPredictor');
 const { installForwardTrackingRoutes } = require('./forwardTracking');
 const { installPriceAlertRoutes } = require('./priceAlerts');
 const { siteAccess } = require('./siteAccess');
+const { securityHeaders, protectStaticFiles } = require('./siteSecurity');
+const {
+  MAX_BROWSER_WS_CLIENTS, normalizeMarketSymbol, parseWsMessage, canSubscribe
+} = require('./marketSecurity');
 const jwt      = require('jsonwebtoken');
 const cron     = require('node-cron');
 const _anthropicMod = require('@anthropic-ai/sdk');
@@ -26,6 +30,7 @@ const wss    = new WebSocket.Server({ server, path: '/ws' });
 app.set('trust proxy', 1); // Render sits behind one trusted ingress proxy
 app.disable('x-powered-by');
 app.use(express.json({limit:'32kb'}));
+app.use(securityHeaders);
 
 const FINNHUB_KEY      = process.env.FINNHUB_KEY;
 const MONGO_URI        = process.env.MONGO_URI;
@@ -500,21 +505,33 @@ function broadcastToAll(obj) {
 
 // ── Browser WebSocket clients ─────────────────────────────────────────────
 wss.on('connection', ws => {
+  if (wss.clients.size > MAX_BROWSER_WS_CLIENTS) {
+    ws.close(1013, 'Market stream capacity reached');
+    return;
+  }
   const mySymbols = new Set();
   ws.send(JSON.stringify({ type: 'status', status: !FINNHUB_KEY ? 'no-key' : wsConnected ? 'connected' : 'connecting' }));
 
   ws.on('message', raw => {
-    try {
-      const { type, symbol } = JSON.parse(raw);
-      const sym = symbol?.toUpperCase();
-      if (!sym) return;
-      if (type === 'subscribe') {
-        mySymbols.add(sym);
-        if (!symbolClients.has(sym)) { symbolClients.set(sym, new Set()); finnhubSend('subscribe', sym); }
-        symbolClients.get(sym).add(ws);
+    const msg = parseWsMessage(raw);
+    if (!msg) return; // reject malformed and oversized/unexpected messages
+    const { type, symbol: sym } = msg;
+    if (type === 'subscribe') {
+      if (!canSubscribe(mySymbols, symbolClients, sym)) {
+        ws.send(JSON.stringify({type:'error',message:'Subscription limit reached'}));
+        return;
       }
-      if (type === 'unsubscribe') { mySymbols.delete(sym); removeClientFromSymbol(ws, sym); }
-    } catch(_) {}
+      if (mySymbols.has(sym)) return; // no duplicate subscriptions
+      mySymbols.add(sym);
+      if (!symbolClients.has(sym)) {
+        symbolClients.set(sym, new Set());
+        finnhubSend('subscribe', sym);
+      }
+      symbolClients.get(sym).add(ws);
+    } else {
+      mySymbols.delete(sym);
+      removeClientFromSymbol(ws, sym);
+    }
   });
 
   ws.on('close', () => { mySymbols.forEach(sym => removeClientFromSymbol(ws, sym)); });
@@ -529,16 +546,25 @@ function removeClientFromSymbol(ws, symbol) {
 
 // ── Finnhub REST proxy ────────────────────────────────────────────────────
 async function finnhubREST(endpoint, res) {
-  if (!FINNHUB_KEY) return res.status(503).json({ error: 'no-key' });
+  if (!FINNHUB_KEY) return res.status(503).json({ error: 'Market data is not configured.' });
   try {
-    const url  = `https://finnhub.io/api/v1${endpoint}&token=${FINNHUB_KEY}`;
-    const r    = await fetch(url);
+    const url = new URL('https://finnhub.io/api/v1' + endpoint);
+    url.searchParams.set('token', FINNHUB_KEY);
+    const r = await fetch(url.toString(), { signal: AbortSignal.timeout(12000) });
+    if (!r.ok) return res.status(502).json({ error: 'Market data provider temporarily unavailable.' });
     const data = await r.json();
     res.json(data);
-  } catch(e) { res.status(502).json({ error: e.message }); }
+  } catch(e) {
+    console.warn('[Finnhub REST] Request failed:', e.message);
+    res.status(502).json({ error: 'Market data provider temporarily unavailable.' });
+  }
 }
 
-app.get('/api/quote',   (req, res) => finnhubREST(`/quote?symbol=${req.query.symbol}`, res));
+app.get('/api/quote', (req, res) => {
+  const symbol=normalizeMarketSymbol(req.query.symbol);
+  if (!symbol) return res.status(400).json({error:'Invalid market symbol'});
+  return finnhubREST('/quote?symbol='+encodeURIComponent(symbol),res);
+});
 app.get('/api/candle', async (req, res) => {
   const { symbol, resolution = 'D', from, to } = req.query;
   try {
@@ -553,13 +579,22 @@ app.get('/api/candle', async (req, res) => {
     });
   }
 });
-app.get('/api/profile', (req, res) => finnhubREST(`/stock/profile2?symbol=${req.query.symbol}`, res));
+app.get('/api/profile', (req,res) => {
+  const symbol=normalizeMarketSymbol(req.query.symbol);
+  if (!symbol) return res.status(400).json({error:'Invalid market symbol'});
+  return finnhubREST('/stock/profile2?symbol='+encodeURIComponent(symbol),res);
+});
 app.get('/api/news', (req, res) => {
   const { symbol } = req.query;
   const to   = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
-  if (symbol) return finnhubREST(`/company-news?symbol=${symbol}&from=${from}&to=${to}`, res);
-  finnhubREST(`/news?category=general`, res);
+  if (symbol !== undefined) {
+    const ticker=normalizeMarketSymbol(symbol);
+    if (!ticker) return res.status(400).json({error:'Invalid market symbol'});
+    return finnhubREST('/company-news?symbol='+encodeURIComponent(ticker)+
+      '&from='+from+'&to='+to,res);
+  }
+  finnhubREST('/news?category=general',res);
 });
 app.get('/api/status', (req, res) => res.json({
   hasKey: !!FINNHUB_KEY, wsConnected,
@@ -752,7 +787,8 @@ Do not tell the user to place a trade. Explain concrete technical risks, uncerta
 });
 
 // ── Serve static frontend files ───────────────────────────────────────────
-app.use(express.static(path.join(__dirname)));
+app.use(protectStaticFiles);
+app.use(express.static(path.join(__dirname),{dotfiles:'deny',index:'index.html'}));
 
 // ── Start ─────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
