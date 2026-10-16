@@ -18,6 +18,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   }[c]));
+  function renderResearchMetrics(id, items) {
+    const host=document.getElementById(id);
+    if(!host)return;
+    host.replaceChildren();
+    for(const item of items){
+      const box=document.createElement('div');
+      box.className='research-metric';
+      const label=document.createElement('small');
+      label.textContent=item.label;
+      const value=document.createElement('strong');
+      value.textContent=item.value;
+      box.append(label,value);host.appendChild(box);
+    }
+  }
+
   const safeExternalLink = value => {
     try {
       const url = new URL(value, location.origin);
@@ -725,7 +740,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="heat-cell-chg" id="heat-chg-${s.sym}">—</div>
           <div class="heat-cell-sym">${s.sym}</div>
         </div>`).join('');
-      await Promise.all(HEAT_SECTORS.map(async s => {
+      const sectorQuotes = await Promise.all(HEAT_SECTORS.map(async s => {
         try {
           const q = await StockAPI.getQuote(s.sym);
           const chg = q.changePct;
@@ -741,8 +756,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             cell.style.color = '#e27889';
           }
           if (chgEl) chgEl.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
-        } catch (_) {}
+          return {sym:s.sym,price:q.price,changePct:chg};
+        } catch (_) { return {sym:s.sym,available:false}; }
       }));
+      const breadth=ResearchTools.breadth(sectorQuotes);
+      const pct=v=>v===null?'Unavailable':(v>=0?'+':'')+v.toFixed(2)+'%';
+      renderResearchMetrics('mkt-breadth-summary',[
+        {label:'Verified ETF quotes',value:breadth.available+' / '+sectorQuotes.length},
+        {label:'Up / down / unchanged',value:breadth.up+' / '+breadth.down+' / '+breadth.flat},
+        {label:'Unweighted avg session move',value:pct(breadth.meanPct)},
+        {label:'Leader · laggard',value:breadth.leader&&breadth.laggard?
+          breadth.leader.sym+' · '+breadth.laggard.sym:'Unavailable'}
+      ]);
     }
 
     async function fillGrid(id, items) {
