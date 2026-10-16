@@ -56,6 +56,20 @@ test('unavailable initial account watchlist never gets replaced by empty state',
  assert.equal(writes,0);
 });
 
+test('delayed account read never rolls back an acknowledged MongoDB watchlist write',async()=>{
+ let releaseRead;
+ const auth=authWith(async(_url,opt)=>{
+   if(opt.method==='PUT')return reply(200,{ok:true});
+   return new Promise(resolve=>{releaseRead=resolve;});
+ });
+ auth._watchlistCache=['AAPL'];
+ const oldRead=auth.loadWatchlist();
+ await auth.addToWatchlist('NVDA');
+ releaseRead(reply(200,{watchlist:['AAPL']}));
+ await oldRead;
+ assert.deepEqual([...auth.getWatchlist()],['AAPL','NVDA']);
+});
+
 test('watchlist input is normalized and rejects invalid ticker syntax',async()=>{
  const auth=authWith(async(_url,opt)=>reply(200,{ok:true}));
  auth._watchlistCache=[];
