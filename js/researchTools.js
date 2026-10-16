@@ -18,8 +18,9 @@ const ResearchTools = {
     ['BMY','Healthcare'],['CVS','Healthcare'],['AMGN','Healthcare'],
     ['GILD','Healthcare'],
     ['XOM','Energy'],['CVX','Energy'],['COP','Energy'],
-    ['SLB','Energy'],['OXY','Energy'],['NEE','Energy'],
-    ['DUK','Energy'],['SO','Energy'],['AEP','Energy'],['PCG','Energy']
+    ['SLB','Energy'],['OXY','Energy'],
+    ['NEE','Utilities'],['DUK','Utilities'],['SO','Utilities'],
+    ['AEP','Utilities'],['PCG','Utilities']
   ]),
 
   sector(symbol) {
