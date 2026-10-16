@@ -10,7 +10,7 @@ const MAX_WS_MESSAGE_BYTES = 2048;
 function normalizeMarketSymbol(value) {
   if (typeof value !== 'string') return null;
   const symbol = value.trim().toUpperCase();
-  return /^[A-Z0-9][A-Z0-9.\-^:=]{0,23}$/.test(symbol) ? symbol : null;
+  return /^[A-Z0-9^][A-Z0-9.\-^:=]{0,23}$/.test(symbol) ? symbol : null;
 }
 
 function parseWsMessage(raw) {
