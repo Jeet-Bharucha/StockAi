@@ -16,6 +16,11 @@ test('curated research universe is correctly classified, diverse and contains no
    ['NVDA','Technology'],['JPM','Finance'],['V','Finance'],
    ['JNJ','Healthcare'],['XOM','Energy'],['META','Communication'],['TSLA','Consumer']
  ])assert.equal(R.sector(ticker),sector);
+ assert.equal(R.sector('DUK'),'Utilities');
+ const balanced=R.sampleUniverse(30);
+ assert.equal(balanced.length,30);
+ assert.equal(new Set(balanced.map(([,sector])=>sector)).size,7);
+ assert.equal(R.sampleUniverse(30,'Energy').every(([,sector])=>sector==='Energy'),true);
 });
 
 test('screener applies real sector, performance, price, cap and RSI filters',()=>{
