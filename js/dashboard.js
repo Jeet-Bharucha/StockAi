@@ -35,6 +35,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   let marketInterval = null;
   let currentBars = [];
   let newsMode = 'stock';
+  let newsRequestVersion = 0;
+  let claudeAnalysisVersion = 0;
+  let claudeBusy = false;
+  let activePrediction = null;
+  let activePredictionSymbol = null;
 
   // Compare mode state
   let compareSeries = null;
@@ -124,6 +129,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    claudeAnalysisVersion++;
+    claudeBusy = false;
+    activePrediction = null;
+    activePredictionSymbol = null;
+    const claudeButton = document.getElementById('btn-claude-explain');
+    if (claudeButton) { claudeButton.disabled = false; claudeButton.textContent='✦ Explain with AI'; }
     resetEvidenceUI();
     const requestVersion = ++stockRequestVersion;
     verifiedPrevClose = null;
@@ -268,13 +279,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   function runAI() {
     if (currentBars.length < 50) return;
     const prediction = AIPredictor.predict(currentBars);
+    activePrediction = prediction;
+    activePredictionSymbol = currentSymbol;
     renderAI(prediction);
-    // Kick off Claude AI analysis in parallel — updates #ai-reasoning when done
-    const curPrice = currentBars[currentBars.length - 1].close;
-    fetchClaudeAnalysis(currentSymbol, curPrice, prediction);
+    // No automatic billable LLM call on every page load or tab visit:
+    // local indicator explanations are always available at no extra cost.
+    renderFallbackReasoning(prediction);
   }
 
-  async function fetchClaudeAnalysis(symbol, price, prediction) {
+  window.explainWithAI = async function () {
+    if(!activePrediction || activePredictionSymbol !== currentSymbol){
+      showToast('Load a verified stock chart before requesting commentary.');
+      return;
+    }
+    if(Auth.isGuest()){
+      showToast('Sign in to request optional AI commentary.');
+      return;
+    }
+    if(claudeBusy)return;
+    claudeBusy=true;
+    const button=document.getElementById('btn-claude-explain');
+    if(button){button.disabled=true;button.textContent='Analyzing indicators…';}
+    const version=++claudeAnalysisVersion;
+    try{
+      const price=currentBars[currentBars.length-1]?.close;
+      await fetchClaudeAnalysis(currentSymbol,price,activePrediction,version);
+    }finally{
+      if(version===claudeAnalysisVersion){
+        claudeBusy=false;
+        if(button){button.disabled=false;button.textContent='✦ Explain with AI';}
+      }
+    }
+  };
+
+  async function fetchClaudeAnalysis(symbol, price, prediction, version) {
     const reasonEl = document.getElementById('ai-reasoning');
     if (!reasonEl) return;
 
@@ -300,7 +338,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 503 = API key not configured — show fallback badge immediately, no error noise
       if (resp.status === 503) {
-        renderFallbackReasoning(prediction);
+        if(version===claudeAnalysisVersion && symbol===currentSymbol){
+          renderFallbackReasoning(prediction);
+          showToast('Optional AI commentary is not configured.');
+        }
         return;
       }
 
@@ -312,6 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = await resp.json();
       if (data.error) throw new Error(data.error);
 
+      if(version!==claudeAnalysisVersion || symbol!==currentSymbol)return;
       // ── Render Claude's analysis ──────────────────────────────────────
       const driversHtml = Array.isArray(data.key_drivers) && data.key_drivers.length
         ? `<ul class="claude-drivers">${data.key_drivers.slice(0,5).map(d => `<li>${escapeHTML(d)}</li>`).join('')}</ul>`
@@ -334,7 +376,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (err) {
       // Network error / timeout / parse failure — fall back gracefully
-      renderFallbackReasoning(prediction);
+      if(version===claudeAnalysisVersion && symbol===currentSymbol){
+        renderFallbackReasoning(prediction);
+        showToast('AI commentary unavailable; local technical explanation is shown.');
+      }
       console.warn('[Claude AI] Fell back to local analysis:', err.message);
     }
   }
@@ -443,18 +488,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tbody = document.getElementById('signals-tbody');
     if (tbody) tbody.innerHTML = r.signals.map(s => {
       const cls=s.score>0?'sig-buy':s.score<0?'sig-sell':'sig-neutral', arrow=s.score>0?'▲':s.score<0?'▼':'●';
-      return `<tr><td>${s.name}</td><td class="val">${s.value}</td><td><span class="sig-badge ${cls}">${arrow} ${s.signal}</span></td></tr>`;
+      return `<tr><td>${escapeHTML(s.name)}</td><td class="val">${escapeHTML(s.value)}</td><td><span class="sig-badge ${cls}">${arrow} ${escapeHTML(s.signal)}</span></td></tr>`;
     }).join('');
 
     const reasonEl = document.getElementById('ai-reasoning');
-    if (reasonEl) reasonEl.innerHTML = r.reasoning.map(l=>`<p>${l}</p>`).join('');
+    if (reasonEl) reasonEl.innerHTML = r.reasoning.map(l=>`<p>${escapeHTML(l)}</p>`).join('');
 
     // Candlestick patterns
     if (r.patterns && r.patterns.length) {
       const existing = document.getElementById('pattern-row');
       if (existing) existing.remove();
       const pRow = document.createElement('tr'); pRow.id='pattern-row';
-      pRow.innerHTML = `<td colspan="3" style="padding:.6rem .5rem"><span style="font-size:.72rem;color:var(--muted);font-weight:600">Patterns: </span>${r.patterns.map(p=>`<span class="sig-badge ${p.bull?'sig-buy':'sig-sell'}" style="margin:.1rem">${p.name}</span>`).join(' ')}</td>`;
+      pRow.innerHTML = `<td colspan="3" style="padding:.6rem .5rem"><span style="font-size:.72rem;color:var(--muted);font-weight:600">Patterns: </span>${r.patterns.map(p=>`<span class="sig-badge ${p.bull?'sig-buy':'sig-sell'}" style="margin:.1rem">${escapeHTML(p.name)}</span>`).join(' ')}</td>`;
       if (tbody) tbody.appendChild(pRow);
     }
 
