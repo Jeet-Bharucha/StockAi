@@ -111,13 +111,21 @@ const StockAPI = {
       const d = await this._get(`/api/quote?symbol=${symbol}`);
       if (typeof d.c !== 'number' || !Number.isFinite(d.c) || d.c <= 0)
         throw new Error('No verified quote available for ' + symbol);
+      // 0% is a valid session move, but missing provider fields are not 0%.
+      // Recompute from previous close where available; otherwise refuse to
+      // invent a gain/loss for the research widgets.
+      const hasPrev = Number.isFinite(d.pc) && d.pc > 0;
+      const change = Number.isFinite(d.d) ? d.d : hasPrev ? d.c-d.pc : null;
+      const changePct = Number.isFinite(d.dp) ? d.dp :
+        hasPrev ? 100*(d.c/d.pc-1) : null;
+      if (!Number.isFinite(change) || !Number.isFinite(changePct))
+        throw new Error('Provider did not include a verifiable session change for '+symbol);
       const result = {
-        symbol, live: true,
-        price:     d.c,
-        change:    Number.isFinite(d.d) ? +d.d.toFixed(2) : 0,
-        changePct: Number.isFinite(d.dp) ? +d.dp.toFixed(2) : 0,
-        high: d.h, low: d.l, open: d.o, prevClose: d.pc,
-        volume: null
+        symbol, live: true, price:d.c,
+        change:+change.toFixed(2),changePct:+changePct.toFixed(2),
+        high:d.h,low:d.l,open:d.o,prevClose:d.pc,
+        observedAt:Number.isFinite(d.t)&&d.t>0?new Date(d.t*1000).toISOString():null,
+        volume:null
       };
       this._cache[key] = { ts: Date.now(), data: result };
       return result;
