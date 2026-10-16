@@ -944,6 +944,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Stock Movers: a curated universe, ranked by provider sessions ─────
   let moverData=[];
   let moverVersion=0;
+  let moversFetchedAt=0;
   function paintMovers() {
     const grid=document.getElementById('trend-grid');
     if(!grid)return;
@@ -996,6 +997,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
     if(version!==moverVersion)return;
     moverData=rows.filter(Boolean);
+    moversFetchedAt=Date.now();
     paintMovers();
   }
 
@@ -2137,8 +2139,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (tab==='markets')   { marketsLoaded=true; renderMarketsTab(); }
     else if (tab==='news')      loadNews(currentSymbol);
     else if (tab==='trending')  {
-      if(!trendingLoaded){trendingLoaded=true;renderTrending();}
-      renderWatchlistMini(); renderAlerts(); void refreshSavedAlerts();
+      if(!trendingLoaded || Date.now()-moversFetchedAt > 120000) {
+        trendingLoaded=true;void renderTrending();
+      }
+      void renderWatchlistMini(); renderAlerts(); void refreshSavedAlerts();
     }
     else if (tab==='ai')        { if(currentBars.length>=50) runAI(); renderEarnings(); }
     else if (tab==='screener')  {
