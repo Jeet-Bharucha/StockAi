@@ -1297,7 +1297,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
-              <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">Daily AI Briefing</span>
+              <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">ETF Market Snapshot</span>
               <span class="briefing-badge" id="briefing-badge">—</span>
             </div>
             <div id="briefing-text" style="font-size:.9rem;line-height:1.55;color:var(--text)">Generating market summary…</div>
@@ -1376,7 +1376,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
           </div>
           <!-- Popular chips -->
           <div class="card">
-            <div class="card-title">🔥 Quick Pick</div>
+            <div class="card-title">⌕ Tracked Symbols</div>
             <div class="chip-grid" id="popular-chips"></div>
           </div>
         </div>
@@ -1464,7 +1464,14 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
             <div class="risk-track"><div class="risk-fill" id="risk-fill"></div></div>
             <div class="risk-labels"><span>Low</span><span>Medium</span><span>High</span></div>
           </div>
-          <div class="ai-reasoning" id="ai-reasoning" style="flex:1"><p>Analyzing indicators…</p></div>
+          <div style="flex:1;min-width:0">
+            <div class="research-row" style="margin-bottom:.55rem">
+              <span class="research-caption">Technical explanation · based on verified candles</span>
+              <button type="button" class="research-btn" id="btn-claude-explain" onclick="window.explainWithAI?.()">✦ Explain with AI</button>
+            </div>
+            <div class="ai-reasoning" id="ai-reasoning"><p>Analyzing indicators…</p></div>
+            <p class="research-caption">AI commentary is optional and may be unavailable. Indicator scores are not probabilities.</p>
+          </div>
         </div>
       </div>
 
@@ -1549,12 +1556,20 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       <div class="view-header">
         <div>
           <div class="view-title">⭐ My Watchlist</div>
-          <div class="view-subtitle">Click any stock to open its chart and AI analysis</div>
+          <div class="view-subtitle">Your MongoDB-saved symbols · compare verified prices and session moves</div>
         </div>
         <div class="wl-add-bar">
           <input type="text" id="wl-add-input" placeholder="Add symbol e.g. NVDA" maxlength="10">
           <button class="btn-wl-add" onclick="addToWLFromInput()">+ Add</button>
         </div>
+      </div>
+      <div class="research-toolbar">
+        <label for="watchlist-sort">Sort watchlist</label>
+        <select id="watchlist-sort" class="scr-select" onchange="window.renderSortedWatchlist?.()">
+          <option value="alpha">Symbol A–Z</option><option value="chg-desc">Biggest gainers</option>
+          <option value="chg-asc">Biggest decliners</option><option value="move-desc">Largest moves</option>
+        </select>
+        <span id="watchlist-coverage" class="research-caption" role="status">Checking saved symbols…</span>
       </div>
       <div id="wl-view-grid" class="wl-view-grid">
         <div style="color:var(--muted);font-size:.9rem;padding:2rem;text-align:center;grid-column:1/-1">Loading watchlist…</div>
@@ -1585,7 +1600,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
           <div class="port-hero-top">
             <div>
               <div class="port-hero-title">MY PORTFOLIO</div>
-              <div class="port-hero-sub">Real-time prices · Stocks, ETFs, Crypto &amp; Retirement accounts</div>
+              <div class="port-hero-sub">Provider quotes may be delayed · Stocks, ETFs, Crypto &amp; Retirement accounts</div>
             </div>
             <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
               <button class="port-refresh-btn" onclick="refreshPortfolio()">⟳ Refresh</button>
@@ -1716,6 +1731,12 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         </div>
       </div>
 
+      <section class="research-panel" aria-labelledby="port-insights-title" style="margin-top:1.05rem">
+        <div class="research-section-title" id="port-insights-title">Portfolio concentration &amp; data coverage</div>
+        <div class="research-metrics" id="port-risk-insights"><span class="research-caption">Add a holding to see exposure by symbol.</span></div>
+        <p class="research-caption">Position weights use latest available values; if a quote is missing, cost basis is used as an estimate. Not investment advice.</p>
+      </section>
+
       <!-- Sparkline chart -->
       <div class="port-chart-wrap" style="margin-top:1.2rem">
         <div class="port-chart-hdr">
@@ -1734,8 +1755,13 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
         </div>
       </div>
 
+      <section class="research-panel" aria-labelledby="market-breadth-title" style="margin-bottom:1.1rem">
+        <div class="research-section-title" id="market-breadth-title">Tracked sector ETF snapshot</div>
+        <div id="mkt-breadth-summary" class="research-metrics" role="status">Fetching sector ETF quotes…</div>
+        <p class="research-caption">A sample of 8 ETFs—not market-wide breadth or a prediction. Quotes may be delayed.</p>
+      </section>
       <div class="markets-section">
-        <div class="markets-section-title">🗺 Sector Heat Map</div>
+        <div class="markets-section-title">🗺 Sector ETF Performance</div>
         <div class="heat-grid" id="heat-map"></div>
       </div>
       <div class="markets-section">
@@ -1757,9 +1783,10 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       <div class="view-header">
         <div>
           <div class="view-title">📰 Market News</div>
-          <div class="view-subtitle" id="news-view-subtitle">Latest stories from global markets</div>
+          <div class="view-subtitle" id="news-view-subtitle">Recent, deduplicated provider headlines · open the original source to verify</div>
         </div>
         <div class="news-tabs">
+          <button type="button" class="research-btn" onclick="window.refreshNews?.()">↻ Refresh news</button>
           <button class="news-tab active" onclick="switchNews(this,'stock')" id="tab-stock">This Stock</button>
           <button class="news-tab" onclick="switchNews(this,'market')" id="tab-market">All Markets</button>
         </div>
@@ -1773,11 +1800,20 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
     <div class="tab-view" id="view-trending">
       <div class="view-header">
         <div>
-          <div class="view-title">🔥 Trending Stocks</div>
-          <div class="view-subtitle">Most watched stocks — click any to open chart</div>
+          <div class="view-title">↕ Stock Movers</div>
+          <div class="view-subtitle">Verified session movers from a curated stock list—not social-media trends or all US stocks</div>
         </div>
       </div>
 
+      <div class="research-toolbar">
+        <label for="trending-sort">Show</label>
+        <select id="trending-sort" class="scr-select" onchange="window.renderSortedMovers?.()">
+          <option value="move-desc">Largest absolute moves</option>
+          <option value="chg-desc">Top gainers</option><option value="chg-asc">Top decliners</option>
+          <option value="alpha">Symbol A–Z</option>
+        </select>
+        <span id="trending-meta" class="research-caption" role="status">Fetching provider quotes…</span>
+      </div>
       <div id="trend-grid" class="trend-grid"></div>
 
       <!-- Alerts + more on same page -->
@@ -1810,9 +1846,12 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       <div class="view-header">
         <div>
           <div class="view-title">🔎 Stock Screener</div>
-          <div class="view-subtitle">Screen verified provider quotes. RSI and market cap are loaded when filtered; unavailable values are excluded.</div>
+          <div class="view-subtitle">A curated, sector-balanced research sample—not a whole-market screener. Missing verified metrics are excluded.</div>
         </div>
-        <button class="btn-scr-run" onclick="runScreener()" style="padding:.5rem 1.4rem">Run Screen</button>
+        <div class="research-row">
+          <button type="button" class="research-btn" id="scr-export" onclick="window.exportScreenerCSV?.()" disabled>↓ Export verified CSV</button>
+          <button class="btn-scr-run" onclick="runScreener()" id="scr-run" style="padding:.5rem 1.4rem">Run Screen</button>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -1874,13 +1913,13 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
               <option value="price-asc">Price Low → High</option>
               <option value="rsi-desc">RSI ↓</option>
               <option value="rsi-asc">RSI ↑</option>
-              <option value="vol-desc">Volume ↓</option>
+              <option value="cap-desc">Market cap ↓ (requires profile data)</option>
             </select>
           </div>
         </div>
       </div>
 
-      <div class="scr-meta" id="scr-meta"></div>
+      <div class="scr-meta" id="scr-meta" role="status" aria-live="polite"></div>
       <div id="scr-results" class="scr-grid">
         <div class="scr-empty">Set your filters above and click <strong>Run Screen</strong></div>
       </div>
@@ -2045,6 +2084,7 @@ PORT=3001</pre>
 <script src="js/auth.js"></script>
 <script src="js/stockApi.js"></script>
 <script src="js/aiPredictor.js"></script>
+<script src="js/researchTools.js"></script>
 <script src="js/signalEvidence.js"></script>
 <script src="js/features.js"></script>
 <script src="js/chat.js"></script>
