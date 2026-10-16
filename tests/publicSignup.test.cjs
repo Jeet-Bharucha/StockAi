@@ -3,12 +3,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { publicSettings, registerPublic, generateVerification, installVerificationRoutes } = require('../publicSignup');
-const env={ PUBLIC_SIGNUPS_ENABLED:'true', SITE_URL:'https://public-stockai.example',
+const env={ PUBLIC_SITE_ENABLED:'true', PUBLIC_SIGNUPS_ENABLED:'true', SITE_URL:'https://stockai-main.onrender.com',
   RESEND_API_KEY:'test_key', RESEND_FROM_EMAIL:'verified@example.org' };
 
 test('public signup is opt-in and cannot borrow owner-only settings',()=>{
   assert.equal(publicSettings({env}).registrationOpen,true);
-  assert.equal(publicSettings({env,allowedEmail:'owner@example.com'}).registrationOpen,false);
+  assert.equal(publicSettings({env,allowedEmail:'owner@example.com'}).registrationOpen,true);
+  assert.equal(publicSettings({env,allowedEmail:'owner@example.com'}).mode,'public');
+  assert.equal(publicSettings({env:{...env,PUBLIC_SITE_ENABLED:'false'},allowedEmail:'owner@example.com'}).registrationOpen,false);
+  assert.equal(publicSettings({env:{...env,PUBLIC_SITE_ENABLED:'false'},allowedEmail:'owner@example.com'}).mode,'private');
   assert.equal(publicSettings({env:{...env,PUBLIC_SIGNUPS_ENABLED:'false'}}).registrationOpen,false);
   assert.equal(publicSettings({env:{...env,RESEND_API_KEY:''}}).registrationOpen,false);
   assert.equal(publicSettings({env:{...env,SITE_URL:'http://localhost:3001'}}).registrationOpen,false);

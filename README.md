@@ -188,6 +188,10 @@ service warm when allowed by the hosting plan.
 
 ---
 
+## Single-website public beta (preserves existing owner account)
+
+No second domain is required. Leave `PUBLIC_SITE_ENABLED=false` while testing: this preserves the original owner-only StockAI deployment. A deliberate `PUBLIC_SITE_ENABLED=true` switch allows public account logins on the **same** service, without clearing `ALLOWED_EMAIL` or replacing your database/JWT secret. Public registration separately requires `PUBLIC_SIGNUPS_ENABLED=true` and verified Resend email. **Do not enable a public launch until security, vendor rights and account-isolation checks are complete.** See [single-website rollout instructions](docs/public-launch-and-accuracy.md#one-website-rollout-keep-stockai-mainonrendercom).
+
 ## MongoDB-saved price alerts
 
 Price alerts now persist in MongoDB under the authenticated user's ID and can
