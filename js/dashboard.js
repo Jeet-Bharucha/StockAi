@@ -941,32 +941,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
   }
 
-  // ── Trending tab ──────────────────────────────────────────────────────────
+  // ── Stock Movers: a curated universe, ranked by provider sessions ─────
+  let moverData=[];
+  let moverVersion=0;
+  function paintMovers() {
+    const grid=document.getElementById('trend-grid');
+    if(!grid)return;
+    grid.replaceChildren();
+    const status=document.getElementById('trending-meta');
+    const available=moverData.filter(ResearchTools.validQuote);
+    const rows=ResearchTools.sortQuoteRows(available,
+      document.getElementById('trending-sort')?.value||'move-desc');
+    if(status)status.textContent=available.length+' verified quotes / '+
+      StockAPI.popularSymbols.length+' tracked symbols · latest available session';
+    if(!rows.length){
+      grid.textContent='Verified mover data is unavailable. Try again after the market-data provider responds.';
+      return;
+    }
+    for(const item of rows){
+      const up=item.changePct>=0;
+      const card=document.createElement('button');
+      card.type='button';card.className='trend-card';
+      card.style.cssText='text-align:left;cursor:pointer;color:var(--text);font-family:inherit';
+      card.addEventListener('click',()=>window.selectSearch(item.sym));
+      const sym=document.createElement('div');sym.className='trend-sym';sym.textContent=item.sym;
+      const name=document.createElement('div');name.className='trend-name';
+      name.textContent=StockAPI.getCompanyInfo(item.sym).name;
+      const px=document.createElement('div');px.className='trend-price';
+      px.textContent='$'+item.price.toLocaleString('en-US',
+        {minimumFractionDigits:2,maximumFractionDigits:2});
+      const change=document.createElement('div');change.className='trend-chg '+(up?'up':'down');
+      change.textContent=(up?'+':'')+item.changePct.toFixed(2)+'%';
+      const bar=document.createElement('div');bar.className='trend-bar';
+      const fill=document.createElement('div');fill.className='trend-fill';
+      fill.style.width=Math.min(100,Math.max(5,50+item.changePct*5))+'%';
+      fill.style.background=up?'var(--green)':'var(--red)';
+      bar.appendChild(fill);
+      card.append(sym,name,px,change,bar);grid.appendChild(card);
+    }
+  }
+  window.renderSortedMovers=paintMovers;
+
   async function renderTrending() {
-    const grid = document.getElementById('trend-grid'); if (!grid) return;
-    const symbols = StockAPI.popularSymbols || ['AAPL','MSFT','GOOGL','TSLA','AMZN','META','NVDA','NFLX','AMD','JPM','V','COIN','BABA','DIS','PYPL','UBER','SNAP','SPOT'];
-    grid.innerHTML = symbols.map(sym => {
-      const info = StockAPI.getCompanyInfo(sym);
-      return `<div class="trend-card" data-tilt data-tilt-max="9" onclick="window.selectSearch('${sym}');switchTab(null,'dashboard')">
-        <div class="trend-sym">${sym}</div><div class="trend-name">${info.name}</div>
-        <div class="trend-price" id="tr-px-${sym}">$—</div>
-        <div class="trend-chg"  id="tr-chg-${sym}">—</div>
-        <div class="trend-bar"><div class="trend-fill" id="tr-bar-${sym}" style="width:50%;background:var(--cyan)"></div></div>
-      </div>`;
-    }).join('');
-    await Promise.all(symbols.map(async sym => {
-      try {
-        const q = await StockAPI.getQuote(sym); const up = q.changePct>=0;
-        const px  = document.getElementById(`tr-px-${sym}`);
-        const chg = document.getElementById(`tr-chg-${sym}`);
-        const bar = document.getElementById(`tr-bar-${sym}`);
-        if (px)  px.textContent  = `$${q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-        if (chg) { chg.textContent=`${up?'+':''}${q.changePct}%`; chg.className=`trend-chg ${up?'up':'down'}`; }
-        if (bar) { bar.style.width=`${Math.min(100,Math.max(5,50+q.changePct*5))}%`; bar.style.background=up?'var(--green)':'var(--red)'; }
-      } catch (_) {}
+    const version=++moverVersion;
+    const status=document.getElementById('trending-meta');
+    if(status)status.textContent='Fetching verified session moves…';
+    const symbols=StockAPI.popularSymbols;
+    const rows=await Promise.all(symbols.map(async sym=>{
+      try{
+        const q=await StockAPI.getQuote(sym);
+        return ResearchTools.validQuote(q)
+          ? {sym,price:q.price,changePct:q.changePct} : null;
+      }catch(_){return null;}
     }));
-    if (typeof initTilt==='function') initTilt('[data-tilt]', grid);
-    if (typeof animateCardsIn==='function') animateCardsIn('.trend-card', grid);
+    if(version!==moverVersion)return;
+    moverData=rows.filter(Boolean);
+    paintMovers();
   }
 
   // ── Compare mode ──────────────────────────────────────────────────────────
