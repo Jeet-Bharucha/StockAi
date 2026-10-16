@@ -1854,15 +1854,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   const NEWS_EMOJIS = ['📈','💹','🏦','📰','💼','🌐','📊','🔔','💡','🚀','⚡','🎯'];
 
   async function loadNews(sym) {
-    const container = document.getElementById('news-list'); if (!container) return;
-    container.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:2rem;text-align:center;grid-column:1/-1">Loading news…</div>';
-    const articles = await NewsAPI.fetch(newsMode==='stock'?sym:null);
-    renderNews(articles, sym);
+    const container=document.getElementById('news-list');
+    if(!container)return;
+    const version=++newsRequestVersion;
+    const scope=newsMode==='stock'?sym:null;
+    container.textContent='Loading recent headlines from the market data provider…';
+    const articles=await NewsAPI.fetch(scope);
+    if(version!==newsRequestVersion || (scope!==null&&sym!==currentSymbol))return;
+    const verified=ResearchTools.news(articles);
+    const subtitle=document.getElementById('news-view-subtitle');
+    if(subtitle)subtitle.textContent=verified.length+' recent verified-source headlines · '+
+      (scope?scope:'global markets')+' · maximum 14 days old · duplicates excluded';
+    renderNews(verified,scope);
   }
+
+  window.refreshNews=function(){
+    // Refresh is explicit; don't present a stale old response as fresh.
+    const key='news_'+(newsMode==='stock'?currentSymbol:'market');
+    delete NewsAPI._cache[key];
+    void loadNews(currentSymbol);
+  };
 
   function renderNews(articles, sym) {
     const container = document.getElementById('news-list'); if (!container) return;
-    if (!articles.length) { container.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:2rem;text-align:center;grid-column:1/-1">No news available</div>'; return; }
+    if (!articles.length) {
+      container.textContent='No recent verified provider headlines are available for this selection. Try All Markets or refresh later.';
+      return;
+    }
     container.innerHTML = articles.map((a,i)=>{
       const emoji = NEWS_EMOJIS[i%NEWS_EMOJIS.length];
       const imgContent = a.image && safeExternalLink(a.image) !== '#'
