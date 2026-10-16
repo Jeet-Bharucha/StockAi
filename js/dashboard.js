@@ -1691,102 +1691,137 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Portfolio exported as CSV');
   };
 
-  // ── Screener ──────────────────────────────────────────────────────────────
-  window.setScrSector = function(btn) {
+  // ── Curated screener: all metrics trace to provider data ───────────────
+  let lastScreenerRows=[];
+  let screenerBusy=false;
+
+  window.setScrSector = function(button){
     document.querySelectorAll('.schip').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
+    button.classList.add('active');
   };
-
-  // Expanded symbol pool for screener (50 stocks across sectors)
-  const SCREENER_SYMS = [
-    'AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','NFLX','AMD','INTC',
-    'JPM','BAC','GS','MS','WFC','V','MA','PYPL','COIN','AXP',
-    'JNJ','PFE','UNH','ABBV','MRK','LLY','BMY','CVS','AMGN','GILD',
-    'XOM','CVX','COP','SLB','OXY','NEE','DUK','SO','AEP','PCG',
-    'DIS','UBER','LYFT','SPOT','SNAP','TWTR','PINS','RBLX','HOOD','MA',
-  ];
-
-  function verifiedRSI(bars) {
-    if (!Array.isArray(bars) || bars.length < 30) return null;
-    const values = AIPredictor.rsi(bars.map(bar => bar.close));
-    const last = values[values.length - 1];
-    return Number.isFinite(last) ? Math.round(last) : null;
+  function verifiedRSI(bars){
+    if(!Array.isArray(bars)||bars.length<30)return null;
+    const values=AIPredictor.rsi(bars.map(b=>b.close));
+    const last=values[values.length-1];
+    return Number.isFinite(last)?Math.round(last):null;
   }
 
-  window.runScreener = async function() {
-    const grid=document.getElementById('scr-results'); if (!grid) return;
+  window.runScreener = async function(){
+    if(screenerBusy)return;
+    screenerBusy=true;
+    const grid=document.getElementById('scr-results');
     const meta=document.getElementById('scr-meta');
-    const sector=document.querySelector('.schip.active')?.dataset.val || '';
-    const perf=document.getElementById('scr-perf')?.value || '';
-    const rsiFilter=document.getElementById('scr-rsi')?.value || '';
-    const capFilter=document.getElementById('scr-mktcap')?.value || '';
-    const sort=document.getElementById('scr-sort')?.value || 'chg-desc';
-    const minPrice=Number(document.getElementById('scr-min')?.value)||0;
-    const maxPrice=Number(document.getElementById('scr-max')?.value)||Infinity;
-    const needsRSI=!!rsiFilter || sort.startsWith('rsi');
-    const needsCap=!!capFilter;
-    grid.innerHTML='<div class="scr-empty">⟳ Requesting provider data. Historical filters can take longer.</div>';
-    const symbols=[...new Set(SCREENER_SYMS)].slice(0,30);
-    const results=[];
-    let cursor=0;
-    const tasks=Array.from({length:6},async()=>{
-      while(cursor<symbols.length){
-        const sym=symbols[cursor++];
-        try {
-          const q=await StockAPI.getQuote(sym);
-          const info=StockAPI.getCompanyInfo(sym);
-          let rsi=null, cap=null;
-          if(needsRSI){
-            try { rsi=verifiedRSI(await StockAPI.getCandles(sym,'D',365)); }
-            catch(_) {}
-          }
-          if(needsCap){
-            try {
-              const p=await StockAPI.getCompanyProfile(sym);
-              if(Number.isFinite(p.marketCap)&&p.marketCap>0)cap=p.marketCap/1000;
-            }catch(_){}
-          }
-          results.push({sym,name:info.name||sym,sector:info.sector||'Unknown',
-            price:q.price,changePct:q.changePct,rsi,cap});
-        }catch(_) {}
+    const runBtn=document.getElementById('scr-run');
+    const csvBtn=document.getElementById('scr-export');
+    if(runBtn)runBtn.disabled=true;
+    if(csvBtn)csvBtn.disabled=true;
+    lastScreenerRows=[];
+    const sector=document.querySelector('.schip.active')?.dataset.val||'';
+    const sort=document.getElementById('scr-sort')?.value||'chg-desc';
+    const rsiFilter=document.getElementById('scr-rsi')?.value||'';
+    const capFilter=document.getElementById('scr-mktcap')?.value||'';
+    const perf=document.getElementById('scr-perf')?.value||'';
+    const minInput=document.getElementById('scr-min')?.value?.trim()||'';
+    const maxInput=document.getElementById('scr-max')?.value?.trim()||'';
+    const minPrice=minInput===''?0:Number(minInput);
+    const maxPrice=maxInput===''?Infinity:Number(maxInput);
+    const needsRSI=Boolean(rsiFilter)||sort.startsWith('rsi');
+    const needsCap=Boolean(capFilter)||sort==='cap-desc';
+    if(grid)grid.textContent='Fetching verified provider quotes. Additional historical filters may take longer…';
+
+    try{
+      if(!Number.isFinite(minPrice)||minPrice<0||
+        (!Number.isFinite(maxPrice)&&maxPrice!==Infinity)||maxPrice<minPrice)
+        throw Error('Maximum price must be greater than or equal to minimum price.');
+      // Market-data quotas are finite. Scan a sector-balanced, named universe
+      // and show scope/coverage; never call this "all market stocks".
+      const universe=ResearchTools.UNIVERSE.filter(([sym,group])=>!sector||group===sector)
+        .slice(0,30);
+      const results=[];
+      let cursor=0,unavailable=0;
+      await Promise.all(Array.from({length:5},async()=>{
+        while(cursor<universe.length){
+          const [sym,group]=universe[cursor++];
+          try{
+            const q=await StockAPI.getQuote(sym);
+            if(!ResearchTools.validQuote(q)){unavailable++;continue;}
+            let rsi=null,cap=null;
+            if(needsRSI){
+              try{rsi=verifiedRSI(await StockAPI.getCandles(sym,'D',365));}
+              catch(_){}
+            }
+            if(needsCap){
+              try{
+                const p=await StockAPI.getCompanyProfile(sym);
+                if(Number.isFinite(p.marketCap)&&p.marketCap>0)cap=p.marketCap/1000;
+              }catch(_){}
+            }
+            results.push({sym,sector:group,name:StockAPI.getCompanyInfo(sym).name,
+              price:q.price,changePct:q.changePct,rsi,cap});
+          }catch(_){unavailable++;}
+        }
+      }));
+      const filtered=ResearchTools.screen(results,{
+        sector,sort,rsiFilter,capFilter,perf,minPrice,maxPrice
+      });
+      lastScreenerRows=filtered;
+      if(meta){
+        meta.textContent=filtered.length+' matches · '+results.length+'/'+universe.length+
+          ' verified quotes · '+unavailable+' unavailable · curated universe of '+
+          ResearchTools.UNIVERSE.length+' stocks; only '+universe.length+' sampled for this run'+
+          (needsRSI?' · RSI calculated from verified daily candles':'')+
+          (needsCap?' · cap unavailable where provider profile is missing':'');
       }
-    });
-    await Promise.all(tasks);
-    let filtered=results.filter(r=>r.price>=minPrice && r.price<=maxPrice);
-    if(sector) filtered=filtered.filter(r=>r.sector.toLowerCase().includes(sector.toLowerCase()));
-    if(perf==='gainers') filtered=filtered.filter(r=>r.changePct>0);
-    if(perf==='losers') filtered=filtered.filter(r=>r.changePct<0);
-    if(perf==='big') filtered=filtered.filter(r=>Math.abs(r.changePct)>=2);
-    if(rsiFilter==='oversold') filtered=filtered.filter(r=>r.rsi!==null && r.rsi<30);
-    if(rsiFilter==='neutral') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>=30 && r.rsi<=70);
-    if(rsiFilter==='overbought') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>70);
-    if(capFilter==='large') filtered=filtered.filter(r=>r.cap!==null && r.cap>=100);
-    if(capFilter==='mid') filtered=filtered.filter(r=>r.cap!==null && r.cap>=10 && r.cap<100);
-    if(capFilter==='small') filtered=filtered.filter(r=>r.cap!==null && r.cap<10);
-    const sorters={
-      'chg-desc':(x,y)=>y.changePct-x.changePct,
-      'chg-asc':(x,y)=>x.changePct-y.changePct,
-      'price-desc':(x,y)=>y.price-x.price,
-      'price-asc':(x,y)=>x.price-y.price,
-      'rsi-desc':(x,y)=>(y.rsi??-1)-(x.rsi??-1),
-      'rsi-asc':(x,y)=>(x.rsi??101)-(y.rsi??101)
-    };
-    filtered.sort(sorters[sort] || sorters['chg-desc']);
-    if(meta)meta.textContent=filtered.length+' matches from '+results.length+' verified quotes · scanning '+symbols.length+' tracked stocks · no estimated metrics';
-    if(!filtered.length){
-      grid.innerHTML='<div class="scr-empty">No verified quotes match these filters. Try fewer filters or refresh later.</div>';
-      return;
+      if(grid)grid.replaceChildren();
+      if(csvBtn)csvBtn.disabled=filtered.length===0;
+      if(!filtered.length){
+        if(grid)grid.textContent=results.length===0
+          ? 'Quote provider unavailable. No invented matches are shown.'
+          : 'No verified rows match these filters. Broaden the criteria and run again.';
+        return;
+      }
+      for(const row of filtered){
+        const up=row.changePct>=0;
+        const card=document.createElement('button');card.type='button';
+        card.className='pro-screener-result';
+        card.addEventListener('click',()=>window.selectSearch(row.sym));
+        const cell=(name,value,sub)=>{
+          const span=document.createElement('span');span.className=name;span.textContent=value;
+          const small=document.createElement('small');small.textContent=sub;span.appendChild(small);
+          return span;
+        };
+        const cap=row.cap===null?'N/A':row.cap>=1000?'$'+(row.cap/1000).toFixed(1)+'T':
+          '$'+row.cap.toFixed(1)+'B';
+        const symbolCell=cell('pro-scr-symbol',row.sym,row.name);
+        const priceCell=cell('pro-scr-price','$'+row.price.toFixed(2),row.sector);
+        const changeCell=cell('pro-scr-change '+(up?'up':'down'),
+          (up?'+':'')+row.changePct.toFixed(2)+'%','Session change');
+        const metricCell=cell('pro-scr-metrics','RSI '+(row.rsi??'—'),'Cap '+cap);
+        card.append(symbolCell,priceCell,changeCell,metricCell);
+        grid.appendChild(card);
+      }
+    }catch(error){
+      if(grid)grid.textContent='Screener could not complete: '+error.message;
+      if(meta)meta.textContent='No results exported.';
+    }finally{
+      screenerBusy=false;
+      if(runBtn)runBtn.disabled=false;
     }
-    grid.innerHTML=filtered.map(r=>{
-      const up=r.changePct>=0;
-      const cap=r.cap===null?'Not available':(r.cap>=1000?'$'+(r.cap/1000).toFixed(2)+'T':'$'+r.cap.toFixed(1)+'B');
-      const rsi=r.rsi===null?'Not loaded':String(r.rsi);
-      return '<button type="button" class="pro-screener-result" onclick="window.selectSearch(\''+r.sym+'\');switchTab(null,\'dashboard\')">'+
-        '<span class="pro-scr-symbol">'+r.sym+'<small>'+r.name+'</small></span>'+
-        '<span class="pro-scr-price">$'+r.price.toFixed(2)+'<small>'+r.sector+'</small></span>'+
-        '<span class="pro-scr-change '+(up?'up':'down')+'">'+(up?'+':'')+r.changePct.toFixed(2)+'%<small>Session change</small></span>'+
-        '<span class="pro-scr-metrics">RSI '+rsi+'<small>Cap '+cap+'</small></span></button>';
-    }).join('');
+  };
+
+  window.exportScreenerCSV = function(){
+    if(!lastScreenerRows.length)return;
+    const fields=['Ticker','Company','Sector','Price USD','Session change %','RSI 14','Market cap USD billions'];
+    const lines=[fields,...lastScreenerRows.map(r=>[
+      r.sym,r.name,r.sector,r.price,r.changePct,r.rsi??'',r.cap??''
+    ])].map(row=>row.map(value=>ResearchTools.csvCell(value)).join(','));
+    const blob=new Blob([lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const anchor=document.createElement('a');anchor.href=url;
+    anchor.download='stockai-verified-screener-'+new Date().toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(anchor);anchor.click();anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    showToast('Exported '+lastScreenerRows.length+' verified screener matches.');
   };
 
   // ── Earnings Calendar ─────────────────────────────────────────────────────
@@ -2070,7 +2105,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderWatchlistMini(); renderAlerts(); void refreshSavedAlerts();
     }
     else if (tab==='ai')        { if(currentBars.length>=50) runAI(); renderEarnings(); }
-    else if (tab==='screener')  { runScreener(); }
+    else if (tab==='screener')  {
+      // Runs only when user requests; conserves quota on public data providers.
+    }
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────────
