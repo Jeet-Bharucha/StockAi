@@ -52,6 +52,28 @@ jobs:
           if ((counts.critical || 0) + (counts.high || 0) > 0)
             console.log('WARNING: high/critical production dependency advisories remain. Do not enable public registration yet.');
           NODE
+      - name: Generate a safe lockfile audit-fix candidate (diagnostic only)
+        continue-on-error: true
+        shell: bash
+        run: |
+          cp package-lock.json original-package-lock.json
+          npm audit fix --package-lock-only --omit=dev --ignore-scripts || true
+          npm audit --omit=dev --json > candidate-audit.json || true
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const original=fs.readFileSync('original-package-lock.json','utf8');
+          const candidate=fs.readFileSync('package-lock.json','utf8');
+          const audit=JSON.parse(fs.readFileSync('candidate-audit.json','utf8'));
+          console.log('Audit fix changed the lockfile:',original!==candidate);
+          console.log('Candidate production vulnerabilities:',audit.metadata?.vulnerabilities);
+          NODE
+      - name: Upload candidate fixed lockfile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-fix-candidate-lock
+          path: package-lock.json
+          if-no-files-found: ignore
       - name: Upload production audit report
         if: always()
         uses: actions/upload-artifact@v4
