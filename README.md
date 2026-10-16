@@ -44,6 +44,32 @@ A full-stack real-time stock market dashboard with AI analysis, automated alerts
 - Real-time P&L calculation
 - Persistent watchlist management
 
+### Public-launch hardening (security review required)
+
+The Render backend serves only allowlisted StockAI HTML pages and frontend assets;
+it no longer exposes files such as `server.js`, `package-lock.json`,
+`accountRoutes.js`, `render.yaml` or files under `tests/` over HTTP.
+Security response headers add clickjacking protection, MIME sniffing prevention,
+safer referrers, and no-store API response defaults. Market WebSocket clients
+are capped at 100 connections, 12 subscribed symbols per browser, and 60
+shared upstream symbols. Finnhub REST symbol parameters are normalized and
+URL-encoded, and upstream requests have a timeout.
+
+**These are targeted improvements, not a claim that StockAI is secure for
+arbitrary public traffic.** The GitHub CI workflow now logs and archives an
+`npm audit --omit=dev` report of production dependencies. Existing full
+`npm ci` logs previously reported 14 advisories including critical ones;
+the affected runtime packages and exploitability must be reviewed. Production
+Render blueprints use `npm ci --omit=dev` so Android/dev tools aren't deployed
+to the Node web service. That does not fix vulnerabilities in runtime
+dependencies, and the full CI suite still installs dev packages.
+
+Before setting `PUBLIC_SITE_ENABLED=true` and
+`PUBLIC_SIGNUPS_ENABLED=true`, review the audit, test account isolation,
+email verification and recovery, and real market-data provider licensing.
+**Keep your existing Render owner restriction and credentials unchanged until
+the launch checklist is completed.**
+
 ### Security
 - JWT authentication (30-day tokens)
 - Bcrypt password hashing
