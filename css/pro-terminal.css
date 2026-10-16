@@ -470,3 +470,53 @@ body.stockai-pro.light .terminal-refresh-btn {
  .stockai-pro .research-metric strong{font-size:.93rem}
  .stockai-pro .research-row .research-btn{max-width:100%}
 }
+
+/* Market overview should never look empty while providers are slow. */
+.stockai-pro .markets-data-status {
+  margin:.35rem 0 1rem;padding:.8rem 1rem;
+  border-radius:9px;border:1px solid var(--border);
+  background:var(--card2);font-size:.77rem;
+  line-height:1.5;color:var(--muted);
+}
+.stockai-pro .market-placeholder {
+  min-height:85px;padding:1rem;display:flex;align-items:center;
+  color:var(--muted);font-size:.8rem;border:1px dashed var(--border);
+  border-radius:10px;
+}
+.stockai-pro .market-quote-button,.stockai-pro .market-heat-button {
+  display:block;width:100%;text-align:left;
+  font-family:inherit;color:var(--text);
+  cursor:pointer;
+}
+.stockai-pro .market-quote-button {
+  min-height:116px;
+}
+.stockai-pro .market-heat-button {
+  border:1px solid var(--border);border-radius:10px;
+}
+.stockai-pro .market-quote-button:focus-visible,
+.stockai-pro .market-heat-button:focus-visible {
+  outline:2px solid var(--cyan);outline-offset:2px;
+}
+.stockai-pro .market-quote-unavailable {
+  border-style:dashed;opacity:.86;
+}
+.stockai-pro .market-quote-unavailable .mkt-card-chg {
+  color:var(--muted);
+}
+@media(max-width:620px){
+  .stockai-pro #view-markets .view-header{gap:.75rem;flex-wrap:wrap}
+  .stockai-pro #markets-refresh{width:100%}
+  .stockai-pro #view-markets .markets-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .stockai-pro .market-quote-button{
+    padding:.8rem;min-width:0;
+  }
+  .stockai-pro .mkt-card-name{flex-wrap:wrap;gap:.3rem}
+}
+@media(max-width:375px){
+  .stockai-pro #view-markets .markets-grid{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
