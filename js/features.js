@@ -253,7 +253,7 @@ const NewsAPI = {
     try {
       const url = symbol ? `/api/news?symbol=${symbol}` : '/api/news';
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 6000);
+      const timer = setTimeout(() => ctrl.abort(), 18000);
       let res, data;
       try {
         res  = await fetch(url, { signal: ctrl.signal });
@@ -267,18 +267,6 @@ const NewsAPI = {
       console.warn('Verified news unavailable:', error.message);
       return []; // Never invent news headlines or attribute them to real publishers.
     }
-  },
-
-  _mockNews(symbol) {
-    const sym = symbol || 'Market';
-    return [
-      { headline: `${sym} shares climb as investors weigh Fed policy outlook`, source: 'Reuters', datetime: Date.now()/1000 - 1800,  url: '#', image: '' },
-      { headline: `Analysts upgrade ${sym} citing strong earnings momentum`,   source: 'Bloomberg', datetime: Date.now()/1000 - 5400, url: '#', image: '' },
-      { headline: 'Wall Street edges higher as tech rally continues',           source: 'CNBC',     datetime: Date.now()/1000 - 9000, url: '#', image: '' },
-      { headline: `${sym} options activity spikes ahead of quarterly report`,  source: 'Barron\'s', datetime: Date.now()/1000 - 14400,url: '#', image: '' },
-      { headline: 'Fed minutes signal data-dependent rate path for 2025',      source: 'WSJ',      datetime: Date.now()/1000 - 21600,url: '#', image: '' },
-      { headline: `Institutional investors increase ${sym} position by 12%`,   source: 'MarketWatch',datetime:Date.now()/1000-36000,  url: '#', image: '' },
-    ];
   },
 
   timeAgo(ts) {

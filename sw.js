@@ -1,11 +1,11 @@
-const CACHE = 'stockai-v24';
+const CACHE = 'stockai-v25';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/forgot-password.html', '/reset-password.html', '/owner-recovery.html', '/verify-email.html',
   '/dashboard.html', '/profile.html', '/404.html',
   '/css/effects.css', '/css/pro-terminal.css',
   '/js/auth.js', '/js/dashboard.js', '/js/stockApi.js',
-  '/js/aiPredictor.js', '/js/signalEvidence.js', '/js/features.js', '/js/animations.js', '/js/chat.js',
+  '/js/aiPredictor.js', '/js/researchTools.js', '/js/signalEvidence.js', '/js/features.js', '/js/animations.js', '/js/chat.js',
   '/favicon.svg', '/manifest.json'
 ];
 

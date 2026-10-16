@@ -18,6 +18,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   }[c]));
+  function renderResearchMetrics(id, items) {
+    const host=document.getElementById(id);
+    if(!host)return;
+    host.replaceChildren();
+    for(const item of items){
+      const box=document.createElement('div');
+      box.className='research-metric';
+      const label=document.createElement('small');
+      label.textContent=item.label;
+      const value=document.createElement('strong');
+      value.textContent=item.value;
+      box.append(label,value);host.appendChild(box);
+    }
+  }
+
   const safeExternalLink = value => {
     try {
       const url = new URL(value, location.origin);
@@ -35,6 +50,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   let marketInterval = null;
   let currentBars = [];
   let newsMode = 'stock';
+  let newsRequestVersion = 0;
+  let claudeAnalysisVersion = 0;
+  let claudeBusy = false;
+  let activePrediction = null;
+  let activePredictionSymbol = null;
 
   // Compare mode state
   let compareSeries = null;
@@ -124,6 +144,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    claudeAnalysisVersion++;
+    claudeBusy = false;
+    activePrediction = null;
+    activePredictionSymbol = null;
+    const claudeButton = document.getElementById('btn-claude-explain');
+    if (claudeButton) { claudeButton.disabled = false; claudeButton.textContent='✦ Explain with AI'; }
     resetEvidenceUI();
     const requestVersion = ++stockRequestVersion;
     verifiedPrevClose = null;
@@ -268,13 +294,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   function runAI() {
     if (currentBars.length < 50) return;
     const prediction = AIPredictor.predict(currentBars);
+    activePrediction = prediction;
+    activePredictionSymbol = currentSymbol;
     renderAI(prediction);
-    // Kick off Claude AI analysis in parallel — updates #ai-reasoning when done
-    const curPrice = currentBars[currentBars.length - 1].close;
-    fetchClaudeAnalysis(currentSymbol, curPrice, prediction);
+    // No automatic billable LLM call on every page load or tab visit:
+    // local indicator explanations are always available at no extra cost.
+    renderFallbackReasoning(prediction);
   }
 
-  async function fetchClaudeAnalysis(symbol, price, prediction) {
+  window.explainWithAI = async function () {
+    if(!activePrediction || activePredictionSymbol !== currentSymbol){
+      showToast('Load a verified stock chart before requesting commentary.');
+      return;
+    }
+    if(Auth.isGuest()){
+      showToast('Sign in to request optional AI commentary.');
+      return;
+    }
+    if(claudeBusy)return;
+    claudeBusy=true;
+    const button=document.getElementById('btn-claude-explain');
+    if(button){button.disabled=true;button.textContent='Analyzing indicators…';}
+    const version=++claudeAnalysisVersion;
+    try{
+      const price=currentBars[currentBars.length-1]?.close;
+      await fetchClaudeAnalysis(currentSymbol,price,activePrediction,version);
+    }finally{
+      if(version===claudeAnalysisVersion){
+        claudeBusy=false;
+        if(button){button.disabled=false;button.textContent='✦ Explain with AI';}
+      }
+    }
+  };
+
+  async function fetchClaudeAnalysis(symbol, price, prediction, version) {
     const reasonEl = document.getElementById('ai-reasoning');
     if (!reasonEl) return;
 
@@ -300,7 +353,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 503 = API key not configured — show fallback badge immediately, no error noise
       if (resp.status === 503) {
-        renderFallbackReasoning(prediction);
+        if(version===claudeAnalysisVersion && symbol===currentSymbol){
+          renderFallbackReasoning(prediction);
+          showToast('Optional AI commentary is not configured.');
+        }
         return;
       }
 
@@ -312,6 +368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = await resp.json();
       if (data.error) throw new Error(data.error);
 
+      if(version!==claudeAnalysisVersion || symbol!==currentSymbol)return;
       // ── Render Claude's analysis ──────────────────────────────────────
       const driversHtml = Array.isArray(data.key_drivers) && data.key_drivers.length
         ? `<ul class="claude-drivers">${data.key_drivers.slice(0,5).map(d => `<li>${escapeHTML(d)}</li>`).join('')}</ul>`
@@ -334,7 +391,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (err) {
       // Network error / timeout / parse failure — fall back gracefully
-      renderFallbackReasoning(prediction);
+      if(version===claudeAnalysisVersion && symbol===currentSymbol){
+        renderFallbackReasoning(prediction);
+        showToast('AI commentary unavailable; local technical explanation is shown.');
+      }
       console.warn('[Claude AI] Fell back to local analysis:', err.message);
     }
   }
@@ -443,18 +503,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tbody = document.getElementById('signals-tbody');
     if (tbody) tbody.innerHTML = r.signals.map(s => {
       const cls=s.score>0?'sig-buy':s.score<0?'sig-sell':'sig-neutral', arrow=s.score>0?'▲':s.score<0?'▼':'●';
-      return `<tr><td>${s.name}</td><td class="val">${s.value}</td><td><span class="sig-badge ${cls}">${arrow} ${s.signal}</span></td></tr>`;
+      return `<tr><td>${escapeHTML(s.name)}</td><td class="val">${escapeHTML(s.value)}</td><td><span class="sig-badge ${cls}">${arrow} ${escapeHTML(s.signal)}</span></td></tr>`;
     }).join('');
 
     const reasonEl = document.getElementById('ai-reasoning');
-    if (reasonEl) reasonEl.innerHTML = r.reasoning.map(l=>`<p>${l}</p>`).join('');
+    if (reasonEl) reasonEl.innerHTML = r.reasoning.map(l=>`<p>${escapeHTML(l)}</p>`).join('');
 
     // Candlestick patterns
     if (r.patterns && r.patterns.length) {
       const existing = document.getElementById('pattern-row');
       if (existing) existing.remove();
       const pRow = document.createElement('tr'); pRow.id='pattern-row';
-      pRow.innerHTML = `<td colspan="3" style="padding:.6rem .5rem"><span style="font-size:.72rem;color:var(--muted);font-weight:600">Patterns: </span>${r.patterns.map(p=>`<span class="sig-badge ${p.bull?'sig-buy':'sig-sell'}" style="margin:.1rem">${p.name}</span>`).join(' ')}</td>`;
+      pRow.innerHTML = `<td colspan="3" style="padding:.6rem .5rem"><span style="font-size:.72rem;color:var(--muted);font-weight:600">Patterns: </span>${r.patterns.map(p=>`<span class="sig-badge ${p.bull?'sig-buy':'sig-sell'}" style="margin:.1rem">${escapeHTML(p.name)}</span>`).join(' ')}</td>`;
       if (tbody) tbody.appendChild(pRow);
     }
 
@@ -680,7 +740,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="heat-cell-chg" id="heat-chg-${s.sym}">—</div>
           <div class="heat-cell-sym">${s.sym}</div>
         </div>`).join('');
-      await Promise.all(HEAT_SECTORS.map(async s => {
+      const sectorQuotes = await Promise.all(HEAT_SECTORS.map(async s => {
         try {
           const q = await StockAPI.getQuote(s.sym);
           const chg = q.changePct;
@@ -696,8 +756,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             cell.style.color = '#e27889';
           }
           if (chgEl) chgEl.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
-        } catch (_) {}
+          return {sym:s.sym,price:q.price,changePct:chg};
+        } catch (_) { return {sym:s.sym,available:false}; }
       }));
+      const breadth=ResearchTools.breadth(sectorQuotes);
+      const pct=v=>v===null?'Unavailable':(v>=0?'+':'')+v.toFixed(2)+'%';
+      renderResearchMetrics('mkt-breadth-summary',[
+        {label:'Verified ETF quotes',value:breadth.available+' / '+sectorQuotes.length},
+        {label:'Up / down / unchanged',value:breadth.up+' / '+breadth.down+' / '+breadth.flat},
+        {label:'Unweighted avg session move',value:pct(breadth.meanPct)},
+        {label:'Leader · laggard',value:breadth.leader&&breadth.laggard?
+          breadth.leader.sym+' · '+breadth.laggard.sym:'Unavailable'}
+      ]);
     }
 
     async function fillGrid(id, items) {
@@ -740,45 +810,112 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).join('');
   }
 
-  window.removeFromWL = async function(sym) { await Auth.removeFromWatchlist(sym); updateWatchlistUI(); renderWatchlistTab(); renderWatchlistMini(); };
+  window.removeFromWL = async function(sym) {
+    try{
+      await Auth.removeFromWatchlist(sym);
+      delete watchlistQuotes[sym];
+      updateWatchlistUI();
+      void renderWatchlistTab();
+      void renderWatchlistMini();
+      showToast(sym+' removed from saved watchlist.');
+    }catch(e){showToast('Could not update watchlist: '+e.message);}
+  };
 
-  // ── Watchlist tab ─────────────────────────────────────────────────────────
-  async function renderWatchlistTab() {
-    const grid = document.getElementById('wl-view-grid'); if (!grid) return;
-    const list = Auth.getWatchlist();
-    if (Auth.isGuest()) {
-      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.8rem">⭐</div><div style="margin-bottom:1.2rem">Create a free account to save your watchlist</div><a href="register.html" style="padding:.6rem 1.6rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:9px;color:#fff;font-weight:700;text-decoration:none;font-size:.88rem">Create Account →</a></div>`;
+  // ── Watchlist tab: sortable, account-persisted, provider-backed ─────────
+  const watchlistQuotes=Object.create(null);
+  let watchlistVersion=0;
+  function paintWatchlistRows() {
+    const grid=document.getElementById('wl-view-grid');
+    if(!grid)return;
+    const symbols=Auth.getWatchlist();
+    grid.replaceChildren();
+    if(Auth.isGuest()){
+      grid.textContent='Create an account to save and organize your watchlist.';
       return;
     }
-    if (!list.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.8rem">⭐</div><div>No stocks yet. Use the search box above to add some.</div></div>`; return; }
-    grid.innerHTML = list.map(sym => {
-      const info = StockAPI.getCompanyInfo(sym);
-      return `<div class="wl-full-item" onclick="window.selectSearch('${sym}');switchTab(null,'dashboard')">
-        <div class="wlf-badge">${sym.slice(0,2)}</div>
-        <div class="wlf-info"><div class="wlf-sym">${sym}</div><div class="wlf-name">${info.name}</div></div>
-        <div class="wlf-price"><div class="wlf-px" id="wlf-px-${sym}">$—</div><div class="wlf-chg" id="wlf-chg-${sym}">—</div></div>
-        <button onclick="event.stopPropagation();removeFromWL('${sym}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;opacity:.55;padding:.2rem;flex-shrink:0">×</button>
-      </div>`;
-    }).join('');
-    await Promise.all(list.map(async sym => {
-      try {
-        const q = await StockAPI.getQuote(sym); const up = q.changePct>=0;
-        const px  = document.getElementById(`wlf-px-${sym}`);
-        const chg = document.getElementById(`wlf-chg-${sym}`);
-        if (px)  px.textContent  = `$${q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-        if (chg) { chg.textContent=`${up?'+':''}${q.changePct}%`; chg.className=`wlf-chg ${up?'up':'down'}`; }
-      } catch (_) {}
+    if(!symbols.length){
+      grid.textContent='Your watchlist is empty. Add a ticker above to get started.';
+      const status=document.getElementById('watchlist-coverage');
+      if(status)status.textContent='0 saved tickers';
+      return;
+    }
+    const sorted=ResearchTools.watchlistRows(symbols,watchlistQuotes,
+      document.getElementById('watchlist-sort')?.value||'alpha');
+    const verified=sorted.filter(row=>row.price!==null).length;
+    const status=document.getElementById('watchlist-coverage');
+    if(status)status.textContent=symbols.length+' saved · '+verified+' verified quote'+
+      (verified===1?'':'s')+' · unavailable prices shown as —'+
+      (symbols.length>30?' · first 30 fetched per visit':'');
+    for(const item of sorted){
+      const sym=item.sym;
+      const info=StockAPI.getCompanyInfo(sym);
+      const row=document.createElement('div');
+      row.className='wl-full-item'+(item.price===null?' unavailable':'');
+      row.tabIndex=0;row.setAttribute('role','button');
+      row.setAttribute('aria-label','Open '+sym+' stock chart');
+      const badge=document.createElement('div');badge.className='wlf-badge';badge.textContent=sym.slice(0,2);
+      const infoBox=document.createElement('div');infoBox.className='wlf-info';
+      const name=document.createElement('div');name.className='wlf-name';name.textContent=info.name||sym;
+      const ticker=document.createElement('div');ticker.className='wlf-sym';ticker.textContent=sym;
+      infoBox.append(ticker,name);
+      const priced=document.createElement('div');priced.className='wlf-price';
+      const px=document.createElement('div');px.className='wlf-px';
+      px.textContent=item.price===null?'—':'$'+item.price.toLocaleString('en-US',
+        {minimumFractionDigits:2,maximumFractionDigits:2});
+      const ch=document.createElement('div');
+      ch.className='wlf-chg '+(item.changePct===null?'':item.changePct>=0?'up':'down');
+      ch.textContent=item.changePct===null?'Quote unavailable':
+        (item.changePct>=0?'+':'')+item.changePct.toFixed(2)+'%';
+      priced.append(px,ch);
+      const remove=document.createElement('button');remove.type='button';
+      remove.className='research-btn';remove.textContent='×';
+      remove.setAttribute('aria-label','Remove '+sym+' from watchlist');
+      remove.addEventListener('click',event=>{event.stopPropagation();void window.removeFromWL(sym);});
+      const open=()=>window.selectSearch(sym);
+      row.addEventListener('click',open);
+      row.addEventListener('keydown',event=>{
+        if(event.target===row && (event.key==='Enter'||event.key===' ')){
+          event.preventDefault();open();
+        }
+      });
+      row.append(badge,infoBox,priced,remove);grid.appendChild(row);
+    }
+  }
+
+  window.renderSortedWatchlist=paintWatchlistRows;
+  async function renderWatchlistTab() {
+    const version=++watchlistVersion;
+    paintWatchlistRows();
+    if(Auth.isGuest())return;
+    const list=Auth.getWatchlist().slice(0,30);
+    let cursor=0;
+    await Promise.all(Array.from({length:5},async()=>{
+      while(cursor<list.length){
+        const symbol=list[cursor++];
+        try{
+          const q=await StockAPI.getQuote(symbol);
+          if(version===watchlistVersion)watchlistQuotes[symbol]=q;
+        }catch(_){
+          if(version===watchlistVersion)delete watchlistQuotes[symbol];
+        }
+      }
     }));
+    if(version===watchlistVersion)paintWatchlistRows();
   }
 
   window.addToWLFromInput = async function() {
-    if (Auth.isGuest()) { showGuestModal(); return; }
-    const input = document.getElementById('wl-add-input');
-    const sym = (input?.value||'').toUpperCase().trim();
-    if (!sym) { showToast('Enter a stock symbol'); return; }
-    await Auth.addToWatchlist(sym); if (input) input.value='';
-    updateWatchlistUI(); renderWatchlistTab(); renderWatchlistMini();
-    showToast(`${sym} added to watchlist`);
+    if (Auth.isGuest()) { showGuestModal();return; }
+    const input=document.getElementById('wl-add-input');
+    const symbol=(input?.value||'').trim().toUpperCase();
+    if(!symbol) {showToast('Enter a ticker to add.');return;}
+    try{
+      await Auth.addToWatchlist(symbol);
+      if(input)input.value='';
+      updateWatchlistUI();
+      void renderWatchlistTab();
+      void renderWatchlistMini();
+      showToast(symbol+' saved to your watchlist.');
+    }catch(e){showToast('Watchlist not saved: '+e.message);}
   };
 
   // ── Watchlist mini (trending tab) ─────────────────────────────────────────
@@ -804,32 +941,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
   }
 
-  // ── Trending tab ──────────────────────────────────────────────────────────
+  // ── Stock Movers: a curated universe, ranked by provider sessions ─────
+  let moverData=[];
+  let moverVersion=0;
+  let moversFetchedAt=0;
+  function paintMovers() {
+    const grid=document.getElementById('trend-grid');
+    if(!grid)return;
+    grid.replaceChildren();
+    const status=document.getElementById('trending-meta');
+    const available=moverData.filter(ResearchTools.validQuote);
+    const rows=ResearchTools.sortQuoteRows(available,
+      document.getElementById('trending-sort')?.value||'move-desc');
+    if(status)status.textContent=available.length+' verified quotes / '+
+      StockAPI.popularSymbols.length+' tracked symbols · latest available session';
+    if(!rows.length){
+      grid.textContent='Verified mover data is unavailable. Try again after the market-data provider responds.';
+      return;
+    }
+    for(const item of rows){
+      const up=item.changePct>=0;
+      const card=document.createElement('button');
+      card.type='button';card.className='trend-card';
+      card.style.cssText='text-align:left;cursor:pointer;color:var(--text);font-family:inherit';
+      card.addEventListener('click',()=>window.selectSearch(item.sym));
+      const sym=document.createElement('div');sym.className='trend-sym';sym.textContent=item.sym;
+      const name=document.createElement('div');name.className='trend-name';
+      name.textContent=StockAPI.getCompanyInfo(item.sym).name;
+      const px=document.createElement('div');px.className='trend-price';
+      px.textContent='$'+item.price.toLocaleString('en-US',
+        {minimumFractionDigits:2,maximumFractionDigits:2});
+      const change=document.createElement('div');change.className='trend-chg '+(up?'up':'down');
+      change.textContent=(up?'+':'')+item.changePct.toFixed(2)+'%';
+      const bar=document.createElement('div');bar.className='trend-bar';
+      const fill=document.createElement('div');fill.className='trend-fill';
+      fill.style.width=Math.min(100,Math.max(5,50+item.changePct*5))+'%';
+      fill.style.background=up?'var(--green)':'var(--red)';
+      bar.appendChild(fill);
+      card.append(sym,name,px,change,bar);grid.appendChild(card);
+    }
+  }
+  window.renderSortedMovers=paintMovers;
+
   async function renderTrending() {
-    const grid = document.getElementById('trend-grid'); if (!grid) return;
-    const symbols = StockAPI.popularSymbols || ['AAPL','MSFT','GOOGL','TSLA','AMZN','META','NVDA','NFLX','AMD','JPM','V','COIN','BABA','DIS','PYPL','UBER','SNAP','SPOT'];
-    grid.innerHTML = symbols.map(sym => {
-      const info = StockAPI.getCompanyInfo(sym);
-      return `<div class="trend-card" data-tilt data-tilt-max="9" onclick="window.selectSearch('${sym}');switchTab(null,'dashboard')">
-        <div class="trend-sym">${sym}</div><div class="trend-name">${info.name}</div>
-        <div class="trend-price" id="tr-px-${sym}">$—</div>
-        <div class="trend-chg"  id="tr-chg-${sym}">—</div>
-        <div class="trend-bar"><div class="trend-fill" id="tr-bar-${sym}" style="width:50%;background:var(--cyan)"></div></div>
-      </div>`;
-    }).join('');
-    await Promise.all(symbols.map(async sym => {
-      try {
-        const q = await StockAPI.getQuote(sym); const up = q.changePct>=0;
-        const px  = document.getElementById(`tr-px-${sym}`);
-        const chg = document.getElementById(`tr-chg-${sym}`);
-        const bar = document.getElementById(`tr-bar-${sym}`);
-        if (px)  px.textContent  = `$${q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-        if (chg) { chg.textContent=`${up?'+':''}${q.changePct}%`; chg.className=`trend-chg ${up?'up':'down'}`; }
-        if (bar) { bar.style.width=`${Math.min(100,Math.max(5,50+q.changePct*5))}%`; bar.style.background=up?'var(--green)':'var(--red)'; }
-      } catch (_) {}
+    const version=++moverVersion;
+    const status=document.getElementById('trending-meta');
+    if(status)status.textContent='Fetching verified session moves…';
+    const symbols=StockAPI.popularSymbols;
+    const rows=await Promise.all(symbols.map(async sym=>{
+      try{
+        const q=await StockAPI.getQuote(sym);
+        return ResearchTools.validQuote(q)
+          ? {sym,price:q.price,changePct:q.changePct} : null;
+      }catch(_){return null;}
     }));
-    if (typeof initTilt==='function') initTilt('[data-tilt]', grid);
-    if (typeof animateCardsIn==='function') animateCardsIn('.trend-card', grid);
+    if(version!==moverVersion)return;
+    moverData=rows.filter(Boolean);
+    moversFetchedAt=Date.now();
+    paintMovers();
   }
 
   // ── Compare mode ──────────────────────────────────────────────────────────
@@ -1137,6 +1306,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!listEl) return;
 
     if (!holdings.length) {
+      renderResearchMetrics('port-risk-insights',[
+        {label:'Saved holdings',value:Portfolio.lastError?'Unable to verify':'0'},
+        {label:'Quoted positions',value:'—'},
+        {label:'Largest exposure',value:'—'},
+        {label:'Distinct tickers',value:'—'}
+      ]);
       listEl.innerHTML = Portfolio.lastError
         ? '<div class="port-empty" style="color:var(--gold)">Your saved holdings could not be loaded. They have NOT been deleted. Please retry after the API responds.</div>'
         : '<div class="port-empty">No holdings yet — add your first position above.</div>';
@@ -1191,6 +1366,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     pricingNotice.style.display=partialQuotes?'block':'none';
     if(partialQuotes)pricingNotice.textContent='Some prices cannot be verified. Cost basis is shown temporarily for those holdings; total value is an estimate and portfolio P/L is withheld.';
+    // Honest, actionable exposure diagnostics. Weights are estimated when
+    // market quotes are unavailable; never label them verified allocations.
+    const exposure=ResearchTools.portfolioInsights(rows);
+    renderResearchMetrics('port-risk-insights',[
+      {label:'Positions with verified quotes',value:exposure.priced+' / '+exposure.holdings},
+      {label:'Largest symbol exposure',value:exposure.topSymbol
+        ? exposure.topSymbol+' · '+exposure.topWeightPct+'%'+(exposure.usesCostBasis?'*':'')
+        : '—'},
+      {label:'Top three symbols',value:exposure.top3WeightPct===null?'—':
+        exposure.top3WeightPct+'%'+(exposure.usesCostBasis?'*':'')},
+      {label:'Distinct tickers',value:String(exposure.uniqueSymbols)}
+    ]);
     // Stats
     const totalPL    = totalValue - totalCost;
     const totalPLPct = totalCost ? (totalPL / totalCost) * 100 : 0;
@@ -1524,102 +1711,136 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Portfolio exported as CSV');
   };
 
-  // ── Screener ──────────────────────────────────────────────────────────────
-  window.setScrSector = function(btn) {
+  // ── Curated screener: all metrics trace to provider data ───────────────
+  let lastScreenerRows=[];
+  let screenerBusy=false;
+
+  window.setScrSector = function(button){
     document.querySelectorAll('.schip').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
+    button.classList.add('active');
   };
-
-  // Expanded symbol pool for screener (50 stocks across sectors)
-  const SCREENER_SYMS = [
-    'AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','NFLX','AMD','INTC',
-    'JPM','BAC','GS','MS','WFC','V','MA','PYPL','COIN','AXP',
-    'JNJ','PFE','UNH','ABBV','MRK','LLY','BMY','CVS','AMGN','GILD',
-    'XOM','CVX','COP','SLB','OXY','NEE','DUK','SO','AEP','PCG',
-    'DIS','UBER','LYFT','SPOT','SNAP','TWTR','PINS','RBLX','HOOD','MA',
-  ];
-
-  function verifiedRSI(bars) {
-    if (!Array.isArray(bars) || bars.length < 30) return null;
-    const values = AIPredictor.rsi(bars.map(bar => bar.close));
-    const last = values[values.length - 1];
-    return Number.isFinite(last) ? Math.round(last) : null;
+  function verifiedRSI(bars){
+    if(!Array.isArray(bars)||bars.length<30)return null;
+    const values=AIPredictor.rsi(bars.map(b=>b.close));
+    const last=values[values.length-1];
+    return Number.isFinite(last)?Math.round(last):null;
   }
 
-  window.runScreener = async function() {
-    const grid=document.getElementById('scr-results'); if (!grid) return;
+  window.runScreener = async function(){
+    if(screenerBusy)return;
+    screenerBusy=true;
+    const grid=document.getElementById('scr-results');
     const meta=document.getElementById('scr-meta');
-    const sector=document.querySelector('.schip.active')?.dataset.val || '';
-    const perf=document.getElementById('scr-perf')?.value || '';
-    const rsiFilter=document.getElementById('scr-rsi')?.value || '';
-    const capFilter=document.getElementById('scr-mktcap')?.value || '';
-    const sort=document.getElementById('scr-sort')?.value || 'chg-desc';
-    const minPrice=Number(document.getElementById('scr-min')?.value)||0;
-    const maxPrice=Number(document.getElementById('scr-max')?.value)||Infinity;
-    const needsRSI=!!rsiFilter || sort.startsWith('rsi');
-    const needsCap=!!capFilter;
-    grid.innerHTML='<div class="scr-empty">⟳ Requesting provider data. Historical filters can take longer.</div>';
-    const symbols=[...new Set(SCREENER_SYMS)].slice(0,30);
-    const results=[];
-    let cursor=0;
-    const tasks=Array.from({length:6},async()=>{
-      while(cursor<symbols.length){
-        const sym=symbols[cursor++];
-        try {
-          const q=await StockAPI.getQuote(sym);
-          const info=StockAPI.getCompanyInfo(sym);
-          let rsi=null, cap=null;
-          if(needsRSI){
-            try { rsi=verifiedRSI(await StockAPI.getCandles(sym,'D',365)); }
-            catch(_) {}
-          }
-          if(needsCap){
-            try {
-              const p=await StockAPI.getCompanyProfile(sym);
-              if(Number.isFinite(p.marketCap)&&p.marketCap>0)cap=p.marketCap/1000;
-            }catch(_){}
-          }
-          results.push({sym,name:info.name||sym,sector:info.sector||'Unknown',
-            price:q.price,changePct:q.changePct,rsi,cap});
-        }catch(_) {}
+    const runBtn=document.getElementById('scr-run');
+    const csvBtn=document.getElementById('scr-export');
+    if(runBtn)runBtn.disabled=true;
+    if(csvBtn)csvBtn.disabled=true;
+    lastScreenerRows=[];
+    const sector=document.querySelector('.schip.active')?.dataset.val||'';
+    const sort=document.getElementById('scr-sort')?.value||'chg-desc';
+    const rsiFilter=document.getElementById('scr-rsi')?.value||'';
+    const capFilter=document.getElementById('scr-mktcap')?.value||'';
+    const perf=document.getElementById('scr-perf')?.value||'';
+    const minInput=document.getElementById('scr-min')?.value?.trim()||'';
+    const maxInput=document.getElementById('scr-max')?.value?.trim()||'';
+    const minPrice=minInput===''?0:Number(minInput);
+    const maxPrice=maxInput===''?Infinity:Number(maxInput);
+    const needsRSI=Boolean(rsiFilter)||sort.startsWith('rsi');
+    const needsCap=Boolean(capFilter)||sort==='cap-desc';
+    if(grid)grid.textContent='Fetching verified provider quotes. Additional historical filters may take longer…';
+
+    try{
+      if(!Number.isFinite(minPrice)||minPrice<0||
+        (!Number.isFinite(maxPrice)&&maxPrice!==Infinity)||maxPrice<minPrice)
+        throw Error('Maximum price must be greater than or equal to minimum price.');
+      // Market-data quotas are finite. Scan a sector-balanced, named universe
+      // and show scope/coverage; never call this "all market stocks".
+      const universe=ResearchTools.sampleUniverse(30,sector);
+      const results=[];
+      let cursor=0,unavailable=0;
+      await Promise.all(Array.from({length:5},async()=>{
+        while(cursor<universe.length){
+          const [sym,group]=universe[cursor++];
+          try{
+            const q=await StockAPI.getQuote(sym);
+            if(!ResearchTools.validQuote(q)){unavailable++;continue;}
+            let rsi=null,cap=null;
+            if(needsRSI){
+              try{rsi=verifiedRSI(await StockAPI.getCandles(sym,'D',365));}
+              catch(_){}
+            }
+            if(needsCap){
+              try{
+                const p=await StockAPI.getCompanyProfile(sym);
+                if(Number.isFinite(p.marketCap)&&p.marketCap>0)cap=p.marketCap/1000;
+              }catch(_){}
+            }
+            results.push({sym,sector:group,name:StockAPI.getCompanyInfo(sym).name,
+              price:q.price,changePct:q.changePct,rsi,cap});
+          }catch(_){unavailable++;}
+        }
+      }));
+      const filtered=ResearchTools.screen(results,{
+        sector,sort,rsiFilter,capFilter,perf,minPrice,maxPrice
+      });
+      lastScreenerRows=filtered;
+      if(meta){
+        meta.textContent=filtered.length+' matches · '+results.length+'/'+universe.length+
+          ' verified quotes · '+unavailable+' unavailable · curated universe of '+
+          ResearchTools.UNIVERSE.length+' stocks; only '+universe.length+' sampled for this run'+
+          (needsRSI?' · RSI calculated from verified daily candles':'')+
+          (needsCap?' · cap unavailable where provider profile is missing':'');
       }
-    });
-    await Promise.all(tasks);
-    let filtered=results.filter(r=>r.price>=minPrice && r.price<=maxPrice);
-    if(sector) filtered=filtered.filter(r=>r.sector.toLowerCase().includes(sector.toLowerCase()));
-    if(perf==='gainers') filtered=filtered.filter(r=>r.changePct>0);
-    if(perf==='losers') filtered=filtered.filter(r=>r.changePct<0);
-    if(perf==='big') filtered=filtered.filter(r=>Math.abs(r.changePct)>=2);
-    if(rsiFilter==='oversold') filtered=filtered.filter(r=>r.rsi!==null && r.rsi<30);
-    if(rsiFilter==='neutral') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>=30 && r.rsi<=70);
-    if(rsiFilter==='overbought') filtered=filtered.filter(r=>r.rsi!==null && r.rsi>70);
-    if(capFilter==='large') filtered=filtered.filter(r=>r.cap!==null && r.cap>=100);
-    if(capFilter==='mid') filtered=filtered.filter(r=>r.cap!==null && r.cap>=10 && r.cap<100);
-    if(capFilter==='small') filtered=filtered.filter(r=>r.cap!==null && r.cap<10);
-    const sorters={
-      'chg-desc':(x,y)=>y.changePct-x.changePct,
-      'chg-asc':(x,y)=>x.changePct-y.changePct,
-      'price-desc':(x,y)=>y.price-x.price,
-      'price-asc':(x,y)=>x.price-y.price,
-      'rsi-desc':(x,y)=>(y.rsi??-1)-(x.rsi??-1),
-      'rsi-asc':(x,y)=>(x.rsi??101)-(y.rsi??101)
-    };
-    filtered.sort(sorters[sort] || sorters['chg-desc']);
-    if(meta)meta.textContent=filtered.length+' matches from '+results.length+' verified quotes · scanning '+symbols.length+' tracked stocks · no estimated metrics';
-    if(!filtered.length){
-      grid.innerHTML='<div class="scr-empty">No verified quotes match these filters. Try fewer filters or refresh later.</div>';
-      return;
+      if(grid)grid.replaceChildren();
+      if(csvBtn)csvBtn.disabled=filtered.length===0;
+      if(!filtered.length){
+        if(grid)grid.textContent=results.length===0
+          ? 'Quote provider unavailable. No invented matches are shown.'
+          : 'No verified rows match these filters. Broaden the criteria and run again.';
+        return;
+      }
+      for(const row of filtered){
+        const up=row.changePct>=0;
+        const card=document.createElement('button');card.type='button';
+        card.className='pro-screener-result';
+        card.addEventListener('click',()=>window.selectSearch(row.sym));
+        const cell=(name,value,sub)=>{
+          const span=document.createElement('span');span.className=name;span.textContent=value;
+          const small=document.createElement('small');small.textContent=sub;span.appendChild(small);
+          return span;
+        };
+        const cap=row.cap===null?'N/A':row.cap>=1000?'$'+(row.cap/1000).toFixed(1)+'T':
+          '$'+row.cap.toFixed(1)+'B';
+        const symbolCell=cell('pro-scr-symbol',row.sym,row.name);
+        const priceCell=cell('pro-scr-price','$'+row.price.toFixed(2),row.sector);
+        const changeCell=cell('pro-scr-change '+(up?'up':'down'),
+          (up?'+':'')+row.changePct.toFixed(2)+'%','Session change');
+        const metricCell=cell('pro-scr-metrics','RSI '+(row.rsi??'—'),'Cap '+cap);
+        card.append(symbolCell,priceCell,changeCell,metricCell);
+        grid.appendChild(card);
+      }
+    }catch(error){
+      if(grid)grid.textContent='Screener could not complete: '+error.message;
+      if(meta)meta.textContent='No results exported.';
+    }finally{
+      screenerBusy=false;
+      if(runBtn)runBtn.disabled=false;
     }
-    grid.innerHTML=filtered.map(r=>{
-      const up=r.changePct>=0;
-      const cap=r.cap===null?'Not available':(r.cap>=1000?'$'+(r.cap/1000).toFixed(2)+'T':'$'+r.cap.toFixed(1)+'B');
-      const rsi=r.rsi===null?'Not loaded':String(r.rsi);
-      return '<button type="button" class="pro-screener-result" onclick="window.selectSearch(\''+r.sym+'\');switchTab(null,\'dashboard\')">'+
-        '<span class="pro-scr-symbol">'+r.sym+'<small>'+r.name+'</small></span>'+
-        '<span class="pro-scr-price">$'+r.price.toFixed(2)+'<small>'+r.sector+'</small></span>'+
-        '<span class="pro-scr-change '+(up?'up':'down')+'">'+(up?'+':'')+r.changePct.toFixed(2)+'%<small>Session change</small></span>'+
-        '<span class="pro-scr-metrics">RSI '+rsi+'<small>Cap '+cap+'</small></span></button>';
-    }).join('');
+  };
+
+  window.exportScreenerCSV = function(){
+    if(!lastScreenerRows.length)return;
+    const fields=['Ticker','Company','Sector','Price USD','Session change %','RSI 14','Market cap USD billions'];
+    const lines=[fields,...lastScreenerRows.map(r=>[
+      r.sym,r.name,r.sector,r.price,r.changePct,r.rsi??'',r.cap??''
+    ])].map(row=>row.map(value=>ResearchTools.csvCell(value)).join(','));
+    const blob=new Blob([lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const anchor=document.createElement('a');anchor.href=url;
+    anchor.download='stockai-verified-screener-'+new Date().toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(anchor);anchor.click();anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    showToast('Exported '+lastScreenerRows.length+' verified screener matches.');
   };
 
   // ── Earnings Calendar ─────────────────────────────────────────────────────
@@ -1634,15 +1855,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   const NEWS_EMOJIS = ['📈','💹','🏦','📰','💼','🌐','📊','🔔','💡','🚀','⚡','🎯'];
 
   async function loadNews(sym) {
-    const container = document.getElementById('news-list'); if (!container) return;
-    container.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:2rem;text-align:center;grid-column:1/-1">Loading news…</div>';
-    const articles = await NewsAPI.fetch(newsMode==='stock'?sym:null);
-    renderNews(articles, sym);
+    const container=document.getElementById('news-list');
+    if(!container)return;
+    const version=++newsRequestVersion;
+    const scope=newsMode==='stock'?sym:null;
+    container.textContent='Loading recent headlines from the market data provider…';
+    const articles=await NewsAPI.fetch(scope);
+    if(version!==newsRequestVersion || (scope!==null&&sym!==currentSymbol))return;
+    const verified=ResearchTools.news(articles);
+    const subtitle=document.getElementById('news-view-subtitle');
+    if(subtitle)subtitle.textContent=verified.length+' recent verified-source headlines · '+
+      (scope?scope:'global markets')+' · maximum 14 days old · duplicates excluded';
+    renderNews(verified,scope);
   }
+
+  window.refreshNews=function(){
+    // Refresh is explicit; don't present a stale old response as fresh.
+    const key='news_'+(newsMode==='stock'?currentSymbol:'market');
+    delete NewsAPI._cache[key];
+    void loadNews(currentSymbol);
+  };
 
   function renderNews(articles, sym) {
     const container = document.getElementById('news-list'); if (!container) return;
-    if (!articles.length) { container.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:2rem;text-align:center;grid-column:1/-1">No news available</div>'; return; }
+    if (!articles.length) {
+      container.textContent='No recent verified provider headlines are available for this selection. Try All Markets or refresh later.';
+      return;
+    }
     container.innerHTML = articles.map((a,i)=>{
       const emoji = NEWS_EMOJIS[i%NEWS_EMOJIS.length];
       const imgContent = a.image && safeExternalLink(a.image) !== '#'
@@ -1814,7 +2053,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Watchlist add (dashboard tab) ─────────────────────────────────────────
   document.getElementById('btn-add-watch').addEventListener('click', async ()=>{
     if (Auth.isGuest()) { showGuestModal(); return; }
-    await Auth.addToWatchlist(currentSymbol); updateWatchlistUI(); showToast(`${currentSymbol} added to watchlist`);
+    try{
+      await Auth.addToWatchlist(currentSymbol);
+      updateWatchlistUI();
+      void renderWatchlistTab();
+      showToast(currentSymbol+' saved to your watchlist.');
+    }catch(e){showToast('Watchlist not saved: '+e.message);}
   });
 
   // ── Logout / Sidebar ─────────────────────────────────────────────────────
@@ -1894,11 +2138,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (tab==='markets')   { marketsLoaded=true; renderMarketsTab(); }
     else if (tab==='news')      loadNews(currentSymbol);
     else if (tab==='trending')  {
-      if(!trendingLoaded){trendingLoaded=true;renderTrending();}
-      renderWatchlistMini(); renderAlerts(); void refreshSavedAlerts();
+      if(!trendingLoaded || Date.now()-moversFetchedAt > 120000) {
+        trendingLoaded=true;void renderTrending();
+      }
+      void renderWatchlistMini(); renderAlerts(); void refreshSavedAlerts();
     }
     else if (tab==='ai')        { if(currentBars.length>=50) runAI(); renderEarnings(); }
-    else if (tab==='screener')  { runScreener(); }
+    else if (tab==='screener')  {
+      // Runs only when user requests; conserves quota on public data providers.
+    }
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────────

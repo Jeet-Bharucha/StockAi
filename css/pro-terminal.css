@@ -406,3 +406,67 @@ body.stockai-pro.light .terminal-refresh-btn {
 .stockai-pro .evidence-negative { color:var(--red); }
 @media(max-width:1000px){ .stockai-pro .evidence-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }}
 @media(max-width:600px){ .stockai-pro .signal-evidence-header{flex-direction:column;}.stockai-pro .evidence-run{width:100%;}.stockai-pro .evidence-metrics{gap:.5rem;}.stockai-pro .evidence-metric{padding:.7rem;}.stockai-pro .evidence-metric strong{font-size:1.13rem;} }
+
+
+/* Research workspace utility panels: consistent on every tab. */
+.stockai-pro .research-toolbar,.stockai-pro .research-row {
+ display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;min-width:0;
+}
+.stockai-pro .research-toolbar {
+ margin:.35rem 0 1rem;padding:.7rem .85rem;
+ background:var(--card);border:1px solid var(--border);border-radius:10px;
+}
+.stockai-pro .research-toolbar label {
+ font-size:.73rem;font-weight:750;color:var(--text);
+}
+.stockai-pro .research-caption {
+ font-size:.72rem;line-height:1.5;color:var(--muted);
+}
+.stockai-pro .research-section-title {
+ color:var(--text);font-size:.87rem;font-weight:790;margin-bottom:.7rem;
+}
+.stockai-pro .research-panel {
+ border:1px solid var(--border);border-radius:12px;
+ background:linear-gradient(140deg,var(--card),var(--sidebar));
+ padding:1.05rem 1.2rem;box-shadow:0 4px 18px rgba(0,0,0,.08);
+}
+.stockai-pro .research-metrics {
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:.65rem;margin-bottom:.45rem;
+}
+.stockai-pro .research-metric {
+ background:var(--card2);border:1px solid var(--border);
+ border-radius:8px;padding:.8rem;min-width:0;
+}
+.stockai-pro .research-metric small {
+ display:block;font-size:.66rem;color:var(--muted);
+ line-height:1.4;margin-bottom:.3rem;
+}
+.stockai-pro .research-metric strong {
+ font-size:1.08rem;color:var(--text);font-weight:800;
+ font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
+}
+.stockai-pro .research-btn {
+ cursor:pointer;min-height:34px;border-radius:8px;
+ background:var(--card2);border:1px solid var(--border);
+ color:var(--text);font:700 .75rem Inter,system-ui,sans-serif;
+ padding:.48rem .8rem;
+}
+.stockai-pro .research-btn:not(:disabled):hover{
+ border-color:var(--cyan);background:rgba(120,149,193,.1);
+}
+.stockai-pro .research-btn:disabled {opacity:.48;cursor:not-allowed}
+.stockai-pro .research-toolbar select{max-width:220px}
+.stockai-pro .wl-full-item.unavailable,.stockai-pro .trend-card.unavailable{opacity:.64}
+.stockai-pro .trend-card .trend-chg:empty:after{content:'Quote unavailable'}
+@media(max-width:950px) {
+ .stockai-pro .research-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px) {
+ .stockai-pro .research-toolbar{align-items:flex-start}
+ .stockai-pro .research-toolbar .research-caption{flex-basis:100%}
+ .stockai-pro .research-panel{padding:.8rem}
+ .stockai-pro .research-metric{padding:.64rem}
+ .stockai-pro .research-metric strong{font-size:.93rem}
+ .stockai-pro .research-row .research-btn{max-width:100%}
+}
