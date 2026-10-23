@@ -1,4 +1,4 @@
-const CACHE = 'stockai-v25';
+const CACHE = 'stockai-v26';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/forgot-password.html', '/reset-password.html', '/owner-recovery.html', '/verify-email.html',
@@ -40,7 +40,12 @@ self.addEventListener('fetch', e => {
 
   // Prefer the current deployed login pages and auth JS. Fall back to the
   // offline cache for page navigation only when the network is unavailable.
-  if (e.request.mode === 'navigate' || url.pathname === '/js/auth.js') {
+  if (e.request.mode === 'navigate' ||
+      url.pathname === '/js/auth.js' ||
+      url.pathname === '/js/dashboard.js' ||
+      url.pathname === '/js/stockApi.js' ||
+      url.pathname === '/js/researchTools.js' ||
+      url.pathname === '/css/pro-terminal.css') {
     e.respondWith(
       fetch(e.request).then(res => {
         if (res.ok) {
