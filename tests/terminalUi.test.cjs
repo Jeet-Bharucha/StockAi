@@ -32,10 +32,10 @@ for (const page of pages) {
   });
 }
 
-test('terminal uses the muted steel-blue palette instead of bright teal', () => {
+test('terminal uses the brighter Aurora accent palette', () => {
   const theme = fs.readFileSync(path.join(root,'css/pro-terminal.css'), 'utf8');
   const dash = fs.readFileSync(path.join(root,'dashboard.html'), 'utf8');
-  assert.match(theme, /--cyan:#(?:839fc9|88a5cc)/i);
+  assert.match(theme, /--cyan:#59d9ff/i);
   assert.doesNotMatch(theme, /#00c9a7/i);
   assert.doesNotMatch(dash, /#00c9a7/i);
   assert.match(dash, /id="sidebar-backdrop"/);
