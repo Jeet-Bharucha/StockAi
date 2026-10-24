@@ -23,3 +23,6 @@
 }
 
 .workspace-headline { display:block; color:var(--cyan); font-weight:650; font-size:.85rem; line-height:1.6; text-underline-offset:3px; }
+
+.search-item.keyboard-active{background:rgba(89,217,255,.2);outline:2px solid var(--cyan,#59d9ff);outline-offset:-2px}
+.workspace-field input:focus-visible,.research-btn:focus-visible{outline:2px solid #59d9ff;outline-offset:3px}

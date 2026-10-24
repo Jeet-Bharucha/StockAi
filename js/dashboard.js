@@ -1905,6 +1905,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(runBtn)runBtn.disabled=true;
     if(csvBtn)csvBtn.disabled=true;
     lastScreenerRows=[];
+    document.dispatchEvent(new CustomEvent('stockai:screenresults',{detail:[]}));
     const sector=document.querySelector('.schip.active')?.dataset.val||'';
     const sort=document.getElementById('scr-sort')?.value||'chg-desc';
     const rsiFilter=document.getElementById('scr-rsi')?.value||'';
@@ -1924,7 +1925,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw Error('Maximum price must be greater than or equal to minimum price.');
       // Market-data quotas are finite. Scan a sector-balanced, named universe
       // and show scope/coverage; never call this "all market stocks".
-      const universe=ResearchTools.sampleUniverse(30,sector);
+      const custom=document.getElementById('scr-symbols')?.value.trim()||'';
+      const chosen=custom?[...new Set(custom.toUpperCase().split(/[\s,]+/).filter(Boolean))]:null;
+      if(chosen&&(chosen.length>50||chosen.some(s=>!/^[A-Z][A-Z0-9.\-^]{0,15}$/.test(s))))throw Error('Enter at most 50 valid symbols separated by commas.');
+      const universe=chosen?chosen.map(sym=>[sym,ResearchTools.UNIVERSE.find(r=>r[0]===sym)?.[1]||'Unknown']):ResearchTools.sampleUniverse(30,sector);
       const results=[];
       let cursor=0,unavailable=0;
       await Promise.all(Array.from({length:5},async()=>{
@@ -1933,6 +1937,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           try{
             const q=await StockAPI.getQuote(sym);
             if(!ResearchTools.validQuote(q)){unavailable++;continue;}
+            if(chosen){const response=await fetch('/api/research/currency/'+encodeURIComponent(sym),{headers:Auth._authHeader(),signal:AbortSignal.timeout(25000)});if(!response.ok||(await response.json()).currency!=='USD'){unavailable++;continue;}}
             let rsi=null,cap=null;
             if(needsRSI){
               try{rsi=verifiedRSI(await StockAPI.getCandles(sym,'D',365));}
@@ -1956,8 +1961,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.dispatchEvent(new CustomEvent('stockai:screenresults',{detail:filtered}));
       if(meta){
         meta.textContent=filtered.length+' matches · '+results.length+'/'+universe.length+
-          ' verified quotes · '+unavailable+' unavailable · curated universe of '+
-          ResearchTools.UNIVERSE.length+' stocks; only '+universe.length+' sampled for this run'+
+          ' verified quotes · '+unavailable+' unavailable · '+(chosen?'custom list of '+universe.length+' symbols (confirmed USD only)':'curated universe of '+ResearchTools.UNIVERSE.length+' stocks; only '+universe.length+' sampled for this run')+
           (needsRSI?' · RSI calculated from verified daily candles':'')+
           (needsCap?' · cap unavailable where provider profile is missing':'');
       }
@@ -2191,33 +2195,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Search ────────────────────────────────────────────────────────────────
   const searchInput=document.getElementById('stock-search'), searchDrop=document.getElementById('search-dropdown');
-  searchInput.addEventListener('input',()=>{
-    const q=searchInput.value.toUpperCase().trim();
-    if (!q) { searchDrop.classList.add('hidden'); return; }
-    const matches=StockAPI.popularSymbols.filter(s=>s.includes(q)||StockAPI.getCompanyInfo(s).name.toUpperCase().includes(q)).slice(0,6);
-    if (!matches.length) { searchDrop.classList.add('hidden'); return; }
-    searchDrop.innerHTML=matches.map(s=>{const info=StockAPI.getCompanyInfo(s);return `<div class="search-item" onclick="window.selectSearch('${s}')"><b>${s}</b><span>${info.name}</span></div>`;}).join('');
-    searchDrop.classList.remove('hidden');
-  });
-
+  let searchMatches=[],searchActive=-1;
+  const recentKey='stockai_recent_'+String(Auth.getSession()?.userId||'guest');
+  function recents(){try{return JSON.parse(localStorage.getItem(recentKey)||'[]').filter(s=>typeof s==='string'&&/^[A-Z0-9.^:-]{1,16}$/.test(s)).slice(0,8);}catch(_){return [];}}
+  searchInput.setAttribute('role','combobox');searchInput.setAttribute('aria-autocomplete','list');searchInput.setAttribute('aria-controls','search-dropdown');searchInput.setAttribute('aria-expanded','false');searchDrop.setAttribute('role','listbox');searchDrop.setAttribute('aria-label','Stock suggestions');
+  function closeSearch(){searchDrop.classList.add('hidden');searchInput.setAttribute('aria-expanded','false');searchInput.removeAttribute('aria-activedescendant');searchActive=-1;}
+  function highlightSearch(){[...searchDrop.querySelectorAll('[role=option]')].forEach((n,i)=>{n.setAttribute('aria-selected',String(i===searchActive));n.classList.toggle('keyboard-active',i===searchActive);});if(searchActive>=0)searchInput.setAttribute('aria-activedescendant','stock-option-'+searchActive);else searchInput.removeAttribute('aria-activedescendant');}
+  function showSearch(){const q=searchInput.value.toUpperCase().trim();searchActive=-1;
+    searchMatches=q?[...new Set([...recents(),...StockAPI.popularSymbols,'SPY','QQQ','DIA','IWM','XLK','GLD',...ResearchTools.UNIVERSE.map(r=>r[0])])].filter(s=>s.includes(q)||StockAPI.getCompanyInfo(s).name.toUpperCase().includes(q)).slice(0,6):recents();
+    if(q&&/^[A-Z0-9.^:-]{1,16}$/.test(q)&&!searchMatches.includes(q)&&searchMatches.length<6)searchMatches.push(q);
+    searchDrop.replaceChildren();
+    for(const [i,sym]of searchMatches.entries()){const n=document.createElement('div');n.className='search-item';n.id='stock-option-'+i;n.setAttribute('role','option');n.setAttribute('aria-selected','false');const b=document.createElement('b'),span=document.createElement('span');b.textContent=sym;span.textContent=StockAPI.getCompanyInfo(sym).name;n.append(b,span);n.addEventListener('mousedown',e=>e.preventDefault());n.addEventListener('click',()=>window.selectSearch(sym));searchDrop.append(n);}
+    if(!searchMatches.length){closeSearch();return;}searchDrop.classList.remove('hidden');searchInput.setAttribute('aria-expanded','true');
+  }
+  searchInput.addEventListener('input',showSearch);searchInput.addEventListener('focus',showSearch);
   window.selectSearch = function(sym) {
-    const normalized = String(sym || '').toUpperCase().trim();
-    if (!/^[A-Z0-9.^:-]{1,16}$/.test(normalized)) {
-      showToast('Enter a valid market symbol');
-      return;
-    }
-    searchDrop.classList.add('hidden');
-    clearSMAUI();
-    loadStock(normalized).catch(error => showToast('Chart could not load: ' + error.message));
-    if (!document.getElementById('view-dashboard')?.classList.contains('active')) {
-      window.switchTab?.(null, 'dashboard');
-    }
+    const normalized=String(sym||'').toUpperCase().trim();if(!/^[A-Z0-9.^:-]{1,16}$/.test(normalized)){showToast('Enter a valid market symbol');return;}
+    try{localStorage.setItem(recentKey,JSON.stringify([normalized,...recents().filter(s=>s!==normalized)].slice(0,8)));}catch(_){}
+    closeSearch();searchInput.value=normalized;clearSMAUI();loadStock(normalized).catch(error=>showToast('Chart could not load: '+error.message));
+    if(!document.getElementById('view-dashboard')?.classList.contains('active'))window.switchTab?.(null,'dashboard');
   };
-
-  document.addEventListener('click',e=>{ if (!searchInput.contains(e.target)&&!searchDrop.contains(e.target)) searchDrop.classList.add('hidden'); });
+  document.addEventListener('click',e=>{if(!searchInput.contains(e.target)&&!searchDrop.contains(e.target))closeSearch();});
   searchInput.addEventListener('keydown',e=>{
-    if(e.key==='Enter') { e.preventDefault(); window.selectSearch(searchInput.value); searchInput.blur(); }
-    if(e.key==='Escape') searchDrop.classList.add('hidden');
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(searchDrop.classList.contains('hidden'))showSearch();if(searchMatches.length){searchActive=(searchActive+(e.key==='ArrowDown'?1:-1)+searchMatches.length)%searchMatches.length;highlightSearch();}}
+    if(e.key==='Enter'){e.preventDefault();window.selectSearch(searchMatches[searchActive]||searchInput.value);}
+    if(e.key==='Escape'){e.stopPropagation();closeSearch();}if(e.key==='Tab')closeSearch();
   });
 
   // ── Watchlist add (dashboard tab) ─────────────────────────────────────────

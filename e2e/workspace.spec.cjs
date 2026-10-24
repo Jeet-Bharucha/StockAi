@@ -19,6 +19,10 @@ async function setup(page,{outage=false}={}){
    else body={version:state.version,transactions,book:{cash:transactions.length?1000:0,realized:0,dividends:0},valuation:{equity:transactions.length?1000:0,unrealized:0,missing:[]},snapshots:[],performance:null};
   }else if(p==='/api/user/ledger/snapshot'){body={equity:1000,at:new Date().toISOString()};}
   else if(p.startsWith('/api/research/overview/'))body=outage?{symbol:'AAPL',source:'Finnhub',fetchedAt:new Date().toISOString(),profile:null,metrics:null,earnings:null}:{symbol:'AAPL',source:'Finnhub',fetchedAt:new Date().toISOString(),profile:{name:'Fixture company',exchange:'NASDAQ',industry:'Technology',currency:'USD'},metrics:{pe:25,eps:4,roe:20,low52:80,high52:160,averageVolume10dMillions:2},earnings:[{date:'2030-01-01',epsEstimate:2,revenueEstimate:1e9}]};
+  else if(p.startsWith('/api/research/currency/'))body={currency:'USD'};
+  else if(p.startsWith('/api/research/company-details/'))body={source:'Finnhub',fetchedAt:new Date().toISOString(),from:'2024-01-01',to:'2027-01-01',reports:null,dividends:null,splits:[{date:'2026-01-01',toFactor:4,fromFactor:1}]};
+  else if(p==='/api/admin/email-readiness')body={state:'missing-settings',missing:['RESEND_FROM_EMAIL'],note:'Sender settings are incomplete.'};
+  else if(p==='/api/admin/email-self-test')body={state:'provider-accepted',message:'Provider accepted test. Check inbox; not proof of delivery.'};
   else if(p==='/api/quote'){if(outage){status=502;body={error:'Quote unavailable',code:'QUOTE_UNAVAILABLE'};}else body={c:120,pc:119,d:1,dp:.84,h:121,l:118,o:119,t:now,source:'Fixture feed'};}
   else if(p==='/api/candle')body=outage?{s:'no_data'}:{s:'ok',t:bars.map(b=>b.t),o:bars.map(b=>b.o),h:bars.map(b=>b.h),l:bars.map(b=>b.l),c:bars.map(b=>b.c),v:bars.map(b=>b.v)};
   else if(p==='/api/profile')body={name:'Fixture company',finnhubIndustry:'Technology',marketCapitalization:100000};
@@ -77,5 +81,14 @@ test('provider outage never hides panels or invents prices; light/reduced-motion
  await nav(page,'dashboard');await expect(page.getByRole('button',{name:'Retry chart',exact:true})).toBeVisible();await expect(page.locator('#stock-price')).toHaveText('—');
  await expect(page.locator('#stock-overview')).toContainText('Earnings feed unavailable');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);
+ expect(errors).toEqual([]);
+});
+
+
+test('keyboard search, recent symbols, custom screen, company actions and email readiness are usable',async({page})=>{
+ const {errors}=await setup(page);const search=page.locator('#stock-search');await search.fill('SP');await search.press('ArrowDown');await expect(search).toHaveAttribute('aria-expanded','true');await expect(search).toHaveAttribute('aria-activedescendant','stock-option-0');const selected=await page.locator('#stock-option-0 b').textContent();await search.press('Enter');await expect(page.locator('#current-symbol')).toHaveText(selected);await search.fill('');await expect(page.locator('#search-dropdown')).toContainText(selected);await search.press('Escape');await expect(search).toHaveAttribute('aria-expanded','false');
+ await page.getByRole('button',{name:'Load statements, dividends & splits',exact:true}).click();await expect(page.locator('#stock-overview')).toContainText('Financial statements unavailable');await expect(page.locator('#stock-overview')).toContainText('2026-01-01');
+ await page.locator('#operations-status > summary').click();await page.getByRole('button',{name:'Check email sender readiness',exact:true}).click();await expect(page.locator('#operations-status')).toContainText('missing-settings');
+ await nav(page,'screener');await page.locator('#saved-screens > summary').click();await page.getByLabel('Custom screener symbols (up to 50, comma separated)',{exact:true}).fill('SPY,GLD');await page.locator('#scr-run').click();await expect(page.locator('#scr-meta')).toContainText('custom list of 2 symbols');
  expect(errors).toEqual([]);
 });

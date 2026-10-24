@@ -1,5 +1,9 @@
 [build]
-  publish = "."
+  command = "node scripts/build-static.cjs"
+  publish = ".stockai-static"
+
+[build.environment]
+  NPM_FLAGS = "--omit=dev"
 
 # Proxy ALL /api/* calls to the Render backend
 # This means Netlify serves the pages, Render handles all API logic
