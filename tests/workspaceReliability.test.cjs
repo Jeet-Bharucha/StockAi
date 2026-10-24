@@ -84,3 +84,25 @@ test('all data tabs dispatch independently, suppress duplicate loads and offer r
   rejectPortfolio=false;await notice.children[1].click();
   assert.equal(notice.hidden,true);
 });
+
+test('quotes preserve provider provenance and observation time for visible freshness labels',async()=>{
+  const stock=api(async()=>({ok:true,headers:{get:()=> 'application/json'},json:async()=>({
+    c:101,pc:100,d:1,dp:1,t:1792162800,source:'Yahoo latest available'
+  })}));
+  const quote=await stock.getQuote('SPY');
+  assert.equal(quote.source,'Yahoo latest available');
+  assert.equal(quote.observedAt,new Date(1792162800000).toISOString());
+});
+test('chart retry evicts only the selected history and retries current symbol',async()=>{
+  const source=fs.readFileSync(path.join(root,'js/dashboard.js'),'utf8');
+  const fn=source.slice(source.indexOf('  window.retryStockChart ='),source.indexOf('  function switchToLive()'));
+  let calls=[];
+  const scope={window:{},chart:{},console,currentSymbol:'SPY',
+    StockAPI:{_cache:{c_SPY_D_365:{},c_GLD_D_365:{}}},
+    loadStock:async sym=>calls.push(sym)};
+  vm.createContext(scope);vm.runInContext(fn,scope);
+  await scope.window.retryStockChart();
+  assert.equal(scope.StockAPI._cache.c_SPY_D_365,undefined);
+  assert.ok(scope.StockAPI._cache.c_GLD_D_365);
+  assert.deepEqual(calls,['SPY']);
+});

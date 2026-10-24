@@ -138,6 +138,7 @@ const StockAPI = {
         change:+change.toFixed(2),changePct:+changePct.toFixed(2),
         high:d.h,low:d.l,open:d.o,prevClose:d.pc,
         observedAt:Number.isFinite(d.t)&&d.t>0?new Date(d.t*1000).toISOString():null,
+        source:typeof d.source === 'string' ? d.source : 'Market provider',
         volume:null
       };
       this._cache[key] = { ts: Date.now(), data: result };

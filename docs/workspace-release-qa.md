@@ -4,7 +4,7 @@ This change improves shared dashboard behavior and presentation. Automated tests
 
 Before merge: inspect the Netlify preview at desktop, tablet and 360px phone widths, in light/dark mode and with reduced motion. Check header controls, chart actions, portfolio edit/delete controls, notification panel, mobile navigation and keyboard focus. Verify a missing chart library cannot leave the opening loader covering the app.
 
-After merge: confirm Render and Netlify production use the merge commit, CI passes, and the service worker uses stockai-v26-tab-structure-2. Hard-refresh or reopen the installed PWA. Through normal owner authentication, confirm /api/health reports database connected.
+After merge: confirm Render and Netlify production use the merge commit, CI passes, and the service worker uses stockai-v26-aurora-3. Hard-refresh or reopen the installed PWA. Through normal owner authentication, confirm /api/health reports database connected.
 
 | View | Required live check |
 | --- | --- |

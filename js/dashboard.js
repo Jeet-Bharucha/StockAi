@@ -167,6 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (hint) hint.textContent = symbol;
     document.getElementById('stock-price').textContent = '…';
     document.getElementById('stock-change').textContent = '…';
+    document.getElementById('data-source').textContent = 'Fetching verified quote for '+symbol+'…';
 
     // Clear the previous symbol immediately; request independent resources together.
     const fallback = StockAPI.getCompanyInfo(symbol);
@@ -235,6 +236,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  window.retryStockChart = async function() {
+    if (!chart) {
+      try { initChart(); } catch (error) { console.warn(error.message); }
+      if (!chart) { showChartUnavailable(true); return; }
+    }
+    delete StockAPI._cache['c_'+currentSymbol+'_D_365'];
+    await loadStock(currentSymbol);
+  };
+
   function switchToLive() { clearInterval(simInterval); simInterval = null; StockAPI.subscribeSymbol(currentSymbol, onWSTrade); }
 
   // ── Real-time handlers ────────────────────────────────────────────────────
@@ -291,7 +301,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('stat-low').textContent = fmt(q.low);
       document.getElementById('stat-open').textContent = fmt(q.open);
       document.getElementById('stat-volume').textContent = q.volume ? fmtVol(q.volume) : '—';
-      document.getElementById('data-source').textContent = '● Verified provider quote · latest available';
+      const observed = q.observedAt ? new Date(q.observedAt) : null;
+      const timestamp = observed && Number.isFinite(observed.getTime())
+        ? ' · observed '+observed.toLocaleString() : ' · observation time unavailable';
+      document.getElementById('data-source').textContent =
+        '● '+(q.source || 'Market provider')+timestamp+' · may be delayed';
       const badge = document.getElementById('market-data-status');
       if (badge) { badge.textContent='● QUOTES AVAILABLE'; badge.className='ready'; }
     } catch (error) {
@@ -2358,7 +2372,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.id='chart-unavailable';
       el.className='chart-unavailable';
       el.setAttribute('role','status');
-      el.textContent='Verified candle history is unavailable. No simulated prices are shown.';
+      const message=document.createElement('span');
+      message.textContent='Verified chart history or the chart display is unavailable. No simulated prices are shown.';
+      const retry=document.createElement('button');
+      retry.type='button';retry.className='research-btn';retry.textContent='Retry chart';
+      retry.addEventListener('click',async()=>{
+        retry.disabled=true;
+        try { await window.retryStockChart(); }
+        catch(error) { console.warn('Chart retry failed:',error.message); }
+        finally { retry.disabled=false; }
+      });
+      el.append(message,retry);
       host.appendChild(el);
     }
     el.style.display=show?'flex':'none';

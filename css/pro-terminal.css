@@ -1,8 +1,8 @@
-/* StockAI Pro · restrained institutional trading-terminal presentation.
+/* StockAI Pro · Aurora research workspace presentation.
    Loaded AFTER legacy inline styles; no JS or account state changes. */
 body.stockai-pro {
   --bg:#0d1119; --sidebar:#111723; --text:#e5ebf3; --muted:#9ba9bb;
-  --cyan:#88a5cc; --cyan2:#6f88ae; --green:#4bbf8d; --red:#ff7784;
+  --cyan:#59d9ff; --cyan2:#3b82f6; --green:#4bbf8d; --red:#ff7784;
   --gold:#e9bc6b; --purple:#7ab8e9;
   --card:#171f2b; --card2:#1b2737;
   --border:rgba(144,160,184,.21); --border2:rgba(144,160,184,.14);
@@ -599,3 +599,90 @@ body.stockai-pro.light :is(.research-btn,.chart-btn,.ind-btn).active { color:#ff
     animation:none!important; transition:none!important; scroll-behavior:auto!important;
   }
 }
+/* Aurora palette: bright identity, stable readable financial surfaces. */
+body.stockai-pro {
+  --cyan:#59d9ff; --cyan2:#3b82f6; --purple:#b69aff;
+  --green:#50e3ac; --red:#ff8798; --gold:#ffd17b;
+  --bg:#080e20; --sidebar:#0d1730; --card:#13213c; --card2:#192b48;
+  --text:#f1f6ff; --muted:#a6b9d6;
+  --border:rgba(125,165,237,.28); --border2:rgba(125,165,237,.16);
+  background:radial-gradient(ellipse at 85% 0%,rgba(115,76,230,.16),transparent 45%),
+    radial-gradient(ellipse at 10% 30%,rgba(14,165,233,.10),transparent 48%),var(--bg);
+}
+.stockai-pro .sidebar { background:linear-gradient(180deg,#101d3b,#0c142b); border-color:#263c61; }
+.stockai-pro .topbar { background:rgba(13,24,48,.98); border-bottom-color:#304978; }
+.stockai-pro .logo-icon,.stockai-pro .stock-badge,.stockai-pro .user-avatar {
+  background:linear-gradient(135deg,#126ebc,#7251da); border-color:#719ee4;
+  box-shadow:0 5px 20px rgba(79,112,255,.2);
+}
+.stockai-pro .logo-text { color:#e6f6ff; }
+.stockai-pro .nav-section { color:#99b5e0; }
+.stockai-pro .nav-item { color:#afc2e0; }
+.stockai-pro .nav-item.active {
+  color:#d9f8ff; border-color:rgba(89,217,255,.3);
+  background:linear-gradient(100deg,rgba(28,155,225,.25),rgba(124,83,226,.18));
+  box-shadow:inset 3px 0 0 #59d9ff;
+}
+.stockai-pro .nav-item:hover { background:rgba(89,160,255,.12); color:#fff; }
+.stockai-pro :focus-visible { outline:3px solid var(--cyan); outline-offset:3px; }
+.stockai-pro :is(.btn-primary,.btn-submit,.btn-scr-run,.btn-add-holding,.btn-port-add,.btn-set-alert) {
+  background:linear-gradient(110deg,#205ed2,#6542ce); color:#fff;
+  border:1px solid #88a9ff; box-shadow:0 5px 18px rgba(65,97,229,.22);
+}
+.stockai-pro :is(.research-btn,.btn-export,.port-refresh-btn,.btn-full-ai) {
+  color:#d3f5ff; border:1px solid #3d7fbb; background:#173b60;
+}
+.stockai-pro :is(.btn-primary,.btn-submit,.btn-scr-run,.btn-add-holding):hover:not(:disabled) {
+  filter:brightness(1.12); box-shadow:0 7px 25px rgba(89,145,255,.35);
+}
+.stockai-pro :is(.chart-btn,.ind-btn,.news-tab,.schip) { color:#bed6f5; background:#192c4c; border-color:#355582; }
+.stockai-pro :is(.chart-btn,.ind-btn,.news-tab,.schip).active {
+  color:#fff; background:#285cb3; border-color:#7bc9ff;
+}
+.stockai-pro .view-title { color:#b9eaff; }
+.stockai-pro .card-title,.stockai-pro .research-section-title { color:#c3d9ff; }
+.stockai-pro :is(.briefing-card,.port-hero,.cta-card) {
+  background:linear-gradient(115deg,#173d60,#242454 70%,#30244d);
+  border:1px solid #526fc0; box-shadow:0 12px 40px rgba(8,18,49,.28);
+}
+.stockai-pro :is(.card,.stock-header,.market-card,.mkt-card,.trend-card,.feat-card,.auth-card) {
+  background:linear-gradient(145deg,#172943,#111d36); border-color:#314f78;
+}
+.stockai-pro .market-card.up,.stockai-pro .mkt-card.up { border-top:2px solid var(--green); }
+.stockai-pro .market-card.down,.stockai-pro .mkt-card.down { border-top:2px solid var(--red); }
+.stockai-pro #data-source { color:var(--muted); line-height:1.6; max-width:52ch; overflow-wrap:anywhere; }
+.stockai-pro #chat-fab { background:linear-gradient(135deg,#227ddd,#8554e3); border:1px solid #a1c3ff; color:#fff; }
+.stockai-pro .chart-unavailable { flex-direction:column; gap:1rem; }
+.stockai-pro .chart-unavailable button { pointer-events:auto; }
+@media(hover:hover) and (prefers-reduced-motion:no-preference) {
+  .stockai-pro :is(.feat-card,.market-card,.mkt-card,.trend-card):hover {
+    transform:translateY(-4px); border-color:#65baff; box-shadow:0 9px 26px rgba(48,111,224,.16);
+  }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .stockai-pro .tab-view.active > :is(.view-header,.briefing-card) { animation:auroraArrival .38s ease-out; }
+  .stockai-pro .research-btn:hover:not(:disabled) { animation:actionGlow .4s ease-out; }
+}
+@keyframes auroraArrival { from { opacity:.6; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@keyframes actionGlow { from { box-shadow:0 0 0 0 rgba(89,217,255,.25); } to { box-shadow:0 0 0 7px rgba(89,217,255,0); } }
+body.stockai-pro.light {
+  --cyan:#086b9c; --cyan2:#255ab9; --purple:#7144bd;
+  --green:#117752; --red:#bc2949; --gold:#8a5700;
+  --bg:#f0f6ff; --sidebar:#fff; --card:#fff; --card2:#eaf2ff;
+  --text:#122540; --muted:#4e6685;
+  background:radial-gradient(ellipse at 90% 0%,#e9e0ff,transparent 45%),#f0f6ff;
+}
+body.stockai-pro.light .sidebar,body.stockai-pro.light .topbar { background:#fff; border-color:#cbd9ef; }
+body.stockai-pro.light .logo-text { color:#234e8e; }
+body.stockai-pro.light :is(.card,.stock-header,.market-card,.mkt-card,.trend-card,.feat-card,.auth-card) { background:#fff; border-color:#cbd9ef; }
+body.stockai-pro.light :is(.briefing-card,.port-hero,.cta-card) { background:linear-gradient(115deg,#e0f4ff,#eee7ff); border-color:#bac9ef; }
+body.stockai-pro.light :is(.card-title,.research-section-title,.view-title) { color:#214b81; }
+body.stockai-pro.light .nav-item { color:#425c7d; }
+body.stockai-pro.light .nav-item.active { color:#164b85; background:linear-gradient(100deg,#ddf3ff,#eae2ff); box-shadow:inset 3px 0 0 #2375cb; }
+body.stockai-pro.light :is(.research-btn,.btn-export,.port-refresh-btn,.btn-full-ai) { color:#155987; background:#e5f3ff; border-color:#7cadd5; }
+body.stockai-pro.light :is(.chart-btn,.ind-btn,.news-tab,.schip).active { color:#fff; background:#285cb3; }
+.stockai-pro .hero h1 .word-ai { background:linear-gradient(100deg,#66e4ff,#bea4ff); background-clip:text; -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.stockai-pro .hero-sub,.stockai-pro .feat-desc,.stockai-pro .step-desc { color:var(--muted); }
+.stockai-pro .hero-badge { color:var(--cyan); background:rgba(49,135,235,.14); border-color:#3b70b2; }
+.stockai-pro .orb1 { background:rgba(129,75,237,.24); }
+.stockai-pro .orb2 { background:rgba(18,179,236,.18); }
