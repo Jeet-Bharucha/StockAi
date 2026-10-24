@@ -1,0 +1,34 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {emailReadiness,installEmailDiagnostics}=require('../emailReadiness');
+const {createTelemetry}=require('../operationalTelemetry');
+const {encryptBackup,decryptBackup,restoreDatabase}=require('../backupTools');
+const {createResearchData}=require('../researchData');
+const Core=require('../researchCore');
+const NOW=Date.now();
+test('sender diagnostics distinguish missing, rejected, send-only and verified without sending',async()=>{
+ let calls=0;assert.equal((await emailReadiness({fetchImpl:()=>{calls++;}})).state,'missing-settings');assert.equal(calls,0);
+ for(const [status,state]of [[401,'key-rejected'],[403,'verification-unknown'],[500,'verification-unknown']])assert.equal((await emailReadiness({key:'fixture',sender:'StockAI <alerts@example.invalid>',fetchImpl:async()=>({status,ok:false})})).state,state);
+ let urls=[];const result=await emailReadiness({key:'fixture',sender:'alerts@example.invalid',fetchImpl:async url=>{urls.push(url.href);return {ok:true,json:async()=>urls.length===1?{has_more:true,data:[{id:'page1',name:'other.invalid',status:'verified'}]}:{has_more:false,data:[{name:'example.invalid',status:'verified'}]}};}});assert.equal(result.state,'domain-verified');assert.match(urls[1],/after=page1/);assert.match(result.note,/does not prove/);
+});
+test('email self test authenticates owner, ignores submitted recipient, and reports rejection',async()=>{
+ const routes={},middleware=()=>{};let to;installEmailDiagnostics({get:(p,...f)=>routes[p]=f,post:(p,...f)=>routes[p]=f},{authMW:middleware,ownerOnly:middleware,rateLimit:middleware,env:{RESEND_API_KEY:'fixture',RESEND_FROM_EMAIL:'alerts@example.invalid'},sendTest:async recipient=>{to=recipient;}});
+ const route=routes['/api/admin/email-self-test'];assert.deepEqual(route.slice(0,3),[middleware,middleware,middleware]);const res={status(n){this.code=n;return this;},json(d){this.data=d;return this;}};await route.at(-1)({user:{email:'owner@example.invalid'},body:{to:'stranger@example.invalid'}},res);assert.equal(to,'owner@example.invalid');assert.equal(res.data.state,'provider-accepted');assert.match(res.data.message,/not inbox delivery/);
+});
+test('telemetry aggregates bounded categories and rejects arbitrary payloads',()=>{
+ let now=0,finish;const metrics=createTelemetry(()=>now);metrics.middleware({path:'/api/user/ledger',query:{email:'private'}},{statusCode:503,once:(_,fn)=>finish=fn},()=>{});now=4000;finish();metrics.client('script-error','dashboard');assert.throws(()=>metrics.client('private stack trace','dashboard'));const report=metrics.report();assert.equal(report.requests.ledger.errors,1);assert.equal(report.requests.ledger.over3seconds,1);assert.doesNotMatch(JSON.stringify(report),/private/);
+});
+test('authenticated encrypted backups preserve BSON and reject wrong passwords, tampering and unsafe restores',async()=>{
+ const {ObjectId}=require('mongoose').Types;const source={format:1,at:new Date(),collections:[{name:'users',documents:[{_id:new ObjectId(),password:'hash'}],indexes:[]}]},secret='test-passphrase-with-enough-length';const encrypted=encryptBackup(source,secret);assert.ok(!encrypted.includes(Buffer.from('hash')));const restored=decryptBackup(encrypted,secret);assert.equal(restored.collections[0].documents[0]._id.toString(),source.collections[0].documents[0]._id.toString());assert.ok(restored.at instanceof Date);assert.throws(()=>decryptBackup(encrypted,'wrong'));const damaged=Buffer.from(encrypted);damaged[55]^=1;assert.throws(()=>decryptBackup(damaged,secret));await assert.rejects(restoreDatabase({databaseName:'production'},source,'production'),/restore_test/);await assert.rejects(restoreDatabase({databaseName:'qa_restore_test',listCollections:()=>({toArray:async()=>[{}]})},source,'qa_restore_test'),/empty/);
+});
+test('forward and reverse splits preserve basis and reject pre-split valuation',()=>{
+ const entry=(type,extra)=>Core.validateTransaction({type,clientId:'fixture-1234',at:new Date(NOW-1000).toISOString(),...extra},NOW);const rows=[entry('deposit',{amount:1000}),entry('buy',{symbol:'AAPL',quantity:2,price:100}),entry('split',{symbol:'AAPL',numerator:4,denominator:1})];const book=Core.ledger(rows);assert.equal(book.cash,800);assert.equal(book.holdings[0].quantity,8);assert.equal(book.holdings[0].cost,200);assert.equal(Core.valueLedger(book,{AAPL:{price:25,currency:'USD',observedAt:new Date(NOW-5000).toISOString()}},NOW).equity,null);rows.push(entry('split',{symbol:'AAPL',numerator:1,denominator:2}));assert.equal(Core.ledger(rows).holdings[0].quantity,4);assert.throws(()=>entry('split',{symbol:'AAPL',numerator:0,denominator:1}));assert.throws(()=>Core.ledger([entry('split',{symbol:'AAPL',numerator:2,denominator:1})]),/existing/);
+});
+test('reported financial data preserves period and units while unavailable actions stay null',async()=>{
+ let calls=0;const data=createResearchData({key:'fixture',now:()=>NOW,fetchImpl:async url=>{calls++;if(url.pathname.endsWith('financials-reported'))return {ok:true,json:async()=>({data:[{symbol:'AAPL',startDate:'2025-01-01',endDate:'2025-12-31',report:{ic:[{concept:'Revenue',unit:'USD',value:123}],bs:{Assets:456}}}]})};if(url.pathname.endsWith('/dividend'))return {ok:true,json:async()=>[{date:'2026-01-01',amount:.25,currency:'USD'}]};return {ok:false};}});const d=await data.companyDetails('AAPL');assert.equal(d.reports[0].sections.ic[0].unit,'USD');assert.equal(d.reports[0].sections.bs[0].unit,null);assert.equal(d.reports[0].startDate,'2025-01-01');assert.equal(d.dividends[0].amount,.25);assert.equal(d.splits,null);await data.companyDetails('AAPL');assert.equal(calls,3);await assert.rejects(data.companyDetails('../x'));assert.equal(calls,3);
+});
+test('saved custom screener symbols are normalized, deduplicated and bounded',()=>{const state=Core.validateWorkspace({lists:[],screens:[{name:'Custom',filters:{symbols:'spy, aapl,SPY'}}]});assert.equal(state.screens[0].filters.symbols,'SPY,AAPL');assert.throws(()=>Core.validateWorkspace({lists:[],screens:[{name:'Bad',filters:{symbols:'../bad'}}]}));});
+
+test('static publishing includes the app and excludes backend sources, backups and test data',()=>{
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{buildStatic}=require('../scripts/build-static.cjs');const root=fs.mkdtempSync(path.join(os.tmpdir(),'stockai-static-')),output=path.join(root,'publish');fs.writeFileSync(path.join(root,'index.html'),'app');fs.writeFileSync(path.join(root,'server.js'),'private');fs.mkdirSync(path.join(root,'js'));fs.writeFileSync(path.join(root,'js/app.js'),'script');fs.writeFileSync(path.join(root,'data.stockai-backup'),'encrypted');assert.equal(buildStatic(root,output),2);assert.ok(fs.existsSync(path.join(output,'index.html')));assert.ok(!fs.existsSync(path.join(output,'server.js')));assert.ok(!fs.existsSync(path.join(output,'data.stockai-backup')));
+});

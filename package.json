@@ -9,7 +9,10 @@
     "test": "node scripts/test.cjs",
     "test:browser": "playwright test",
     "worker": "node researchWorker.js",
-    "monitor": "node scripts/monitor.cjs"
+    "monitor": "node scripts/monitor.cjs",
+    "backup": "node scripts/backup.cjs export",
+    "restore:test": "node scripts/backup.cjs restore-test",
+    "test:integration": "node --test integration/accountDatabase.test.cjs"
   },
   "engines": {
     "node": ">=20.19.0 <25.0.0"
@@ -32,6 +35,7 @@
     "@capacitor/core": "^7.6.6",
     "@playwright/test": "^1.64.1",
     "lightweight-charts": "^4.1.3",
+    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.0"
   }
 }

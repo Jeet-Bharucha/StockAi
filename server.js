@@ -18,6 +18,9 @@ const { createResearchData } = require('./researchData');
 const { installResearchRoutes } = require('./researchRoutes');
 const { getMarketQuote } = require('./marketQuotes');
 const { securityHeaders, protectStaticFiles } = require('./siteSecurity');
+const { createAuthMiddleware } = require('./authSecurity');
+const { createTelemetry } = require('./operationalTelemetry');
+const { installEmailDiagnostics } = require('./emailReadiness');
 const {
   MAX_BROWSER_WS_CLIENTS, normalizeMarketSymbol, parseWsMessage, canSubscribe
 } = require('./marketSecurity');
@@ -35,6 +38,8 @@ app.set('trust proxy', 1); // Render sits behind one trusted ingress proxy
 app.disable('x-powered-by');
 app.use(express.json({limit:'32kb'}));
 app.use(securityHeaders);
+const reliabilityTelemetry=createTelemetry();
+app.use(reliabilityTelemetry.middleware);
 
 const FINNHUB_KEY      = process.env.FINNHUB_KEY;
 const MONGO_URI        = process.env.MONGO_URI;
@@ -145,30 +150,7 @@ const PriceAlert = mongoose.model('PriceAlert',PriceAlertSchema);
 const researchModels = createResearchModels(mongoose);
 
 // ── Auth middleware ───────────────────────────────────────────────────────
-async function authMW(req, res, next) {
-  const h = req.headers.authorization;
-  if (!h?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-  try {
-    const decoded = jwt.verify(h.slice(7), JWT_SECRET);
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ error: 'Database not connected' });
-    }
-    // Reject tokens issued before a password reset/change and deleted accounts.
-    const user = await User.findById(decoded.id).select('tokenVersion email name');
-    if (!user || (decoded.v ?? 0) !== (user.tokenVersion || 0)) {
-      return res.status(401).json({ error: 'Session expired. Sign in again.' });
-    }
-    if ((PUBLIC_SITE_ENABLED || !ALLOWED_EMAIL) && user.emailVerified === false)
-      return res.status(403).json({error:'Verify your email before using StockAI.'});
-    if (!ACCESS.isLoginAllowed(user.email)) {
-      return res.status(403).json({ error: 'This instance is restricted to the owner.' });
-    }
-    req.user = { id: String(user._id), email: user.email, name: user.name };
-    next();
-  } catch (e) {
-    return res.status(401).json({ error: 'Token expired or invalid — please log in again' });
-  }
-}
+const authMW=createAuthMiddleware({User,secret:JWT_SECRET,databaseReady:()=>mongoose.connection.readyState===1,access:ACCESS,allowedEmail:ALLOWED_EMAIL,publicEnabled:PUBLIC_SITE_ENABLED});
 
 function signAccessToken(user) {
   return jwt.sign({
@@ -214,29 +196,6 @@ app.post('/api/admin/test-alert', authMW, ownerOnly, async (req, res) => {
   } catch (e) {
     console.error('[TestAlert] Error:', e.message);
   }
-});
-
-// ── Force a test email via Resend (private owner JWT only) ────────────────
-app.post('/api/admin/test-email', authMW, ownerOnly, async (req, res) => {
-  const RESEND_KEY = process.env.RESEND_API_KEY;
-  const ALERT_TO   = process.env.ALERT_EMAIL_TO;
-  if (!RESEND_KEY || !ALERT_TO) {
-    return res.json({ ok: false, error: 'RESEND_API_KEY or ALERT_EMAIL_TO not set in Render env vars' });
-  }
-  res.json({ ok: true, message: `Sending test email to ${ALERT_TO} — check inbox in 10s` });
-  const { Resend } = require('resend');
-  const resend = new Resend(RESEND_KEY);
-  resend.emails.send({
-    from: 'StockAI Alerts <onboarding@resend.dev>',
-    to: ALERT_TO.split(',').map(e => e.trim()).filter(Boolean),
-    subject: '✅ StockAI — Email delivery test',
-    html: `<div style="font-family:sans-serif;background:#0a0e1a;color:#f1f5f9;padding:32px;border-radius:12px">
-      <h2 style="color:#00c9a7">StockAI ✅ Email is working!</h2>
-      <p>Your automated alert system is configured correctly.</p>
-      <p style="color:#6b7280;font-size:13px">Sent at ${new Date().toLocaleString('en-US',{timeZone:'America/New_York'})} ET</p>
-    </div>`
-  }).then(r => console.log(`[TestEmail] ✅ Sent to ${ALERT_TO}`, r?.data?.id || ''))
-    .catch(e => console.error('[TestEmail] ❌ Failed:', e.message));
 });
 
 function normalizeAccountEmail(value) {
@@ -342,8 +301,15 @@ const researchData = createResearchData({key:FINNHUB_KEY,quote:async symbol=>{
   return {price:q.c,observedAt:new Date(q.t*1000).toISOString(),source:q.source};
 }});
 const researchLimiter=createRateLimiter({windowMs:60*60*1000,max:240,namespace:'research',keyFn:req=>req.user?.id||req.ip});
-installResearchRoutes(app,{...researchModels,Alert:PriceAlert,authMW,dbRequired,rateLimit:researchLimiter,ownerOnly,data:researchData,
+installResearchRoutes(app,{...researchModels,telemetry:reliabilityTelemetry,Alert:PriceAlert,authMW,dbRequired,rateLimit:researchLimiter,ownerOnly,data:researchData,
   backgroundEnabled:process.env.BACKGROUND_ALERTS_ENABLED==='true',emailConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)});
+
+const emailDiagnosticsLimiter=createRateLimiter({windowMs:3600000,max:10,namespace:'email-diagnostics',keyFn:req=>req.user.id});
+installEmailDiagnostics(app,{authMW,ownerOnly,rateLimit:emailDiagnosticsLimiter,sendTest:async to=>{
+  const {Resend}=require('resend');const mail=new Resend(process.env.RESEND_API_KEY);
+  const result=await mail.emails.send({from:process.env.RESEND_FROM_EMAIL,to,subject:'StockAI sender test',text:'This is the sender test you requested from StockAI. No account or portfolio details are included.'},{signal:AbortSignal.timeout(15000)});
+  if(result.error||!result.data?.id)throw Error('Rejected');
+}});
 
 // ── Portfolio routes (protected) ──────────────────────────────────────────
 app.get('/api/user/portfolio', authMW, dbRequired, async (req, res) => {

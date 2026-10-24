@@ -10,7 +10,7 @@ async function captureSnapshot({account,ResearchAccount,PortfolioSnapshot,data,n
  const current=await ResearchAccount.findOne({userId:account.userId}).lean();if(!current||current.version!==account.version)throw Error('Ledger changed during valuation; retry');
  try {const snapshot=await PortfolioSnapshot.create({userId:account.userId,bucket:Math.floor(now()/60000),at,equity:valued.equity,cash:valued.cash,spy:quotes.SPY?.price??null,quotes,ledgerVersion:account.version});return snapshot;}catch(e){if(e.code!==11000)throw e;return PortfolioSnapshot.findOne({userId:account.userId,bucket:Math.floor(now()/60000),ledgerVersion:account.version}).lean();}
 }
-function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHeartbeat,Alert,authMW,dbRequired,rateLimit,ownerOnly,data,backgroundEnabled=false,emailConfigured=false,now=()=>Date.now()}){
+function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHeartbeat,Alert,telemetry,authMW,dbRequired,rateLimit,ownerOnly,data,backgroundEnabled=false,emailConfigured=false,now=()=>Date.now()}){
  const handlers=[authMW,dbRequired,rateLimit];
  const account=async id=>await ResearchAccount.findOne({userId:id}).lean()||{userId:id,version:0,lists:[],screens:[],transactions:[],emailAlerts:false};
  async function mutate(id,version,set,extra={}){
@@ -28,6 +28,8 @@ function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHear
   const updated=await mutate(req.user.id,req.body.version,{...input,emailEnabledAt:input.emailAlerts?(current.emailAlerts?current.emailEnabledAt:new Date(now())):null});res.json(publicState(updated));
  }));
  app.get('/api/research/overview/:symbol',...handlers,wrap(async(req,res)=>res.json(await data.fundamentals(Core.symbol(req.params.symbol)))));
+ app.get('/api/research/currency/:symbol',...handlers,wrap(async(req,res)=>res.json({currency:await data.currency(Core.symbol(req.params.symbol))})));
+ app.get('/api/research/company-details/:symbol',...handlers,wrap(async(req,res)=>res.json(await data.companyDetails(Core.symbol(req.params.symbol)))));
  app.get('/api/user/ledger',...handlers,wrap(async(req,res)=>{
   const a=await account(req.user.id),transactions=a.transactions||[],book=Core.ledger(transactions);
   const snapshots=await PortfolioSnapshot.find({userId:req.user.id}).sort({at:-1}).limit(365).lean();snapshots.reverse();
@@ -38,7 +40,7 @@ function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHear
   const a=await account(req.user.id),entry=Core.validateTransaction(req.body,now());
   const existing=(a.transactions||[]).find(t=>t.clientId===entry.clientId);
   if(existing){
-    const signature=t=>JSON.stringify(['type','symbol','quantity','price','fee','amount','memo'].map(key=>t[key]??null).concat(+new Date(t.at)));
+    const signature=t=>JSON.stringify(['type','symbol','quantity','price','fee','amount','memo','numerator','denominator'].map(key=>t[key]??null).concat(+new Date(t.at)));
     if(signature(existing)!==signature(entry))throw Object.assign(Error('Transaction identifier was already used for different data'),{status:409});
     return res.json({ok:true,duplicate:true});
   }
@@ -56,9 +58,12 @@ function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHear
   const updated=await Alert.findOneAndUpdate({_id:req.params.id,userId:req.user.id,triggered:true,deliveryStatus:'failed'},{$set:{deliveryStatus:'pending',deliveryAttempts:0},$unset:{deliveryLease:1}},{new:true});
   if(!updated)throw Error('No failed delivery found for this account');res.json({ok:true});
  }));
+ if(telemetry)app.post('/api/user/reliability-signal',...handlers,wrap(async(req,res)=>{
+  telemetry.client(req.body.kind,req.body.view);res.json({ok:true});
+ }));
  app.get('/api/admin/operations',...handlers,ownerOnly,wrap(async(_req,res)=>{
   const heartbeat=await WorkerHeartbeat.findById('research-worker').lean();
-  res.json({ok:true,database:'connected',uptimeSeconds:Math.floor(process.uptime()),backgroundEnabled,emailConfigured,worker:heartbeat?{lastStarted:heartbeat.lastStarted,lastSuccess:heartbeat.lastSuccess,lastError:heartbeat.lastError,counts:heartbeat.counts}:null,workerStale:backgroundEnabled&&(!heartbeat?.lastSuccess||now()-new Date(heartbeat.lastSuccess)>10*60000)});
+  res.json({ok:true,reliability:telemetry?.report()||null,database:'connected',uptimeSeconds:Math.floor(process.uptime()),backgroundEnabled,emailConfigured,worker:heartbeat?{lastStarted:heartbeat.lastStarted,lastSuccess:heartbeat.lastSuccess,lastError:heartbeat.lastError,counts:heartbeat.counts}:null,workerStale:backgroundEnabled&&(!heartbeat?.lastSuccess||now()-new Date(heartbeat.lastSuccess)>10*60000)});
  }));
 }
 module.exports={installResearchRoutes,captureSnapshot,publicState};

@@ -123,6 +123,6 @@ test('PWA update and market retry are wired into the dashboard markup',()=>{
    assert.ok(html.includes('id="'+id+'"'));
  assert.match(dash,/createMarketCards\(\); \/\/ Synchronous/);
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
- assert.match(sw,/stockai-v26/);
+ assert.match(sw,/const CACHE = 'stockai-v\d+-[a-z0-9-]+'/);
  assert.match(sw,/url\.pathname === '\/js\/dashboard\.js'/);
 });
