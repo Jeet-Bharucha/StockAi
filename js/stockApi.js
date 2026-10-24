@@ -2,6 +2,7 @@
 // The browser never needs a Finnhub key; the server holds it.
 const StockAPI = {
   _cache: {},
+  _pending: new Map(),
   _CACHE_QUOTE:  30000,  // 30 s
   _CACHE_CANDLE: 300000, // 5 min
   _ws: null,
@@ -86,7 +87,16 @@ const StockAPI = {
 
   // ── REST (hits our /api/* proxy) ──────────────────────────────────────────
   // Render free services can need ~50 seconds to wake. Never fabricate prices.
-  async _get(path, timeoutMs = 55000) {
+  _get(path, timeoutMs = 55000) {
+    // Share simultaneous reads across dashboard, watchlist and market panels.
+    const key = path + ':' + timeoutMs;
+    if (this._pending.has(key)) return this._pending.get(key);
+    const task = this._fetchJSON(path, timeoutMs).finally(() => this._pending.delete(key));
+    this._pending.set(key, task);
+    return task;
+  },
+
+  async _fetchJSON(path, timeoutMs) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -103,12 +113,15 @@ const StockAPI = {
 
   // ── Quote ─────────────────────────────────────────────────────────────────
   async getQuote(symbol) {
+    symbol = String(symbol || '').trim().toUpperCase();
+    if (!/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/.test(symbol))
+      throw new Error('Invalid market symbol');
     const key    = `q_${symbol}`;
     const cached = this._cache[key];
     if (cached && Date.now() - cached.ts < this._CACHE_QUOTE) return cached.data;
 
     try {
-      const d = await this._get(`/api/quote?symbol=${symbol}`);
+      const d = await this._get(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
       if (typeof d.c !== 'number' || !Number.isFinite(d.c) || d.c <= 0)
         throw new Error('No verified quote available for ' + symbol);
       // 0% is a valid session move, but missing provider fields are not 0%.

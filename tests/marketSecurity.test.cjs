@@ -37,7 +37,7 @@ test('client messages accept only expected actions and valid symbols',()=>{
 test('limits each client and global subscription cardinality while allowing existing symbols',()=>{
   assert.ok(MAX_BROWSER_WS_CLIENTS>=1);
   const mine=new Set(Array.from({length:MAX_BROWSER_WS_SYMBOLS},(_,i)=>'X'+i));
-  const global=new Map(mine.values().map(k=>[k,new Set()]));
+  const global=new Map(Array.from(mine, k=>[k,new Set()]));
   assert.equal(canSubscribe(mine,global,'NEW'),false);
   assert.equal(canSubscribe(mine,global,'X1'),true);
   assert.equal(canSubscribe(new Set(),global,'X1'),true);

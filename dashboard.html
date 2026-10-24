@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1220,14 +1220,14 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 
     <div class="nav-section">Main</div>
     <a class="nav-item active" href="#" onclick="switchTab(event,'dashboard')"><span class="nav-icon">📊</span>Dashboard</a>
-    <a class="nav-item" href="#" onclick="switchTab(event,'ai')"><span class="nav-icon">🤖</span>AI Predictions</a>
+    <a class="nav-item" href="#" onclick="switchTab(event,'ai')"><span class="nav-icon">🤖</span>Technical Signals</a>
     <a class="nav-item" href="#" onclick="switchTab(event,'watchlist')"><span class="nav-icon">⭐</span>Watchlist</a>
     <a class="nav-item" href="#" onclick="switchTab(event,'portfolio')"><span class="nav-icon">💼</span>Portfolio</a>
 
     <div class="nav-section">Market</div>
     <a class="nav-item" href="#" onclick="switchTab(event,'markets')"><span class="nav-icon">🌐</span>Markets</a>
     <a class="nav-item" href="#" onclick="switchTab(event,'news')"><span class="nav-icon">📰</span>News</a>
-    <a class="nav-item" href="#" onclick="switchTab(event,'trending')"><span class="nav-icon">🔥</span>Trending</a>
+    <a class="nav-item" href="#" onclick="switchTab(event,'trending')"><span class="nav-icon">🔥</span>Stock Movers</a>
 
     <div class="nav-section">Tools</div>
     <a class="nav-item" href="#" onclick="switchTab(event,'screener')"><span class="nav-icon">🔎</span>Screener</a>
@@ -1246,7 +1246,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
             <div class="user-email">—</div>
           </div>
         </a>
-        <button id="btn-logout" title="Sign out">⏻</button>
+        <button aria-label="Sign out" id="btn-logout" title="Sign out">⏻</button>
       </div>
     </div>
   </aside>
@@ -1261,13 +1261,13 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       <button type="button" id="sidebar-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" title="Menu">☰</button>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="stock-search" placeholder="Search symbol or company…">
+        <input type="text" aria-label="Search stock symbol or company" autocomplete="off" id="stock-search" placeholder="Search symbol or company…">
         <div id="search-dropdown" class="hidden"></div>
       </div>
       <div class="topbar-right">
         <div id="market-data-status" aria-live="polite" title="Last verified quote status">Checking quotes…</div>
         <div id="ws-badge" class="ws-badge ws-conn" title="Streaming connection status">○ Streaming offline</div>
-        <button id="notif-btn" onclick="NotifCenter.toggle()" title="Notifications">
+        <button aria-label="Notifications" id="notif-btn" onclick="NotifCenter.toggle()" title="Notifications">
           🔔<span id="notif-badge" class="notif-badge" style="display:none">0</span>
         </button>
         <button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark" aria-label="Switch color mode">🌙</button>
@@ -1275,6 +1275,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       </div>
     </div>
 
+    <div id="connection-notice" class="connection-notice" role="status" hidden>You're offline. Saved views remain available; prices cannot refresh.</div>
     <!-- NOTIFICATION PANEL -->
     <div id="notif-panel" class="notif-panel hidden">
       <div class="notif-hdr">
@@ -2113,11 +2114,16 @@ function updateBasisPreview() {
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(e, name) {
   if (e) e.preventDefault();
+  const target = document.getElementById('view-' + name);
+  if (!target) return;
   document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   document.querySelectorAll('.nav-item[onclick]').forEach(n => n.classList.remove('active'));
   const active = document.querySelector(`.nav-item[onclick*="'${name}'"]`);
-  if (active) active.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.removeAttribute('aria-current'));
+  if (active) { active.classList.add('active'); active.setAttribute('aria-current','page'); }
+  const heading = target.querySelector('.view-title');
+  document.title = (heading?.textContent || 'Dashboard') + ' | StockAI';
   if (window.innerWidth < 900) document.getElementById('sidebar').classList.remove('open');
   // Notify dashboard.js
   document.dispatchEvent(new CustomEvent('stockai:tab', { detail: name }));
@@ -2156,7 +2162,7 @@ window.setRange = function(btn, range) {
 <script src="js/dashboard.js"></script>
 <script>
 // ── Keyboard Shortcuts ────────────────────────────────────────────────────
-const TAB_KEYS = {'1':'dashboard','2':'ai','3':'watchlist','4':'portfolio','5':'markets','6':'news','7':'trending'};
+const TAB_KEYS = {'1':'dashboard','2':'ai','3':'watchlist','4':'portfolio','5':'markets','6':'news','7':'trending','8':'screener'};
 document.addEventListener('keydown', function(e) {
   const tag = document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
