@@ -1,0 +1,23 @@
+name: StockAI production health
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+permissions:
+  contents: read
+jobs:
+  health:
+    if: vars.STOCKAI_MONITOR_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check production readiness and deployed revision
+        run: node scripts/monitor.cjs
+        env:
+          MONITOR_URL: ${{ vars.STOCKAI_MONITOR_URL }}
+          MONITOR_CHECK_QUOTES: 'true'
+          MONITOR_EXPECTED_SHA: ${{ github.sha }}

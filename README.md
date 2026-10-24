@@ -8,6 +8,12 @@ A full-stack real-time stock market dashboard with AI analysis, automated alerts
 
 ---
 
+## Account research workspace
+
+Company fundamentals/earnings, separate USD transaction ledger and recorded performance snapshots, opt-in worker email alerts, multiple research lists, saved/fundamental screens and browser/production monitoring are now implemented. Deployment and provider availability are separate from source completion: see [research rollout and operating instructions](docs/research-workspace-rollout.md).
+
+The email worker must be deployed separately and explicitly enabled; the existing free web service and browser-only checks do not guarantee background delivery. Historical returns come from actual recorded snapshots and a labeled Modified Dietz estimate, not a backfilled demo chart. Existing holdings and watchlists are preserved. New account data is included in the existing clear-all-data/account-deletion flows.
+
 ## Features
 
 ### Real-Time Market Data
@@ -265,7 +271,7 @@ before an alert can be marked triggered. Once triggered, an alert is resolved
 atomically and won't fire twice. Users can delete alerts individually or
 clear them with their account data.
 
-**This is NOT unattended 24/7 price monitoring.** The signed-in dashboard
+**By default this is not unattended monitoring.** The optional research worker adds independently hosted background checks and opt-in email; see the rollout guide above. The signed-in dashboard
 checks outstanding alerts when opened and approximately every two minutes
 while the page remains visible and online. The free Render service can
 sleep; there are no guaranteed background checks, push delivery, or emails

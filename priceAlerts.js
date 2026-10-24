@@ -24,7 +24,8 @@ function safeAlert(a) {
     targetPrice:a.targetPrice, triggered:Boolean(a.triggered),
     triggeredAt:a.triggeredAt || null, observedPrice:a.observedPrice??null,
     observedAt:a.observedAt || null, source:a.source || null,
-    createdAt:a.createdAt || null
+    createdAt:a.createdAt || null,
+    deliveryStatus:a.deliveryStatus || null, deliveredAt:a.deliveredAt || null
   };
 }
 

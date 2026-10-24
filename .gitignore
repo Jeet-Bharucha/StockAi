@@ -9,3 +9,9 @@ android/local.properties
 
 # Capacitor www placeholder (rebuilt on cap sync)
 # www/ — keep this tracked so cap sync works on fresh clones
+
+# Browser test artifacts
+playwright-report/
+test-results/
+
+.playwright-browsers/

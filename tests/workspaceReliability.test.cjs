@@ -39,7 +39,7 @@ test('quote starts while history and profile are pending, and failed history cle
   let finishHistory,quoteCalls=0;
   const data=[];
   const context={console,clearInterval,location:{host:''},window:{},
-    document:{getElementById:el},StockAPI:{
+    document:{getElementById:el,dispatchEvent(){}},CustomEvent:function(){},StockAPI:{
       unsubscribeAll(){},getCompanyInfo:()=>({name:'SPY',sector:'ETF'}),
       getCompanyProfile:()=>new Promise(()=>{}),
       getCandles:()=>new Promise(resolve=>finishHistory=resolve)

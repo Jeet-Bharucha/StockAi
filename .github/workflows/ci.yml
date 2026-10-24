@@ -29,7 +29,7 @@ jobs:
         run: |
           node --check server.js
           node --check sw.js
-          for file in js/*.js tests/*.cjs; do node --check "$file"; done
+          for file in *.js js/*.js scripts/*.cjs tests/*.cjs; do node --check "$file"; done
       - name: Run regression tests
         run: npm test
       - name: Enforce zero production dependency advisories
@@ -64,3 +64,23 @@ jobs:
           name: production-npm-audit
           path: runtime-audit.json
           if-no-files-found: ignore
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-report
+          path: |
+            playwright-report/
+            test-results/
