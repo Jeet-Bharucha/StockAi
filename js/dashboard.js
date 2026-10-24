@@ -87,6 +87,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Chart init ────────────────────────────────────────────────────────────
   function initChart() {
     const container = document.getElementById('price-chart');
+    if (typeof LightweightCharts === 'undefined') {
+      showChartUnavailable(true);
+      return;
+    }
     container.innerHTML = '';
     chart = LightweightCharts.createChart(container, {
       width: container.clientWidth, height: 320,
@@ -164,8 +168,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('stock-price').textContent = '…';
     document.getElementById('stock-change').textContent = '…';
 
-    // Company profile
-    const info = await StockAPI.getCompanyProfile(symbol);
+    // Clear the previous symbol immediately; request independent resources together.
+    const fallback = StockAPI.getCompanyInfo(symbol);
+    document.getElementById('company-name').textContent = fallback.name;
+    document.getElementById('company-sector').textContent = fallback.sector;
+    for (const id of ['stat-high','stat-low','stat-open','stat-volume'])
+      document.getElementById(id).textContent = '—';
+    currentBars = []; window.fullBars = [];
+    candleSeries?.setData([]); volumeSeries?.setData([]);
+    showChartUnavailable(false); showChartLoader(true);
+    const quoteTask = refreshQuote();
+    const candleTask = StockAPI.getCandles(symbol,'D',365).catch(error => {
+      console.warn('Chart unavailable:', error.message);
+      return [];
+    });
+    // Profile failures must not block quotes, charts or navigation.
+    void StockAPI.getCompanyProfile(symbol).then(info => {
     if (requestVersion !== stockRequestVersion) return;
     document.getElementById('company-name').textContent   = info.name;
     document.getElementById('company-sector').textContent = info.sector;
@@ -177,28 +195,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (newsSub) newsSub.textContent = `News for ${symbol}`;
     const tabStock = document.getElementById('tab-stock');
     if (tabStock) tabStock.textContent = `${symbol} News`;
+    }).catch(error => console.warn('Profile unavailable:', error.message));
 
     // Candles
-    showChartLoader(true);
-    let loadedBars = [];
-    try { loadedBars = await StockAPI.getCandles(symbol,'D',365); }
-    catch (e) { console.warn('Chart unavailable:', e.message); }
+    const loadedBars = await candleTask;
     // A slow older response must not overwrite the newer ticker selection.
     if (requestVersion !== stockRequestVersion) return;
     currentBars = loadedBars;
     window.fullBars = currentBars;
 
-    candleSeries.setData(currentBars);
-    volumeSeries.setData(currentBars.length ? volData(currentBars) : []);
-    if (currentBars.length) chart.timeScale().fitContent();
+    candleSeries?.setData(currentBars);
+    volumeSeries?.setData(currentBars.length ? volData(currentBars) : []);
+    if (currentBars.length && chart) chart.timeScale().fitContent();
     showChartLoader(false);
-    showChartUnavailable(!currentBars.length);
+    showChartUnavailable(!currentBars.length || !chart);
     if (typeof StockChat !== 'undefined') StockChat.setContext(symbol, currentBars);
 
     // Clear any active compare so the second line doesn't linger
     if (compareSeries) clearCompare();
 
-    await refreshQuote();
+    await quoteTask;
     if (requestVersion !== stockRequestVersion) return;
     if (currentBars.length >= 50) runAI();
     else {
@@ -260,10 +276,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function refreshQuote() {
     const symbol = currentSymbol;
+    const requestVersion = stockRequestVersion;
     const fmt = n => Number.isFinite(n) && n > 0 ? '$' + n.toFixed(2) : '—';
     try {
       const q = await StockAPI.getQuote(symbol);
-      if (currentSymbol !== symbol) return;
+      if (currentSymbol !== symbol || requestVersion !== stockRequestVersion) return;
       const up = q.changePct >= 0;
       verifiedPrevClose = q.prevClose > 0 ? q.prevClose : null;
       document.getElementById('stock-price').textContent = fmt(q.price);
@@ -278,7 +295,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const badge = document.getElementById('market-data-status');
       if (badge) { badge.textContent='● QUOTES AVAILABLE'; badge.className='ready'; }
     } catch (error) {
-      if (currentSymbol !== symbol) return;
+      if (currentSymbol !== symbol || requestVersion !== stockRequestVersion) return;
       document.getElementById('stock-price').textContent = '—';
       document.getElementById('stock-change').textContent = 'Quote unavailable';
       for (const id of ['stat-high','stat-low','stat-open','stat-volume'])
@@ -2268,29 +2285,61 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Tab event listener ────────────────────────────────────────────────────
   let marketsLoaded=false, trendingLoaded=false;
-  document.addEventListener('stockai:tab', async e=>{
-    const tab=e.detail;
-    if (tab==='watchlist')  renderWatchlistTab();
-    else if (tab==='portfolio') { renderPortfolio(); }
-    else if (tab==='markets') {
-      marketsLoaded=true;
-      // Avoid 25 provider requests when switching tabs repeatedly.
-      if(!marketsLastStartedAt || Date.now()-marketsLastStartedAt>120000){
-        void renderMarketsTab().catch(err=>console.error('[Markets] '+err.message));
+  const tabTasks = new Map();
+  async function loadTab(tab, force = false) {
+    if (tabTasks.has(tab)) return tabTasks.get(tab);
+    const host = document.getElementById('view-' + tab);
+    if (!host) return;
+    let notice = host.querySelector('.tab-load-error');
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.className = 'tab-load-error'; notice.hidden = true;
+      notice.setAttribute('role', 'status');
+      const message = document.createElement('span');
+      message.textContent = 'This view could not refresh. Check your connection and try again.';
+      const retry = document.createElement('button');
+      retry.type = 'button'; retry.className = 'research-btn'; retry.textContent = 'Retry this view';
+      retry.addEventListener('click', () => void loadTab(tab, true));
+      notice.append(message, retry); host.prepend(notice);
+    }
+    notice.hidden = true;
+    const task = (async () => {
+      try {
+        if (tab === 'watchlist') await renderWatchlistTab();
+        else if (tab === 'portfolio') await renderPortfolio();
+        else if (tab === 'markets') {
+          marketsLoaded = true;
+          if (force || !marketsLastStartedAt || Date.now()-marketsLastStartedAt > 120000)
+            await renderMarketsTab(force);
+        }
+        else if (tab === 'news') await loadNews(currentSymbol);
+        else if (tab === 'trending') {
+          if (force || !trendingLoaded || Date.now()-moversFetchedAt > 120000) {
+            await renderTrending(); trendingLoaded = true;
+          }
+          await Promise.all([renderWatchlistMini(), refreshSavedAlerts()]);
+          renderAlerts();
+        }
+        else if (tab === 'ai') {
+          if (currentBars.length >= 50) runAI();
+          await renderEarnings();
+        }
+      } catch (error) {
+        notice.hidden = false;
+        console.warn('View refresh failed:', tab, error.message);
       }
-    }
-    else if (tab==='news')      loadNews(currentSymbol);
-    else if (tab==='trending')  {
-      if(!trendingLoaded || Date.now()-moversFetchedAt > 120000) {
-        trendingLoaded=true;void renderTrending();
-      }
-      void renderWatchlistMini(); renderAlerts(); void refreshSavedAlerts();
-    }
-    else if (tab==='ai')        { if(currentBars.length>=50) runAI(); renderEarnings(); }
-    else if (tab==='screener')  {
-      // Runs only when user requests; conserves quota on public data providers.
-    }
-  });
+    })();
+    tabTasks.set(tab, task);
+    try { await task; } finally { tabTasks.delete(tab); }
+  }
+  document.addEventListener('stockai:tab', e => void loadTab(e.detail));
+  const connectionNotice = document.getElementById('connection-notice');
+  function updateConnectionNotice() {
+    if (connectionNotice) connectionNotice.hidden = navigator.onLine !== false;
+  }
+  window.addEventListener('online', updateConnectionNotice);
+  window.addEventListener('offline', updateConnectionNotice);
+  updateConnectionNotice();
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function volData(bars){ return bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'})); }
@@ -2323,7 +2372,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (Auth.isAdmin()) document.getElementById('btn-api').style.display='';
-  initChart();
+  try { initChart(); }
+  catch (error) {
+    chart = null; candleSeries = null; volumeSeries = null;
+    showChartUnavailable(true);
+    console.warn('Chart library unavailable:', error.message);
+  }
   document.getElementById('loading-screen').style.display='none';
 
   // A sleeping market-data provider must not block navigation or holdings.
@@ -2348,7 +2402,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   void renderTickerTape().catch(err => console.warn('Ticker could not load:', err.message));
   void renderDailyBriefing().catch(err => console.warn('Market briefing could not load:', err.message));
 
-  marketInterval = setInterval(updateMarket, 30000);
+  marketInterval = setInterval(() => {
+    if (!document.hidden && navigator.onLine !== false)
+      void updateMarket().catch(error => console.warn(error.message));
+  }, 30000);
 
   // Auto-refresh portfolio prices every 30 s (silent — no loading spinner)
   setInterval(() => {
