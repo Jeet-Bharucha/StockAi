@@ -1,11 +1,11 @@
-const CACHE = 'stockai-v26-aurora-3';
+const CACHE = 'stockai-v26-research-4';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/forgot-password.html', '/reset-password.html', '/owner-recovery.html', '/verify-email.html',
   '/dashboard.html', '/profile.html', '/404.html',
-  '/css/effects.css', '/css/pro-terminal.css',
+  '/css/effects.css', '/css/pro-terminal.css', '/css/research-workspace.css',
   '/js/auth.js', '/js/dashboard.js', '/js/stockApi.js',
-  '/js/aiPredictor.js', '/js/researchTools.js', '/js/signalEvidence.js', '/js/features.js', '/js/animations.js', '/js/chat.js',
+  '/js/researchWorkspace.js', '/js/aiPredictor.js', '/js/researchTools.js', '/js/signalEvidence.js', '/js/features.js', '/js/animations.js', '/js/chat.js',
   '/favicon.svg', '/manifest.json'
 ];
 
@@ -45,6 +45,8 @@ self.addEventListener('fetch', e => {
       url.pathname === '/js/dashboard.js' ||
       url.pathname === '/js/stockApi.js' ||
       url.pathname === '/js/researchTools.js' ||
+      url.pathname === '/js/researchWorkspace.js' ||
+      url.pathname === '/css/research-workspace.css' ||
       url.pathname === '/css/pro-terminal.css') {
     e.respondWith(
       fetch(e.request).then(res => {

@@ -148,6 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    document.dispatchEvent(new CustomEvent('stockai:symbol',{detail:symbol}));
     claudeAnalysisVersion++;
     claudeBusy = false;
     activePrediction = null;
@@ -1952,6 +1953,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sector,sort,rsiFilter,capFilter,perf,minPrice,maxPrice
       });
       lastScreenerRows=filtered;
+      document.dispatchEvent(new CustomEvent('stockai:screenresults',{detail:filtered}));
       if(meta){
         meta.textContent=filtered.length+' matches · '+results.length+'/'+universe.length+
           ' verified quotes · '+unavailable+' unavailable · curated universe of '+
@@ -2084,7 +2086,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(!el)return;
     if(status)status.textContent=PriceAlerts.lastError
       ? '⚠ Alert sync unavailable: '+PriceAlerts.lastError+'. Old browser alerts have been preserved.'
-      : 'Saved to your account · checked while this page is open · not 24/7 monitoring.';
+      : 'Saved to your account · browser checks active · background/email status shown below.';
     el.replaceChildren();
     if(!list.length){
       const empty=document.createElement('div');

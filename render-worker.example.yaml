@@ -1,0 +1,28 @@
+# OPTIONAL blueprint for an always-on background worker. This is a separate
+# paid hosting service; do not replace the existing web service with it.
+services:
+  - type: worker
+    name: stockai-research-worker
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run worker
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: BACKGROUND_ALERTS_ENABLED
+        value: 'true'
+      - key: MONGO_URI
+        sync: false
+      - key: FINNHUB_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: ALLOWED_EMAIL
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+      - key: PUBLIC_SITE_ENABLED
+        sync: false

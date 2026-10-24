@@ -13,6 +13,9 @@ const { AIPredictor } = require('./js/aiPredictor');
 const { installForwardTrackingRoutes } = require('./forwardTracking');
 const { installPriceAlertRoutes } = require('./priceAlerts');
 const { siteAccess } = require('./siteAccess');
+const { createResearchModels } = require('./researchModels');
+const { createResearchData } = require('./researchData');
+const { installResearchRoutes } = require('./researchRoutes');
 const { getMarketQuote } = require('./marketQuotes');
 const { securityHeaders, protectStaticFiles } = require('./siteSecurity');
 const {
@@ -137,7 +140,9 @@ const PriceAlertSchema = new mongoose.Schema({
 });
 PriceAlertSchema.index({userId:1,createdAt:-1});
 PriceAlertSchema.index({userId:1,symbol:1,direction:1,targetPrice:1},{unique:true});
+PriceAlertSchema.add({lastBackgroundCheck:Date,deliveryStatus:String,deliveryAttempts:Number,deliveryLease:Date,deliveredAt:Date,deliveryError:String});
 const PriceAlert = mongoose.model('PriceAlert',PriceAlertSchema);
+const researchModels = createResearchModels(mongoose);
 
 // ── Auth middleware ───────────────────────────────────────────────────────
 async function authMW(req, res, next) {
@@ -186,6 +191,7 @@ function ownerOnly(req, res, next) {
 
 // ── Health check (used by UptimeRobot — no auth required) ────────────────
 app.get('/ping', (req, res) => res.send('ok'));
+app.get('/api/version', (_req,res)=>res.set('Cache-Control','no-store').json({commit:process.env.RENDER_GIT_COMMIT||process.env.COMMIT_REF||null}));
 
 // Separate readiness check for login. /ping verifies that Node is alive;
 // this endpoint also verifies that the database required for login is ready.
@@ -321,7 +327,7 @@ app.post('/api/auth/login', limiterLogin, dbRequired, async (req, res) => {
   }
 });
 
-installAccountRoutes(app,{User,Holding,Prediction,PriceAlert,authMW,dbRequired,
+installAccountRoutes(app,{User,Holding,Prediction,PriceAlert,...researchModels,authMW,dbRequired,
   allowedEmail:PUBLIC_SITE_ENABLED ? '' : ALLOWED_EMAIL});
 const alertLimiter=createRateLimiter({windowMs:60*60*1000,max:100,namespace:'saved-alerts',
   keyFn:req=>req.user?.id||req.ip});
@@ -330,6 +336,14 @@ installPriceAlertRoutes(app,{
 });
 const forwardLimiter = createRateLimiter({windowMs:60*60*1000,max:80,namespace:'forward',keyFn:req=>req.user?.id||req.ip});
 installForwardTrackingRoutes(app,{Prediction,authMW,dbRequired,fetchHistoricalBars,AIPredictor,rateLimit:forwardLimiter});
+
+const researchData = createResearchData({key:FINNHUB_KEY,quote:async symbol=>{
+  const q=await getMarketQuote(symbol,{key:FINNHUB_KEY});
+  return {price:q.c,observedAt:new Date(q.t*1000).toISOString(),source:q.source};
+}});
+const researchLimiter=createRateLimiter({windowMs:60*60*1000,max:240,namespace:'research',keyFn:req=>req.user?.id||req.ip});
+installResearchRoutes(app,{...researchModels,Alert:PriceAlert,authMW,dbRequired,rateLimit:researchLimiter,ownerOnly,data:researchData,
+  backgroundEnabled:process.env.BACKGROUND_ALERTS_ENABLED==='true',emailConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)});
 
 // ── Portfolio routes (protected) ──────────────────────────────────────────
 app.get('/api/user/portfolio', authMW, dbRequired, async (req, res) => {
