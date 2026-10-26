@@ -26,3 +26,20 @@
 
 .search-item.keyboard-active{background:rgba(89,217,255,.2);outline:2px solid var(--cyan,#59d9ff);outline-offset:-2px}
 .workspace-field input:focus-visible,.research-btn:focus-visible{outline:2px solid #59d9ff;outline-offset:3px}
+
+/* Visible, reachable controls and dialogs across phone and keyboard layouts. */
+.skip-content{position:fixed;top:8px;left:12px;z-index:10001;transform:translateY(-180%);background:var(--cyan);color:#082039;padding:.8rem 1rem;border-radius:10px;font-weight:750}
+.skip-content:focus{transform:none}
+.workspace-quick-actions{display:flex;align-items:center;flex-wrap:wrap;gap:.7rem;padding:1rem 1.15rem;margin-bottom:1rem;border:1px solid var(--border);border-radius:16px;background:linear-gradient(120deg,rgba(89,217,255,.12),rgba(185,146,255,.10),rgba(255,200,112,.09))}
+.workspace-quick-actions>div{flex:1 1 260px;min-width:0}
+.workspace-quick-actions strong{display:block;color:var(--text);font-size:.95rem;margin-bottom:.3rem}
+.workspace-quick-actions span{display:block;color:var(--muted);font-size:.76rem;line-height:1.5}
+.workspace-quick-actions .research-btn{min-height:44px}
+.stockai-pro :is(button,a,input,select,summary):focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.stockai-pro .modal-overlay,.stockai-pro #shortcuts-modal{padding:16px;overflow-y:auto;overscroll-behavior:contain}
+.stockai-pro .modal,.stockai-pro .shortcuts-panel{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain}
+.stockai-pro .close-modal{min-width:44px;min-height:44px;top:.4rem;right:.4rem}
+.stockai-pro .modal :is(input,select,button){min-height:44px}
+#company-comparison,#service-readiness{scroll-margin-top:90px}
+@media(max-width:600px){.workspace-quick-actions{padding:.85rem}.workspace-quick-actions .research-btn{flex:1 1 130px}.stockai-pro .modal{padding:1.35rem}.stockai-pro .modal h3{padding-right:1.4rem}.compare-legend{flex-basis:100%;white-space:normal!important}}
+@media(prefers-reduced-motion:no-preference){.workspace-quick-actions{animation:research-arrive .3s ease-out}@keyframes research-arrive{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}}
