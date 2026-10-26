@@ -32,3 +32,8 @@ test('saved custom screener symbols are normalized, deduplicated and bounded',()
 test('static publishing includes the app and excludes backend sources, backups and test data',()=>{
  const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{buildStatic}=require('../scripts/build-static.cjs');const root=fs.mkdtempSync(path.join(os.tmpdir(),'stockai-static-')),output=path.join(root,'publish');fs.writeFileSync(path.join(root,'index.html'),'app');fs.writeFileSync(path.join(root,'server.js'),'private');fs.mkdirSync(path.join(root,'js'));fs.writeFileSync(path.join(root,'js/app.js'),'script');fs.writeFileSync(path.join(root,'data.stockai-backup'),'encrypted');assert.equal(buildStatic(root,output),2);assert.ok(fs.existsSync(path.join(output,'index.html')));assert.ok(!fs.existsSync(path.join(output,'server.js')));assert.ok(!fs.existsSync(path.join(output,'data.stockai-backup')));
 });
+
+
+test('Resend test sender is identified honestly without an irrelevant domain lookup or email send',async()=>{
+ let calls=0;const r=await emailReadiness({key:'fixture-send-only',sender:'StockAI <onboarding@resend.dev>',fetchImpl:async()=>{calls++;throw Error('must not query managed test domain');}});assert.equal(r.state,'owner-test-only');assert.equal(r.domain,'resend.dev');assert.equal(calls,0);assert.match(r.note,/does not verify the key or inbox delivery/);assert.match(r.note,/only the email address associated with/);assert.equal((await emailReadiness({sender:'onboarding@resend.dev'})).state,'missing-settings');
+});

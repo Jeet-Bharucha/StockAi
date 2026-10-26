@@ -4,6 +4,7 @@ async function emailReadiness({key='',sender='',fetchImpl=fetch}){
  const domain=senderDomain(sender);const missing=[];if(!key)missing.push('RESEND_API_KEY');if(!sender)missing.push('RESEND_FROM_EMAIL');
  if(missing.length)return {state:'missing-settings',missing,domain:null,note:'Email settings are incomplete. No provider verification has been performed.'};
  if(!domain)return {state:'invalid-sender',missing:[],domain:null,note:'The sender address is not valid.'};
+ if(domain==='resend.dev')return {state:'owner-test-only',domain,missing:[],note:'Resend test sender selected: only the email address associated with the Resend account can receive messages. This does not verify the key or inbox delivery; use the owner-only email self-test.'};
  try{
   let after=null,matched=null;const deadline=AbortSignal.timeout(15000);
   for(let page=0;page<10;page++){
