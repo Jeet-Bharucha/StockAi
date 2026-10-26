@@ -382,3 +382,6 @@ MIT
 
 
 Reliability follow-up: sender verification/self-test, financial statements and corporate actions, keyboard search history, custom USD screening, manual ledger splits, opt-in aggregate diagnostics, safe static publishing and encrypted backup/restore tools are covered in [the deployment guide](docs/research-workspace-rollout.md). Run `npm run test:integration` for isolated MongoDB/account/recovery checks; no production credentials are used.
+
+
+Company comparison, connection reports and the chart/portfolio reliability audit are covered in [the 26 October case report](docs/stockai-audit-2026-10-26.md). It separates verified production checks, controlled tests and remaining hosting/provider setup.

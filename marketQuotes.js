@@ -17,7 +17,7 @@ function normalizedQuote(price,prevClose,high,low,open,observedAt,source,now=Dat
   if (!Number.isFinite(price)||price<=0 ||
       !Number.isFinite(prevClose)||prevClose<=0 ||
       !Number.isFinite(observedAt)||observedAt<=0 ||
-      observedAt*1000>now+3600000 ||
+      observedAt*1000>now+60000 ||
       now-observedAt*1000>MAX_AGE_MS)
     throw Error('Price, prior close or quote timestamp missing or stale');
   return {

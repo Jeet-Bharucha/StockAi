@@ -64,3 +64,5 @@ test('browser security headers protect APIs while preserving local HTTP developm
   assert.equal(local['Strict-Transport-Security'],undefined);
   assert.equal(local['Cache-Control'],undefined);
 });
+
+test('public service status does not expose active subscriptions or client counts',()=>{const fs=require('node:fs'),path=require('node:path');const source=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');const route=source.slice(source.indexOf("app.get('/api/status'"),source.indexOf('// Verify the observed market timestamp'));assert.doesNotMatch(route,/symbolClients|wss\.clients/);});

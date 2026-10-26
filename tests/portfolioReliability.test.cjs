@@ -106,3 +106,5 @@ test('temporary network failure preserves already-loaded portfolio and exposes a
   assert.equal(portfolio.get()[0].symbol, 'AAPL');
   assert.match(portfolio.lastError, /offline/);
 });
+
+test('portfolio summary does not present a missing market quote as the buy price or zero profit',async()=>{const {portfolio}=setup(async()=>response(200,[mockHolding]));await portfolio.load();const missing=portfolio.summary({});assert.equal(missing.rows[0].currentPrice,null);assert.equal(missing.totalValue,null);assert.equal(missing.totalPL,null);const valid=portfolio.summary({AAPL:{price:120}});assert.equal(valid.totalValue,240);assert.equal(valid.totalPL,40);});

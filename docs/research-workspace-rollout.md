@@ -4,7 +4,7 @@ This release includes provider research, a separate USD ledger/performance histo
 
 ## Web and frontend deployment
 
-Keep the existing MongoDB database, JWT secret and owner/public flags. ResearchAccount, PortfolioSnapshot and WorkerHeartbeat are additive collections. Existing manual holdings and original watchlist are not imported or rewritten. Use Node 22, deploy the merge revision to Render and Netlify if used, then confirm `/api/version` matches and `/api/health` reports a connected database. Update the PWA/cache `stockai-v27-reliability-1` and hard-refresh.
+Keep the existing MongoDB database, JWT secret and owner/public flags. ResearchAccount, PortfolioSnapshot and WorkerHeartbeat are additive collections. Existing manual holdings and original watchlist are not imported or rewritten. Use Node 22, deploy the merge revision to Render and Netlify if used, then confirm `/api/version` matches and `/api/health` reports a connected database. Update the PWA/cache `stockai-v28-useful-audit-1` and hard-refresh.
 
 Finnhub research uses FINNHUB_KEY and the provider account's entitlements. Missing data remains unavailable; it is never estimated. Source and retrieval time are displayed. Currency confirmation may fall back to Yahoo chart metadata. Provider access and licensing must match the intended deployment use.
 
@@ -73,3 +73,6 @@ Prefer managed Atlas point-in-time backups for production. Supplementary scripts
 6. Activate the external health workflow, inspect aggregate reliability and opt in to browser signals only if desired. Enable managed backup retention and complete the disposable restore drill before depending on recovery.
 
 Hosting access is still required to inspect production settings and establish domain verification, inbox delivery, worker hosting, monitoring variables and scheduled offsite backups. Local/CI success does not establish those facts.
+
+
+The next follow-up adds company comparison/CSV, connection reporting and chart/portfolio reliability repairs. See [the audit and complete tested cases](stockai-audit-2026-10-26.md). Portfolio quote responses now include verified USD/source/observation metadata and reject stale/unknown currency; deploy frontend and backend together.

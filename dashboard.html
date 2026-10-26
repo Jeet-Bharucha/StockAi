@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1942,8 +1942,8 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
   <div class="chat-header">
     <div class="chat-header-icon">🤖</div>
     <div>
-      <div class="chat-header-title">StockAI Assistant</div>
-      <div class="chat-header-sub">Ask me anything about stocks</div>
+      <div class="chat-header-title">Chart Assistant</div>
+      <div class="chat-header-sub">Local explanations from loaded chart data</div>
     </div>
     <button class="chat-clear" onclick="StockChat.clearHistory()" title="Clear chat">🗑</button>
     <button class="chat-clear" onclick="StockChat.toggle()" title="Close">✕</button>
@@ -1955,7 +1955,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
   </div>
   <div id="chat-chips"></div>
   <div class="chat-input-row">
-    <input type="text" id="chat-input" placeholder="Ask about RSI, MACD, support…" maxlength="200">
+    <input type="text" id="chat-input" aria-label="Ask the chart assistant" placeholder="Ask about RSI, MACD, support…" maxlength="200">
     <button class="btn-chat-send" onclick="StockChat.send()" title="Send">↑</button>
   </div>
 </div>
@@ -2163,6 +2163,7 @@ window.setRange = function(btn, range) {
 
 <script src="js/dashboard.js"></script>
 <script src="js/researchWorkspace.js"></script>
+<script src="js/usefulTools.js"></script>
 <script>
 // ── Keyboard Shortcuts ────────────────────────────────────────────────────
 const TAB_KEYS = {'1':'dashboard','2':'ai','3':'watchlist','4':'portfolio','5':'markets','6':'news','7':'trending','8':'screener'};

@@ -4,7 +4,7 @@ This change improves shared dashboard behavior and presentation. Automated tests
 
 Before merge: inspect the Netlify preview at desktop, tablet and 360px phone widths, in light/dark mode and with reduced motion. Check header controls, chart actions, portfolio edit/delete controls, notification panel, mobile navigation and keyboard focus. Verify a missing chart library cannot leave the opening loader covering the app.
 
-After merge: confirm Render and Netlify production use the merge commit, CI passes, and the service worker uses stockai-v26-research-4. Hard-refresh or reopen the installed PWA. Through normal owner authentication, confirm /api/health reports database connected.
+After merge: confirm Render and Netlify production use the merge commit, CI passes, and the service worker uses stockai-v28-useful-audit-1. Hard-refresh or reopen the installed PWA. Through normal owner authentication, confirm /api/health reports database connected.
 
 | View | Required live check |
 | --- | --- |
@@ -20,3 +20,6 @@ After merge: confirm Render and Netlify production use the merge commit, CI pass
 With DevTools offline/request blocking, check the offline notice and unavailable states. Restore connectivity and retry. A failed quote must never become a simulated price or a default 0% gain. Verify the fallback independently in a controlled environment by rejecting Finnhub, then rejecting both providers (expect QUOTE_UNAVAILABLE).
 
 No account flags, credentials, database schemas or production records need changing for this release.
+
+
+The 26 October audit adds comparison, connection reports, chart-assistant safety, verified portfolio quote metadata and stale-signal clearing. See [the full case inventory](stockai-audit-2026-10-26.md) for live results, 144 regression cases, 16 browser scenarios and unresolved setup.

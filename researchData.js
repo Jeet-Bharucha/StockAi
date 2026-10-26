@@ -23,10 +23,12 @@ function createResearchData({key='',fetchImpl=fetch,quote,now=()=>Date.now()}){
  }
  async function quotes(symbols){const result={};let cursor=0;const list=[...new Set(symbols)];await Promise.all(Array.from({length:4},async()=>{while(cursor<list.length){const s=list[cursor++];try{const q=await quote(s);if(verifiedPrice(q,now()))result[s]=q;}catch(_){} }}));return result;}
  async function currency(sym){
-  sym=symbol(sym);const id='currency:'+sym;if(cache.has(id)&&now()-cache.get(id).at<300000)return cache.get(id).value;
-  const info=await fundamentals(sym);let value=info.profile?.currency;
-  if(!value){const r=await fetchImpl('https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1d',{signal:AbortSignal.timeout(8000),headers:{'User-Agent':'StockAI/1.0'}});if(r.ok){const d=await r.json();value=d?.chart?.result?.[0]?.meta?.currency;}}
-  const result=typeof value==='string'&&/^[A-Z]{3}$/.test(value)?value:null;if(cache.size>150)cache.clear();cache.set(id,{at:now(),value:result});return result;
+  sym=symbol(sym);const id='currency:'+sym;if(cache.has(id)&&now()-cache.get(id).at<300000)return cache.get(id).value;if(pending.has(id))return pending.get(id);
+  const task=(async()=>{const saved=cache.get(sym);let value=saved&&now()-saved.at<300000?saved.value.profile?.currency:null;
+   if(!value){try{const p=await vendor('stock/profile2',{symbol:sym});value=p?.currency;}catch(_){}}
+   if(!value){const r=await fetchImpl('https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1d',{signal:AbortSignal.timeout(8000),headers:{'User-Agent':'StockAI/1.0'}});if(r.ok){const d=await r.json();value=d?.chart?.result?.[0]?.meta?.currency;}}
+   const result=typeof value==='string'&&/^[A-Z]{3}$/.test(value)?value:null;if(cache.size>150)cache.clear();cache.set(id,{at:now(),value:result});return result;
+  })();pending.set(id,task);try{return await task;}finally{pending.delete(id);}
  }
  async function usdQuotes(symbols){
   const result=await quotes(symbols);let cursor=0;const names=Object.keys(result);
