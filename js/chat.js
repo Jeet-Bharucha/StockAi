@@ -29,16 +29,18 @@ const StockChat = {
   setContext(symbol, bars) {
     const changed = symbol && symbol !== this._currentSymbol;
     this._currentSymbol = symbol || this._currentSymbol;
-    this._bars = bars || this._bars;
+    this._bars = Array.isArray(bars) ? bars : [];
+    this._replyVersion=(this._replyVersion||0)+1;
     this._indicators = null;
 
     this._updateHeader();
 
-    if (changed && this._bars.length) {
+    if (changed && this._bars.length>=20) {
       const ind = this._getIndicators();
+      if(!ind.available)return;
       const chg = ind.dayChg;
       const up  = chg >= 0;
-      const note = `📊 Now tracking **${symbol}** — **$${ind.price.toFixed(2)}** (${up ? '+' : ''}${chg.toFixed(2)}% today). RSI **${ind.rsi}** ${ind.rsiLabel}. Ask me anything about it!`;
+      const note = `📊 Now tracking **${symbol}** — **$${ind.price.toFixed(2)}** (${up ? '+' : ''}${chg.toFixed(2)}% last loaded bar). RSI **${ind.rsi}** ${ind.rsiLabel}. Ask me anything about it!`;
       const h = this.getHistory();
       h.push({ role: 'assistant', text: note, ts: Date.now(), auto: true });
       this.saveHistory(h);
@@ -58,7 +60,7 @@ const StockChat = {
 
   // ── Persistence ───────────────────────────────────────────────────────────
   getHistory() {
-    try { return JSON.parse(localStorage.getItem(this._key()) || '[]'); } catch { return []; }
+    try { const rows=JSON.parse(localStorage.getItem(this._key())||'[]');return Array.isArray(rows)?rows.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.text==='string').slice(-60).map(m=>({...m,text:m.text.slice(0,6000)})):[]; } catch { return []; }
   },
   saveHistory(h) {
     localStorage.setItem(this._key(), JSON.stringify(h.slice(-60)));
@@ -95,8 +97,8 @@ const StockChat = {
     if (isDefault && this._indicators) return this._indicators;
     bars = bars || this._bars;
 
-    if (!bars || bars.length < 20) {
-      const empty = { price:0, dayChg:0, rsi:null, rsiLabel:'', macdBull:null, macdMomentum:'', bbPos:null, bbLabel:'', sma20:null, sma50:null, smaTrend:'', support:0, resistance:0, hi52:0, lo52:0, rangePos:0, vol:0, volRatio:1, volLabel:'', mom10:null, obvTrend:'' };
+    if (!Array.isArray(bars)||bars.length<20||bars.some(b=>![b.close,b.high,b.low].every(Number.isFinite)||b.close<=0||b.low<=0||b.high<b.low)) {
+      const empty = { available:false, price:null, dayChg:null, rsi:null, rsiLabel:'', macdBull:null, macdMomentum:'', bbPos:null, bbLabel:'', sma20:null, sma50:null, smaTrend:'', support:null, resistance:null, hi52:null, lo52:null, rangePos:null, vol:null, volRatio:null, volLabel:'', mom10:null, obvTrend:'' };
       return isDefault ? (this._indicators = empty) : empty;
     }
 
@@ -113,7 +115,8 @@ const StockChat = {
     const rc = rs.slice(1).map((c, i) => c - rs[i]);
     const avgG = rc.map(c => Math.max(c, 0)).reduce((a, b) => a + b, 0) / rc.length;
     const avgL = rc.map(c => Math.abs(Math.min(c, 0))).reduce((a, b) => a + b, 0) / rc.length;
-    const rsi = avgL === 0 ? 100 : +(100 - 100 / (1 + avgG / avgL)).toFixed(1);
+    const sharedRSI=typeof AIPredictor!=='undefined'?AIPredictor.rsi(closes).at(-1):null;
+    const rsi=Number.isFinite(sharedRSI)?+sharedRSI.toFixed(1):avgG===0&&avgL===0?50:avgL===0?100:+(100-100/(1+avgG/avgL)).toFixed(1);
     const rsiLabel = rsi < 30 ? '(oversold 🟢)' : rsi > 70 ? '(overbought 🔴)' : rsi < 45 ? '(mildly bullish)' : rsi > 55 ? '(mildly bearish)' : '(neutral)';
 
     // MACD
@@ -129,7 +132,7 @@ const StockChat = {
     const sma20 = closes.slice(-20).reduce((a,b)=>a+b,0) / 20;
     const std20 = Math.sqrt(closes.slice(-20).map(c=>Math.pow(c-sma20,2)).reduce((a,b)=>a+b,0)/20);
     const bbUpper = sma20 + 2*std20, bbLower = sma20 - 2*std20;
-    const bbPos   = +((price - bbLower)/(bbUpper - bbLower)*100).toFixed(1);
+    const bbPos   = bbUpper===bbLower?50:+((price - bbLower)/(bbUpper - bbLower)*100).toFixed(1);
     const bbLabel = bbPos < 15 ? 'near lower band (potential bounce)' : bbPos > 85 ? 'near upper band (extended)' : bbPos < 40 ? 'lower half' : bbPos > 60 ? 'upper half' : 'mid-band';
 
     // SMA 50
@@ -145,7 +148,7 @@ const StockChat = {
     const b252 = bars.slice(-252);
     const hi52 = +Math.max(...b252.map(b=>b.high)).toFixed(2);
     const lo52 = +Math.min(...b252.map(b=>b.low)).toFixed(2);
-    const rangePos = +((price - lo52)/(hi52 - lo52)*100).toFixed(1);
+    const rangePos = hi52===lo52?50:+((price - lo52)/(hi52 - lo52)*100).toFixed(1);
 
     // Volume
     const vol = volumes[n] || 0;
@@ -162,7 +165,7 @@ const StockChat = {
     const obvSma = obvArr.slice(-10).reduce((a,b)=>a+b,0)/10;
     const obvTrend = obvArr[n] > obvSma ? 'rising (accumulation 🟢)' : 'falling (distribution 🔴)';
 
-    const result = { price, dayChg, rsi, rsiLabel, macd:+macd.toFixed(4), macdSigV:+macdSigV.toFixed(4), macdBull, macdMomentum, bbPos, bbLabel, sma20:+sma20.toFixed(2), bbUpper:+bbUpper.toFixed(2), bbLower:+bbLower.toFixed(2), sma50, smaTrend, support, resistance, hi52, lo52, rangePos, vol, avgVol, volRatio, volLabel, mom10, obvTrend };
+    const result = { available:true, bars:bars.length, rangeLabel:bars.length>=252?'252-session history':'Loaded '+bars.length+'-bar history', volumeAvailable:volumes.slice(-20).every(v=>Number.isFinite(v)&&v>=0), price, dayChg, rsi, rsiLabel, macd:+macd.toFixed(4), macdSigV:+macdSigV.toFixed(4), macdBull, macdMomentum, bbPos, bbLabel, sma20:+sma20.toFixed(2), bbUpper:+bbUpper.toFixed(2), bbLower:+bbLower.toFixed(2), sma50, smaTrend, support, resistance, hi52, lo52, rangePos, vol, avgVol, volRatio, volLabel, mom10, obvTrend };
     if (isDefault) this._indicators = result;
     return result;
   },
@@ -170,15 +173,10 @@ const StockChat = {
   // ── Cross-stock lookup ────────────────────────────────────────────────────
   _crossStockInfo(ticker) {
     if (typeof StockAPI === 'undefined') return null;
-    StockAPI._initSeed(ticker);           // guarantee seed exists
-    const q    = StockAPI._simQuote(ticker);
-    const info = StockAPI.getCompanyInfo?.(ticker) || {};
-    return {
-      name:      info.name   || ticker,
-      price:     q.price,
-      changePct: q.changePct,
-      sector:    info.sector || 'Unknown',
-    };
+    const cached=StockAPI._cache?.['q_'+ticker];const q=cached?.data;
+    if(!q||Date.now()-cached.ts>30000||!Number.isFinite(q.price)||q.price<=0||!Number.isFinite(q.changePct))return null;
+    const info=StockAPI.getCompanyInfo?.(ticker)||{};
+    return {name:info.name||ticker,price:q.price,changePct:q.changePct,sector:info.sector||'Unknown'};
   },
 
   // ── Response engine ───────────────────────────────────────────────────────
@@ -186,6 +184,8 @@ const StockChat = {
     const msg = userMsg.toLowerCase().trim();
     const sym = this._currentSymbol;
     const ind = this._getIndicators();
+    if(!ind.available)return '**'+sym+' data unavailable.** Load at least 20 valid daily chart bars before asking for prices or indicators. No zero or simulated prices are substituted.';
+    if(/volume|obv|on.?balance|liquidity/.test(msg)&&!ind.volumeAvailable)return '**'+sym+' volume unavailable.** The loaded chart does not contain enough verified volume observations.';
     const { price, dayChg, rsi, rsiLabel, macd, macdSigV, macdBull, macdMomentum, bbPos, bbLabel, sma20, bbUpper, bbLower, sma50, smaTrend, support, resistance, hi52, lo52, rangePos, vol, volRatio, volLabel, mom10, obvTrend } = ind;
 
     const px   = `**$${price.toFixed(2)}**`;
@@ -196,7 +196,6 @@ const StockChat = {
     // Find any uppercase ticker in the raw message that isn't the current symbol
     const knownSyms = new Set([
       ...(StockAPI?.popularSymbols || []),
-      ...Object.keys(StockAPI?._seeds || {}),
       ...['SPY','QQQ','DIA','IWM','XLK','XLF','XLV','XLE','GLD','USO'],
     ]);
     const tickers = (userMsg.match(/\b([A-Z]{1,5})\b/g) || []).filter(t => t !== sym && knownSyms.has(t));
@@ -207,17 +206,18 @@ const StockChat = {
       if (cross) {
         const up     = cross.changePct >= 0;
         const chgStr = `${up ? '+' : ''}${cross.changePct.toFixed(2)}%`;
-        return `**${otherSym}** (${cross.name}) — **$${cross.price.toFixed(2)}** (${chgStr} today) | ${cross.sector}\n\nSearch **${otherSym}** in the top bar and I'll instantly load its full RSI, MACD, Bollinger Bands, and signal analysis!`;
+        return `**${otherSym}** (${cross.name}) — **$${cross.price.toFixed(2)}** (${chgStr} last loaded bar) | ${cross.sector}\n\nSearch **${otherSym}** to load its own chart indicators. This is a cached provider quote, not a calculated forecast.`;
       }
+      return 'Select **'+otherSym+'** in Search to load its verified quote and chart. Its current price is not available in this conversation.';
     }
 
     // ── Intent matching ───────────────────────────────────────────────────
 
     if (/^(hi|hey|hello|sup|yo)\b/.test(msg))
-      return `Hey! I'm tracking **${sym}** right now — ${px} (${chgs} today). RSI is **${rsi}** ${rsiLabel}. What would you like to know?`;
+      return `Hey! I'm tracking **${sym}** from loaded chart history — ${px} (${chgs} last loaded bar). RSI is **${rsi}** ${rsiLabel}. What would you like to know?`;
 
     if (/\brsi\b/.test(msg)) {
-      const advice = rsi < 30 ? 'Oversold territory — historically a potential reversal zone. Watch for a bounce.' : rsi > 70 ? 'Overbought territory — momentum may be fading. Consider taking profits or waiting for a pullback.' : 'Neutral range — no extreme reading either way.';
+      const advice = rsi < 30 ? 'Oversold territory — historically a potential reversal zone. This reading alone does not establish that a reversal will happen.' : rsi > 70 ? 'Overbought territory — momentum may be fading. This reading alone does not establish that a reversal will happen.' : 'Neutral range — no extreme reading either way.';
       return `**${sym} RSI (14): ${rsi}** ${rsiLabel}\n\n${advice}\n\nRSI measures momentum on a 0–100 scale. Below 30 = oversold, above 70 = overbought.`;
     }
 
@@ -230,15 +230,15 @@ const StockChat = {
       return `**${sym} Bollinger Bands:** Price is at **${bbPos}%** of the band — ${bbLabel}.\n\nUpper: **$${bbUpper}** | Middle (SMA20): **$${sma20}** | Lower: **$${bbLower}**\n\nPrice near the lower band can indicate oversold conditions; near the upper band suggests the stock is extended.`;
 
     if (/support|resistance|level/.test(msg)) {
-      const pos = ((price - support) / (resistance - support) * 100).toFixed(0);
-      return `**${sym} Key Levels (30-day):**\n\n🟢 Support: **$${support}**\n🔴 Resistance: **$${resistance}**\n\nCurrent price ${px} is **${pos}%** of the way from support to resistance. ${+pos > 65 ? 'Approaching resistance — watch for a rejection or breakout.' : +pos < 35 ? 'Closer to support — potential base-building zone.' : 'Trading in the mid-range.'}`;
+      const pos = (resistance===support?50:(price-support)/(resistance-support)*100).toFixed(0);
+      return `**${sym} Key Levels (last up-to-30-bar):**\n\n🟢 Support: **$${support}**\n🔴 Resistance: **$${resistance}**\n\nCurrent price ${px} is **${pos}%** of the way from support to resistance. ${+pos > 65 ? 'Approaching resistance — watch for a rejection or breakout.' : +pos < 35 ? 'Closer to support — potential base-building zone.' : 'Trading in the mid-range.'}`;
     }
 
     if (/52.?w|52.?week|year.?high|year.?low|annual|range/.test(msg))
-      return `**${sym} 52-Week Range:**\n\n📈 High: **$${hi52}** | 📉 Low: **$${lo52}**\n\nAt ${px}, the stock is at **${rangePos}%** of its annual range. ${rangePos > 80 ? 'Near 52-week highs — strong trend, but watch for mean reversion.' : rangePos < 20 ? 'Near 52-week lows — possible value zone, verify fundamentals first.' : 'In the middle of its annual range — no extreme positioning.'}`;
+      return `**${sym} ${ind.rangeLabel} range:**\n\n📈 High: **$${hi52}** | 📉 Low: **$${lo52}**\n\nAt ${px}, the stock is at **${rangePos}%** of its loaded-history range. ${rangePos > 80 ? 'Near loaded-history highs — strong trend, but watch for mean reversion.' : rangePos < 20 ? 'Near loaded-history lows — possible value zone, verify fundamentals first.' : 'In the middle of its loaded-history range — no extreme positioning.'}`;
 
     if (/volume|vol\b|liquidity/.test(msg))
-      return `**${sym} Volume:** **${fmtV(vol)}** today — **${volRatio}×** the 20-day average.\n\nVolume conviction: **${volLabel}**\nOBV trend: **${obvTrend}**\n\n${volRatio > 1.5 ? 'High volume confirms the move — institutional players are active.' : volRatio < 0.7 ? 'Low volume — the move lacks conviction, wait for confirmation.' : 'Volume is in line with recent norms.'}`;
+      return `**${sym} Volume:** **${fmtV(vol)}** on the last loaded bar — **${volRatio}×** the 20-day average.\n\nVolume conviction: **${volLabel}**\nOBV trend: **${obvTrend}**\n\n${volRatio > 1.5 ? 'Volume is elevated relative to this loaded sample; it does not identify who traded.' : volRatio < 0.7 ? 'Low volume — the move lacks conviction, wait for confirmation.' : 'Volume is in line with recent norms.'}`;
 
     if (/obv|on.?balance/.test(msg))
       return `**${sym} OBV (On-Balance Volume):** ${obvTrend}\n\nOBV adds volume on up days, subtracts on down days. Rising OBV = accumulation (bullish); Falling OBV = distribution (bearish).`;
@@ -265,13 +265,13 @@ const StockChat = {
     }
 
     if (/price|trading|worth|at\b|current/.test(msg))
-      return `**${sym}** is at ${px} (${chgs} today).\n\n• 30d High: **$${resistance}** | 30d Low: **$${support}**\n• SMA20: **$${sma20}** — price is ${price > sma20 ? 'above ✅' : 'below ❌'}\n• 52W position: **${rangePos}%** of annual range`;
+      return `**${sym}** last loaded close is ${px} (${chgs} last loaded bar).\n\n• Loaded high: **$${resistance}** | Loaded low: **$${support}**\n• SMA20: **$${sma20}** — price is ${price > sma20 ? 'above ✅' : 'below ❌'}\n• ${ind.rangeLabel} position: **${rangePos}%** of loaded-history range`;
 
     if (/pattern|hammer|doji|engulf|star|candle/.test(msg))
       return `Candlestick patterns for **${sym}** are detected in the **AI Predictions** tab — Hammer, Shooting Star, Bullish/Bearish Engulfing, Morning Star, and Doji based on the last 5 candles.`;
 
     if (/portfolio|holdings|position/.test(msg))
-      return `Track your **${sym}** position in the **Portfolio** tab — enter shares and buy price, and StockAI shows live P&L, total return, and a 30-day value chart. Export to CSV anytime.`;
+      return `Track your **${sym}** position in the **Portfolio** tab — enter shares and buy price, and StockAI shows live P&L, total return, and a last up-to-30-bar value chart. Export to CSV anytime.`;
 
     if (/alert|notify|notification/.test(msg))
       return `Set a price alert for **${sym}** in the **Trending** tab. For example, alert when price breaks above **$${resistance}** (resistance) or falls below **$${support}** (support).`;
@@ -299,17 +299,12 @@ const StockChat = {
     return `**${sym} snapshot:** ${px} (${chgs}) | RSI **${rsi}** ${rsiLabel} | MACD **${macdMomentum}** | BB at **${bbPos}%** | ${smaTrend}\n\nBias: **${bias}**. Ask about any indicator or type "buy or sell?" for a full breakdown. You can also ask about other stocks like "TSLA?" or "NVDA RSI?"`;
   },
 
-  // ── Server-side AI context ────────────────────────────────────────────────
-  _buildServerContext() {
-    const ind = this._getIndicators();
-    return `StockAI Assistant. Stock: ${this._currentSymbol} $${ind.price?.toFixed(2)} (${ind.dayChg >= 0 ? '+' : ''}${ind.dayChg?.toFixed(2)}%). RSI:${ind.rsi} ${ind.rsiLabel}. MACD:${ind.macdMomentum}. BB:${ind.bbPos}% (${ind.bbLabel}). Support:$${ind.support} Resistance:$${ind.resistance}. 52W:$${ind.lo52}–$${ind.hi52} at ${ind.rangePos}%. Volume:${ind.volLabel}. OBV:${ind.obvTrend}. Momentum(10d):${ind.mom10}%. Answer in 2–4 sentences. Disclaim investment advice.`;
-  },
-
   // ── Send ──────────────────────────────────────────────────────────────────
   async send(prefill) {
     const input = document.getElementById('chat-input');
     const text  = (prefill || input?.value || '').trim();
     if (!text) return;
+    if(text.length>1000)return;
     if (input) input.value = '';
 
     this._renderChips([]);
@@ -320,29 +315,8 @@ const StockChat = {
     this._renderMessages();
     this._scrollBottom();
 
-    // Variable typing delay: scales with word count, 350–1400ms
-    const delay = Math.min(1400, 350 + text.split(/\s+/).length * 35);
-    this._showTyping(true);
-
     let reply;
-    try {
-      const res = await Promise.race([
-        fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, context: this._buildServerContext() }),
-        }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000)),
-      ]);
-      if (res.ok) {
-        const data = await res.json();
-        reply = data.reply || data.message || null;
-      }
-    } catch (_) {}
-
-    await new Promise(r => setTimeout(r, delay));
-    if (!reply) reply = this._buildResponse(text);
-
+    try{reply=this._buildResponse(text);}catch(_){reply='Chart explanation unavailable. Reload the chart and retry; no substitute prices are generated.';}
     this._showTyping(false);
     history.push({ role: 'assistant', text: reply, ts: Date.now() });
     this.saveHistory(history);
@@ -356,9 +330,7 @@ const StockChat = {
     const el = document.getElementById('chat-chips');
     if (!el) return;
     if (!chips?.length) { el.innerHTML = ''; return; }
-    el.innerHTML = chips.map(c =>
-      `<button class="chat-chip" onclick="StockChat.send(${JSON.stringify(c)})">${c}</button>`
-    ).join('');
+    el.replaceChildren();for(const text of chips){const button=document.createElement('button');button.type='button';button.className='chat-chip';button.textContent=text;button.addEventListener('click',()=>this.send(text));el.append(button);}
   },
 
   // ── Typing indicator ──────────────────────────────────────────────────────
@@ -371,7 +343,7 @@ const StockChat = {
 
   // ── Markdown ──────────────────────────────────────────────────────────────
   _md(text) {
-    return text
+    return String(text??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n•/g, '<br>&nbsp;•')
@@ -397,7 +369,7 @@ const StockChat = {
       list.innerHTML = `<div class="chat-welcome">
         <div style="font-size:1.8rem;margin-bottom:.4rem">🤖</div>
         <div style="font-weight:700;margin-bottom:.3rem">StockAI Assistant</div>
-        <div style="font-size:.78rem;color:var(--muted);line-height:1.6">Live data loaded for <strong>${this._currentSymbol}</strong>. Ask about RSI, MACD, support levels, or any other ticker like "TSLA?" or "NVDA RSI?"</div>
+        <div style="font-size:.78rem;color:var(--muted);line-height:1.6">Local chart assistant for <strong>${this._md(this._currentSymbol)}</strong>. Prices refer to loaded daily bars. Ask about RSI, MACD, support levels, or any other ticker like "TSLA?" or "NVDA RSI?"</div>
       </div>`;
       return;
     }

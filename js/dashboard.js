@@ -154,8 +154,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     activePrediction = null;
     activePredictionSymbol = null;
     const claudeButton = document.getElementById('btn-claude-explain');
-    if (claudeButton) { claudeButton.disabled = false; claudeButton.textContent='✦ Explain with AI'; }
+    if (claudeButton) { claudeButton.disabled = window.StockAICapabilities?.aiCommentary==='not-configured'; claudeButton.textContent='✦ Explain with AI'; }
     resetEvidenceUI();
+    clearSignalView(symbol);
     const requestVersion = ++stockRequestVersion;
     verifiedPrevClose = null;
 
@@ -177,6 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const id of ['stat-high','stat-low','stat-open','stat-volume'])
       document.getElementById(id).textContent = '—';
     currentBars = []; window.fullBars = [];
+    if(typeof StockChat!=='undefined')StockChat.setContext(symbol,[]);
     candleSeries?.setData([]); volumeSeries?.setData([]);
     showChartUnavailable(false); showChartLoader(true);
     const quoteTask = refreshQuote();
@@ -335,6 +337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   window.explainWithAI = async function () {
+    if(window.StockAICapabilities?.aiCommentary==='not-configured'){showToast('AI commentary is unavailable. Chart explanations remain available.');return;}
     if(!activePrediction || activePredictionSymbol !== currentSymbol){
       showToast('Load a verified stock chart before requesting commentary.');
       return;
@@ -431,6 +434,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function clearSignalView(symbol){
+    for(const id of ['ai-buy-count','ai-sell-count','ai-neutral-count','ai-support','ai-resistance','ai-atr','ai-rsi','pt-bear','pt-bull','pt-current','q-buy','q-sell','q-neutral']){const el=document.getElementById(id);if(el)el.textContent='—';}
+    for(const id of ['conf-gauge','quick-gauge']){const canvas=document.getElementById(id);canvas?.getContext('2d')?.clearRect(0,0,canvas.width,canvas.height);}
+    const direction=document.getElementById('ai-direction');if(direction){direction.textContent='No verified signal data';direction.className='ai-direction neutral';}
+    const quick=document.getElementById('quick-direction');if(quick){quick.textContent='○ NO SIGNAL DATA';quick.className='ai-dir-badge neutral';}
+    const score=document.getElementById('quick-conf-text');if(score)score.textContent='Indicator score: —';
+    document.getElementById('signals-tbody')?.replaceChildren();document.getElementById('risk-needle')?.remove();
+    const reason=document.getElementById('ai-reasoning');if(reason)reason.textContent='Awaiting at least 50 verified daily bars for '+symbol+'. Previous-symbol indicators have been cleared.';
+    const sub=document.getElementById('ai-view-subtitle');if(sub)sub.textContent='Research for '+symbol;
+  }
+
   function renderFallbackReasoning(prediction) {
     const reasonEl = document.getElementById('ai-reasoning');
     if (!reasonEl) return;
@@ -517,7 +531,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Risk needle
-    const riskPct = r.atrPct ? Math.min(100, parseFloat(r.atrPct) / 4 * 100) : 50;
+    const riskPct = Number.isFinite(r.atrPct)?Math.min(100,r.atrPct/4*100):0;
     const riskColor = riskPct < 35 ? '#4bbf8d' : riskPct < 65 ? '#d9b676' : '#e27889';
     const needleEl = document.getElementById('risk-needle');
     if (!needleEl) {
@@ -1289,8 +1303,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="notif-item ${n.read?'':'unread'}">
             <span class="notif-icon">${icons[n.type]||'🔔'}</span>
             <div class="notif-body">
-              <div style="font-size:.82rem;font-weight:700;color:var(--text)">${n.title}</div>
-              <div>${n.body}</div>
+              <div style="font-size:.82rem;font-weight:700;color:var(--text)">${escapeHTML(n.title)}</div>
+              <div>${escapeHTML(n.body)}</div>
               <div class="notif-time">${_timeAgo(n.ts)}</div>
             </div>
           </div>`).join('');
@@ -1506,13 +1520,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     let totalCost=0, totalValue=0;
     const rows = holdings.map(h => {
       const pd      = priceData[h.symbol] || {};
-      const hasLive = pd.price != null && pd.price > 0;
+      const hasLive = Number.isFinite(pd.price)&&pd.price>0&&Number.isFinite(Date.parse(pd.observedAt))&&Date.now()-Date.parse(pd.observedAt)<=7*86400000&&Date.parse(pd.observedAt)<=Date.now()+60000&&pd.currency==='USD';
 
       // No fabricated quotes: temporary cost-basis estimate when price is missing.
       const curPrice=hasLive ? pd.price : h.buyPrice;
       const priceSource=hasLive ? 'live' : 'cost';
 
-      const chg24h = hasLive ? (pd.change24h ?? null) : null;
+      const chg24h = hasLive&&Number.isFinite(pd.change24h)?pd.change24h:null;
       const cost   = h.shares * h.buyPrice;
       const value  = h.shares * curPrice;
       const pl     = hasLive ? value - cost : null;
@@ -1568,6 +1582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setHTML('port-pl-badge',partialQuotes?'<span class="pt-stat-badge">Waiting for all quotes</span>':
       `<span class="pt-stat-badge ${up?'up':'down'}">${up?'▲':'▼'} ${up?'+':''}${_fmtD(totalPLPct)}%</span>`);
 
+    if(!best){setText('port-best','—');setText('port-best-sub','No verified prices');}
     if (best) {
       const bEl = document.getElementById('port-best');
       if (bEl) { bEl.textContent = best.symbol; bEl.className = 'pt-stat-val'; }
@@ -1578,12 +1593,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ── Quick Stats ───────────────────────────────────────────────────────────
     setText('qs-positions', rows.length);
     const withChg = rows.filter(r => r.chg24h !== null);
+    if(!withChg.length)setText('qs-avgday','—');
     if (withChg.length) {
       const avg = withChg.reduce((s,r) => s + r.chg24h, 0) / withChg.length;
       const aUp = avg >= 0;
       const aEl = document.getElementById('qs-avgday');
       if (aEl) { aEl.textContent = (aUp?'+':'') + _fmtD(avg) + '%'; aEl.style.color = aUp?'var(--green)':'var(--red)'; }
     }
+    if(!worst){setText('qs-worst','—');setText('qs-worstpl','—');}
     if (worst) {
       const wUp = worst.plPct >= 0;
       const wEl = document.getElementById('qs-worst');
@@ -1849,10 +1866,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const r = await fetch(`/api/portfolio-prices?symbols=${uniqueSyms.join(',')}`);
       if (r.ok) priceData = await r.json();
     } catch(e) {}
-    const header=['Symbol','Name','Shares','Avg Buy Price','Current Price','Market Value','P&L $','P&L %','Asset Type','Account','Price Source'];
+    const header=['Symbol','Name','Shares','Avg Buy Price','Current Price','Market Value','P&L $','P&L %','Asset Type','Account','Price Source','Observed At','Currency'];
     const csvRows=[header,...holdings.map(h=>{
       const pd=priceData[h.symbol]||{};
-      const verified=Number.isFinite(pd.price)&&pd.price>0;
+      const verified=Number.isFinite(pd.price)&&pd.price>0&&pd.currency==='USD'&&Number.isFinite(Date.parse(pd.observedAt))&&Date.now()-Date.parse(pd.observedAt)<=7*86400000&&Date.parse(pd.observedAt)<=Date.now()+60000;
       const current=verified?pd.price:null;
       const value=verified?h.shares*current:null;
       const cost=h.shares*h.buyPrice;
@@ -1864,7 +1881,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         pl===null?'':pl.toFixed(2),
         percent===null?'':percent.toFixed(2)+'%',
         h.assetType||'stock',h.accountType||'taxable',
-        verified?'Provider quote':'Unavailable'];
+        verified?(pd.source||'Market provider'):'Unavailable',verified?pd.observedAt:'',verified?pd.currency:''];
     })];
     // Escape CSV syntax, commas/newlines and spreadsheet-formula prefixes.
     const escapeCsv=value=>{
@@ -2467,10 +2484,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (window._3dAnimId) { cancelAnimationFrame(window._3dAnimId); window._3dAnimId = null; }
       if (window._3dRenderer) { window._3dRenderer.dispose(); window._3dRenderer = null; }
     } else {
+      if(typeof THREE==='undefined'){showToast('3D library unavailable; the 2D chart remains available.');return;}
+      if(!window.fullBars?.length){showToast('Load verified chart data first.');return;}
       wrap2d.style.display = 'none';
       wrap3d.style.display = '';
       btn.classList.add('active');
-      init3DChart();
+      try{init3DChart();}catch(_){wrap3d.style.display='none';wrap2d.style.display='';btn.classList.remove('active');if(window._3dAnimId)cancelAnimationFrame(window._3dAnimId);window._3dRenderer?.dispose();window._3dRenderer=null;showToast('3D rendering unavailable; the 2D chart remains available.');}
     }
   };
 

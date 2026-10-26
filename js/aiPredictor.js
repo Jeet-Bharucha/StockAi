@@ -33,8 +33,7 @@ const AIPredictor = {
       if (i < period) { rsiVals.push(null); continue; }
       avgGain = (avgGain * (period - 1) + gains[i]) / period;
       avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
-      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-      rsiVals.push(100 - 100 / (1 + rs));
+      rsiVals.push(avgLoss===0?(avgGain===0?50:100):100-100/(1+avgGain/avgLoss));
     }
     return rsiVals;
   },
@@ -143,7 +142,7 @@ const AIPredictor = {
     const price = closes[n];
     let bbScore, bbLabel;
     if (bb.upper && bb.lower) {
-      const bbPos = (price - bb.lower) / (bb.upper - bb.lower);
+      const bbPos = bb.upper===bb.lower?0.5:(price-bb.lower)/(bb.upper-bb.lower);
       if (bbPos < 0.1)       { bbScore = 2;  bbLabel = 'STRONG BUY'; }
       else if (bbPos < 0.35) { bbScore = 1;  bbLabel = 'BUY'; }
       else if (bbPos < 0.65) { bbScore = 0;  bbLabel = 'NEUTRAL'; }
@@ -245,7 +244,7 @@ const AIPredictor = {
       atrPct,
       reasoning,
       currentPrice: +closes[n].toFixed(2),
-      rsi: rsi ? +rsi.toFixed(1) : null
+      rsi: Number.isFinite(rsi)?+rsi.toFixed(1):null
     };
   },
 

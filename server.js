@@ -21,6 +21,9 @@ const { securityHeaders, protectStaticFiles } = require('./siteSecurity');
 const { createAuthMiddleware } = require('./authSecurity');
 const { createTelemetry } = require('./operationalTelemetry');
 const { installEmailDiagnostics } = require('./emailReadiness');
+const {createPortfolioQuotes}=require('./portfolioQuotes');
+const {capabilities}=require('./serviceCapabilities');
+const {validateAIRequest}=require('./aiRequest');
 const {
   MAX_BROWSER_WS_CLIENTS, normalizeMarketSymbol, parseWsMessage, canSubscribe
 } = require('./marketSecurity');
@@ -173,6 +176,7 @@ function ownerOnly(req, res, next) {
 
 // ── Health check (used by UptimeRobot — no auth required) ────────────────
 app.get('/ping', (req, res) => res.send('ok'));
+app.get('/api/capabilities',(_req,res)=>res.set('Cache-Control','no-store').json(capabilities()));
 app.get('/api/version', (_req,res)=>res.set('Cache-Control','no-store').json({commit:process.env.RENDER_GIT_COMMIT||process.env.COMMIT_REF||null}));
 
 // Separate readiness check for login. /ping verifies that Node is alive;
@@ -589,9 +593,8 @@ app.get('/api/news', (req, res) => {
 });
 app.get('/api/status', (req, res) => res.json({
   hasKey: !!FINNHUB_KEY, wsConnected,
-  dbConnected: mongoose.connection.readyState === 1,
-  // Show internal connection metadata only on the private owner deployment.
-  ...(!PUBLIC_SITE_ENABLED ? {clients:wss.clients.size,symbols:[...symbolClients.keys()]} : {})
+  dbConnected: mongoose.connection.readyState === 1
+  // Active subscriptions are account activity and are never returned publicly.
 }));
 
 // Verify the observed market timestamp before checking a saved price alert.
@@ -630,77 +633,10 @@ async function fetchVerifiedAlertQuote(symbol) {
 }
 
 // ── Portfolio Prices (Finnhub + CoinGecko) ────────────────────────────────
-const CRYPTO_MAP_P = {
-  BTC:'bitcoin', ETH:'ethereum', SOL:'solana', ADA:'cardano',
-  XRP:'ripple', DOGE:'dogecoin', DOT:'polkadot', AVAX:'avalanche-2',
-  MATIC:'matic-network', LINK:'chainlink', LTC:'litecoin',
-  BNB:'binancecoin', SHIB:'shiba-inu', UNI:'uniswap', ATOM:'cosmos',
-};
-
-async function fetchFinnhubPortfolioPrice(symbol) {
-  if (!FINNHUB_KEY) return { price: null, change24h: null };
-  try {
-    const url  = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`;
-    const r    = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    const data = await r.json();
-    if (!data || !data.c || data.c === 0) return { price: null, change24h: null };
-    return { price: data.c, change24h: data.dp ?? null, name: symbol };
-  } catch { return { price: null, change24h: null }; }
-}
-
-async function fetchYahooPortfolioPrice(symbol) {
-  try {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(8000),
-    });
-    const data = await r.json();
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta || !meta.regularMarketPrice) return { price: null, change24h: null };
-    const price     = meta.regularMarketPrice;
-    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? null;
-    const change24h = prevClose ? ((price - prevClose) / prevClose) * 100 : null;
-    return { price, change24h, name: meta.longName || meta.shortName || symbol };
-  } catch { return { price: null, change24h: null }; }
-}
-
-async function fetchStockPortfolioPrice(symbol) {
-  const result = await fetchFinnhubPortfolioPrice(symbol);
-  if (result.price) return result;
-  console.warn(`Finnhub returned no price for ${symbol}, trying Yahoo Finance...`);
-  return fetchYahooPortfolioPrice(symbol);
-}
-
-app.get('/api/portfolio-prices', async (req, res) => {
-  const { symbols } = req.query;
-  if (!symbols) return res.status(400).json({ error: 'symbols required' });
-  const list       = symbols.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 50);
-  const cryptoSyms = list.filter(s =>  CRYPTO_MAP_P[s]);
-  const stockSyms  = list.filter(s => !CRYPTO_MAP_P[s]);
-  const prices     = {};
-
-  if (cryptoSyms.length) {
-    try {
-      const ids = cryptoSyms.map(s => CRYPTO_MAP_P[s]).join(',');
-      const r   = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-      const data = await r.json();
-      for (const sym of cryptoSyms) {
-        const entry = data[CRYPTO_MAP_P[sym]];
-        if (entry) prices[sym] = { price: entry.usd, change24h: entry.usd_24h_change ?? null };
-      }
-    } catch(e) { console.error('CoinGecko error:', e.message); }
-  }
-
-  if (stockSyms.length) {
-    const results = await Promise.all(stockSyms.map(s => fetchStockPortfolioPrice(s)));
-    stockSyms.forEach((sym, i) => { prices[sym] = results[i]; });
-  }
-
-  res.json(prices);
+const portfolioQuotes=createPortfolioQuotes({fetchQuote:symbol=>getMarketQuote(symbol,{key:FINNHUB_KEY}),currency:symbol=>researchData.currency(symbol)});
+const portfolioQuoteLimiter=createRateLimiter({windowMs:60000,max:30,namespace:'portfolio-quotes'});
+app.get('/api/portfolio-prices',portfolioQuoteLimiter,async(req,res)=>{
+ try{res.json(await portfolioQuotes(req.query.symbols));}catch(_){res.status(400).json({error:'Supply 1–50 valid symbols separated by commas.'});}
 });
 
 // ── Claude AI Stock Analysis ──────────────────────────────────────────────
@@ -709,10 +645,8 @@ app.post('/api/ai-analysis', authMW, limiterAI, async (req, res) => {
     return res.status(503).json({ error: 'AI analysis not configured — add ANTHROPIC_API_KEY to .env' });
   }
 
-  const { symbol, price, prediction } = req.body;
-  if (!symbol || !prediction) {
-    return res.status(400).json({ error: 'symbol and prediction are required' });
-  }
+  const {symbol,price,prediction}=req.body||{};
+  try{validateAIRequest(req.body);}catch(_){return res.status(400).json({error:'Invalid or oversized indicator request.'});}
 
   const { signals = [], direction, confidence, support, resistance, atrPct, patterns = [], buyCount, sellCount, neutralCount } = prediction;
 
@@ -762,7 +696,7 @@ Do not tell the user to place a trade. Explain concrete technical risks, uncerta
     const parsed = JSON.parse(jsonMatch[0]);
 
     // Validate expected fields exist
-    if (!parsed.summary) throw new Error('Missing summary field');
+    if(typeof parsed.summary!=='string'||!parsed.summary||parsed.summary.length>3000||['risk','watch'].some(k=>parsed[k]!=null&&(typeof parsed[k]!=='string'||parsed[k].length>1000))||parsed.key_drivers!=null&&(!Array.isArray(parsed.key_drivers)||parsed.key_drivers.length>10||parsed.key_drivers.some(s=>typeof s!=='string'||s.length>600)))throw Error('Invalid provider response');
 
     return res.json({
       summary:     parsed.summary     || '',
@@ -772,8 +706,8 @@ Do not tell the user to place a trade. Explain concrete technical risks, uncerta
       model:       message.model
     });
   } catch (err) {
-    console.error('[AI Analysis]', err.message);
-    return res.status(500).json({ error: err.message });
+    console.error('[AI Analysis] Provider request failed:',Number.isInteger(err.status)?err.status:'invalid response');
+    return res.status(502).json({error:'AI commentary is temporarily unavailable. The local chart explanation is still available.'});
   }
 });
 

@@ -47,7 +47,7 @@ test('quote starts while history and profile are pending, and failed history cle
     activePredictionSymbol:null,stockRequestVersion:0,verifiedPrevClose:1,currentBars:[{close:999}],
     simInterval:null,compareSeries:null,newsMode:'market',chart:null,
     candleSeries:{setData:bars=>data.push(bars)},volumeSeries:{setData(){}},
-    resetEvidenceUI(){},showChartUnavailable(){},showChartLoader(){},
+    resetEvidenceUI(){},clearSignalView(){},showChartUnavailable(){},showChartLoader(){},
     refreshQuote:async()=>{quoteCalls++;},updateWatchlistUI(){},runAI(){},volData:()=>[]};
   vm.createContext(context);vm.runInContext(fn+'\nthis.load=loadStock;',context);
   const loading=context.load('SPY');

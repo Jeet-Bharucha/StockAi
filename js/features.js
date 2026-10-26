@@ -96,16 +96,16 @@ const Portfolio = {
     let totalCost = 0, totalValue = 0;
     const rows = holdings.map(h => {
       const q      = quotes[h.symbol] || {};
-      const px     = q.price || h.buyPrice;
+      const px     = Number.isFinite(q.price)&&q.price>0?q.price:null;
       const cost   = h.shares * h.buyPrice;
-      const value  = h.shares * px;
-      const pl     = value - cost;
-      const plPct  = (pl / cost) * 100;
+      const value  = px===null?null:h.shares*px;
+      const pl     = value===null?null:value-cost;
+      const plPct  = pl===null||!cost?null:pl/cost*100;
       totalCost  += cost;
       totalValue += value;
       return { ...h, currentPrice: px, value, pl, plPct };
     });
-    return { rows, totalCost, totalValue, totalPL: totalValue - totalCost, totalPLPct: totalCost ? ((totalValue - totalCost) / totalCost) * 100 : 0 };
+    const complete=rows.every(r=>r.currentPrice!==null);return {rows,totalCost,totalValue:complete?totalValue:null,totalPL:complete?totalValue-totalCost:null,totalPLPct:complete&&totalCost?((totalValue-totalCost)/totalCost)*100:null};
   }
 };
 
