@@ -2,9 +2,9 @@
 
 ## Result and scope
 
-The proposed follow-up adds company comparison with CSV export, a connection/feature readiness panel with a sanitized report, and repairs identified during the audit. **144 regression tests and one real disposable MongoDB integration scenario pass locally. All 16 core Chromium desktop/mobile scenarios passed; added strict file-download assertions currently cancel in this Windows sandbox and are awaiting Linux CI verification.** The production dependency audit reports zero advisories. Syntax checks and the static frontend build pass.
+The proposed follow-up adds company comparison with CSV export, a connection/feature readiness panel with a sanitized report, and repairs identified during the audit. **144 regression tests and one real disposable MongoDB integration scenario pass locally and in Linux CI. All 16 Chromium desktop/mobile scenarios pass in Linux CI, including actual CSV/JSON download contents.** The production dependency audit reports zero advisories. Syntax checks and the static frontend build pass.
 
-The live site is still running PR #20's merge commit `da862e04ff008b1f0a5ef3ac3407167710ca55ac`. The new fixes need their follow-up PR merged and deployed to both frontend and Render. Local/browser fixture results below do not prove production account flows, provider entitlements or inbox delivery. No domain was purchased, email sent, hosting upgraded, production data modified or account restrictions changed during this audit.
+The live site is still running PR #20's merge commit `da862e04ff008b1f0a5ef3ac3407167710ca55ac`. The new fixes need their follow-up PR merged and deployed to both frontend and Render. Local/browser fixture results below do not prove production account flows, provider entitlements or inbox delivery. The code is proposed in [PR #21](https://github.com/Jeet-Bharucha/StockAi/pull/21). No domain was purchased, email sent, hosting upgraded, production data modified or account restrictions changed during this audit.
 
 ## Problems found and fixed in the proposed change
 
@@ -68,7 +68,7 @@ The browser runs real Chromium against an isolated static app with explicitly si
 | Missing-history symbol switch | Old signal table/RSI cleared; assistant says unavailable rather than $0 | PASS × 2 |
 | Expired account / offline recovery | No phantom list after unauthorized account response; connection checks show unavailable and recover after network restoration | PASS × 2 |
 
-Additional actual-download content checks (comparison CSV, portfolio CSV and sanitized connection JSON) are pending Linux CI: this sandbox cancels browser downloads before a local file is created. They have not been silently skipped.
+Actual-download content checks for company comparison CSV, portfolio CSV and sanitized connection JSON **passed in Linux CI**. This Windows sandbox cancelled those browser downloads before disk creation; the assertions stayed enabled and were verified in Linux rather than skipped. See [the successful code verification run](https://github.com/Jeet-Bharucha/StockAi/actions/runs/40389584714) for commit `bebc6cf9…`.
 
 ## Real database integration case
 
