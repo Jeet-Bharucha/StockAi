@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1370,10 +1370,10 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
             </div>
             <div class="compare-bar hidden" id="compare-panel">
               <span style="font-size:.74rem;font-weight:700;color:var(--purple);white-space:nowrap">⚖ vs</span>
-              <input type="text" id="compare-input" placeholder="Symbol e.g. MSFT" maxlength="6">
+              <input type="text" id="compare-input" aria-label="Chart comparison symbol" placeholder="Symbol e.g. MSFT" maxlength="20">
               <button class="btn-cmp btn-cmp-go" onclick="loadCompare()">Go</button>
               <button class="btn-cmp btn-cmp-clear" onclick="clearCompare()">✕ Clear</button>
-              <div class="compare-legend" id="compare-legend"></div>
+              <div class="compare-legend" id="compare-legend" role="status" aria-live="polite"></div>
             </div>
           </div>
           <!-- Popular chips -->
@@ -1937,7 +1937,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 </div><!-- /app -->
 
 <!-- ── AI CHAT WIDGET ──────────────────────────────────────────────────────── -->
-<button id="chat-fab" onclick="StockChat.toggle()" title="AI Assistant (C)">🤖</button>
+<button id="chat-fab" onclick="StockChat.toggle()" title="Chart Assistant (C)" aria-label="Open chart assistant">🤖</button>
 <div id="chat-panel">
   <div class="chat-header">
     <div class="chat-header-icon">🤖</div>
@@ -1980,23 +1980,24 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
   <div class="shortcuts-panel">
     <div class="shortcuts-title">
       ⌨️ Keyboard Shortcuts
-      <button onclick="document.getElementById('shortcuts-modal').classList.add('hidden')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem">✕</button>
+      <button aria-label="Close keyboard shortcuts" onclick="document.getElementById('shortcuts-modal').classList.add('hidden')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem">✕</button>
     </div>
     <div class="shortcuts-section">
       <div class="shortcuts-section-label">Navigation</div>
       <div class="shortcut-row"><kbd>1</kbd><span class="shortcut-desc">Dashboard</span></div>
-      <div class="shortcut-row"><kbd>2</kbd><span class="shortcut-desc">AI Predictions</span></div>
+      <div class="shortcut-row"><kbd>2</kbd><span class="shortcut-desc">Technical Signals</span></div>
       <div class="shortcut-row"><kbd>3</kbd><span class="shortcut-desc">Watchlist</span></div>
       <div class="shortcut-row"><kbd>4</kbd><span class="shortcut-desc">Portfolio</span></div>
       <div class="shortcut-row"><kbd>5</kbd><span class="shortcut-desc">Markets</span></div>
       <div class="shortcut-row"><kbd>6</kbd><span class="shortcut-desc">News</span></div>
-      <div class="shortcut-row"><kbd>7</kbd><span class="shortcut-desc">Trending</span></div>
+      <div class="shortcut-row"><kbd>7</kbd><span class="shortcut-desc">Stock Movers</span></div>
+      <div class="shortcut-row"><kbd>8</kbd><span class="shortcut-desc">Screener</span></div>
     </div>
     <div class="shortcuts-section">
       <div class="shortcuts-section-label">Actions</div>
       <div class="shortcut-row"><kbd>/</kbd><span class="shortcut-desc">Focus stock search</span></div>
       <div class="shortcut-row"><kbd>T</kbd><span class="shortcut-desc">Toggle dark / light theme</span></div>
-      <div class="shortcut-row"><kbd>C</kbd><span class="shortcut-desc">Open AI Chat</span></div>
+      <div class="shortcut-row"><kbd>C</kbd><span class="shortcut-desc">Open Chart Assistant</span></div>
       <div class="shortcut-row"><kbd>?</kbd><span class="shortcut-desc">Show this shortcuts panel</span></div>
       <div class="shortcut-row"><kbd>Esc</kbd><span class="shortcut-desc">Close modals / dropdowns</span></div>
     </div>
@@ -2006,29 +2007,29 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 <!-- EDIT HOLDING MODAL -->
 <div class="modal-overlay hidden" id="edit-hold-modal">
   <div class="modal" style="max-width:440px">
-    <button class="close-modal" onclick="document.getElementById('edit-hold-modal').classList.add('hidden')">✕</button>
+    <button aria-label="Close edit holding" class="close-modal" onclick="document.getElementById('edit-hold-modal').classList.add('hidden')">✕</button>
     <h3 style="margin-bottom:1.1rem">✏️ Edit Holding</h3>
     <input type="hidden" id="edit-hold-id">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
       <div>
         <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Symbol</label>
-        <input class="port-input" id="edit-hold-sym" disabled style="width:100%;opacity:.55">
+        <input class="port-input" id="edit-hold-sym" aria-label="Symbol" disabled style="width:100%;opacity:.55">
       </div>
       <div>
         <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Name</label>
-        <input class="port-input" id="edit-hold-name" placeholder="Company name" style="width:100%">
+        <input class="port-input" id="edit-hold-name" aria-label="Name" placeholder="Company name" style="width:100%">
       </div>
       <div>
         <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Shares</label>
-        <input class="port-input" id="edit-hold-shares" type="number" min="0.001" step="any" style="width:100%">
+        <input class="port-input" id="edit-hold-shares" aria-label="Shares" type="number" min="0.001" step="any" style="width:100%">
       </div>
       <div>
         <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Avg. Cost / Share</label>
-        <input class="port-input" id="edit-hold-price" type="number" min="0.0001" step="any" style="width:100%">
+        <input class="port-input" id="edit-hold-price" aria-label="Average cost per share" type="number" min="0.0001" step="any" style="width:100%">
       </div>
       <div>
         <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Asset Type</label>
-        <select class="port-input" id="edit-hold-type" style="width:100%">
+        <select class="port-input" id="edit-hold-type" aria-label="Asset type" style="width:100%">
           <option value="stock">Stock</option>
           <option value="etf">ETF</option>
           <option value="crypto">Crypto</option>
@@ -2036,7 +2037,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
       </div>
       <div>
         <label style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.35rem">Account</label>
-        <select class="port-input" id="edit-hold-account" style="width:100%">
+        <select class="port-input" id="edit-hold-account" aria-label="Account type" style="width:100%">
           <option value="taxable">Taxable</option>
           <option value="roth_ira">Roth IRA</option>
           <option value="k401">401(k)</option>
@@ -2068,7 +2069,7 @@ select.port-input option{background:#0b1020;color:#e2e8f0;padding:.4rem .6rem}
 <!-- API MODAL -->
 <div class="modal-overlay hidden" id="api-modal">
   <div class="modal">
-    <button class="close-modal" id="close-api-modal">✕</button>
+    <button aria-label="Close market data setup" class="close-modal" id="close-api-modal">✕</button>
     <h3>🔑 Finnhub Live Data Setup</h3>
     <div id="server-status-msg" style="font-size:.82rem;margin-bottom:1.2rem;padding:.6rem .8rem;background:rgba(255,255,255,0.04);border-radius:8px">Checking server…</div>
     <p>The API key is stored <strong style="color:var(--text)">on the server</strong> — users never configure anything.</p>
@@ -2164,11 +2165,13 @@ window.setRange = function(btn, range) {
 <script src="js/dashboard.js"></script>
 <script src="js/researchWorkspace.js"></script>
 <script src="js/usefulTools.js"></script>
+<script src="js/uiPolish.js"></script>
 <script>
 // ── Keyboard Shortcuts ────────────────────────────────────────────────────
 const TAB_KEYS = {'1':'dashboard','2':'ai','3':'watchlist','4':'portfolio','5':'markets','6':'news','7':'trending','8':'screener'};
 document.addEventListener('keydown', function(e) {
   const tag = document.activeElement.tagName;
+  if (document.activeElement.isContentEditable) return;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
     if (e.key === 'Escape') { document.activeElement.blur(); return; }
     return;
@@ -2205,7 +2208,7 @@ const TOUR_STEPS = [
   { selector: '.search-wrap',     title: 'Stock Search',    body: 'Search any symbol or company name. Press / to focus the search bar instantly.' },
   { selector: '#view-ai',         title: 'AI Predictions',  body: 'Full signal dashboard with RSI, MACD, Bollinger Bands, OBV and more — all calculated client-side.', tab: 'ai' },
   { selector: '#view-portfolio',  title: 'Portfolio Tracker',body: 'Track real holdings with live P&L, cost basis, and 30-day sparkline. Export to CSV anytime.', tab: 'portfolio' },
-  { selector: '#chat-fab',        title: 'AI Chat',         body: 'Ask the AI assistant anything about the current stock, indicators, or platform features.', tab: 'dashboard' },
+  { selector: '#chat-fab',        title: 'Chart Assistant', body: 'Ask for local explanations of the loaded chart and indicators. Optional AI commentary requires separate setup.', tab: 'dashboard' },
 ];
 let _tourStep = 0;
 

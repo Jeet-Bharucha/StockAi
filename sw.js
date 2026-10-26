@@ -1,11 +1,11 @@
-const CACHE = 'stockai-v28-useful-audit-1';
+const CACHE = 'stockai-v29-navigation-reliability-1';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/forgot-password.html', '/reset-password.html', '/owner-recovery.html', '/verify-email.html',
   '/dashboard.html', '/profile.html', '/404.html',
   '/css/effects.css', '/css/pro-terminal.css', '/css/research-workspace.css',
   '/js/auth.js', '/js/dashboard.js', '/js/stockApi.js',
-  '/js/usefulTools.js', '/js/researchWorkspace.js', '/js/aiPredictor.js', '/js/researchTools.js', '/js/signalEvidence.js', '/js/features.js', '/js/animations.js', '/js/chat.js',
+  '/js/uiPolish.js', '/js/usefulTools.js', '/js/researchWorkspace.js', '/js/aiPredictor.js', '/js/researchTools.js', '/js/signalEvidence.js', '/js/features.js', '/js/animations.js', '/js/chat.js',
   '/favicon.svg', '/manifest.json'
 ];
 
@@ -46,6 +46,7 @@ self.addEventListener('fetch', e => {
       url.pathname === '/js/stockApi.js' ||
       url.pathname === '/js/researchTools.js' ||
       url.pathname === '/js/researchWorkspace.js' ||
+      url.pathname === '/js/uiPolish.js' ||
       url.pathname === '/js/usefulTools.js' ||
       url.pathname === '/js/chat.js' ||
       url.pathname === '/js/features.js' ||

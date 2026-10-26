@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Compare mode state
   let compareSeries = null;
   let compareActive = false;
+  let compareRequestVersion = 0;
 
   // Markets tab groups
   const MARKET_GROUPS = {
@@ -148,6 +149,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!symbol) return;
     StockAPI.unsubscribeAll(); clearInterval(simInterval);
     currentSymbol = symbol;
+    // Clear old overlays and invalidate in-flight comparisons immediately.
+    clearCompare();
+    clearSMAUI();
     document.dispatchEvent(new CustomEvent('stockai:symbol',{detail:symbol}));
     claudeAnalysisVersion++;
     claudeBusy = false;
@@ -215,8 +219,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     showChartUnavailable(!currentBars.length || !chart);
     if (typeof StockChat !== 'undefined') StockChat.setContext(symbol, currentBars);
 
-    // Clear any active compare so the second line doesn't linger
-    if (compareSeries) clearCompare();
 
     await quoteTask;
     if (requestVersion !== stockRequestVersion) return;
@@ -1194,14 +1196,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.loadCompare = async function() {
     const sym = (document.getElementById('compare-input').value||'').toUpperCase().trim();
-    if (!sym) { showToast('Enter a symbol to compare'); return; }
+    if (!/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/.test(sym)) { showToast('Enter a valid symbol to compare'); return; }
     if (sym === currentSymbol) { showToast('Choose a different symbol to compare'); return; }
+    if (!window._chart || !currentBars.length) { showToast('Load a base chart before comparing'); return; }
+    const requestVersion = ++compareRequestVersion, baseVersion = stockRequestVersion, baseSymbol = currentSymbol;
+    const legend = document.getElementById('compare-legend');
+    if (legend) legend.textContent = 'Loading '+sym+' comparison…';
 
     // Remove existing compare series
     if (compareSeries && window._chart) { try { window._chart.removeSeries(compareSeries); } catch(_){} compareSeries=null; }
 
     try {
       const bars2 = await StockAPI.getCandles(sym,'D',365);
+      if (requestVersion !== compareRequestVersion || baseVersion !== stockRequestVersion || !compareActive) return;
       if (!bars2.length) throw new Error('no data');
 
       // Enable left price scale for the comparison stock
@@ -1215,14 +1222,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       compareSeries.setData(bars2.map(b=>({time:b.time, value:b.close})));
 
       const leg = document.getElementById('compare-legend');
-      if (leg) leg.innerHTML = `<span><span class="cmp-dot" style="background:var(--cyan)"></span>${currentSymbol}</span><span><span class="cmp-dot" style="background:#f59e0b"></span>${sym}</span>`;
-      showToast(`Comparing ${currentSymbol} vs ${sym}`);
+      if (leg) leg.textContent = baseSymbol+' vs '+sym+' · separate price scales; not percentage returns';
+      showToast(`Comparing ${baseSymbol} vs ${sym}`);
     } catch(_) {
+      if (requestVersion !== compareRequestVersion || baseVersion !== stockRequestVersion || !compareActive) return;
+      if (legend) legend.textContent = 'Comparison unavailable for '+sym+'. Check the symbol and retry.';
       showToast(`No data for ${sym}`);
     }
   };
 
   window.clearCompare = function() {
+    compareRequestVersion++;
     if (compareSeries && window._chart) { try { window._chart.removeSeries(compareSeries); } catch(_){} compareSeries=null; }
     window._chart?.applyOptions({ leftPriceScale:{ visible:false } });
     const input = document.getElementById('compare-input'); if (input) input.value='';
