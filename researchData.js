@@ -22,12 +22,29 @@ function createResearchData({key='',fetchImpl=fetch,quote,now=()=>Date.now()}){
   })();pending.set(sym,task);try{return await task;}finally{pending.delete(sym);}
  }
  async function quotes(symbols){const result={};let cursor=0;const list=[...new Set(symbols)];await Promise.all(Array.from({length:4},async()=>{while(cursor<list.length){const s=list[cursor++];try{const q=await quote(s);if(verifiedPrice(q,now()))result[s]=q;}catch(_){} }}));return result;}
+ async function currency(sym){
+  sym=symbol(sym);const id='currency:'+sym;if(cache.has(id)&&now()-cache.get(id).at<300000)return cache.get(id).value;
+  const info=await fundamentals(sym);let value=info.profile?.currency;
+  if(!value){const r=await fetchImpl('https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1d',{signal:AbortSignal.timeout(8000),headers:{'User-Agent':'StockAI/1.0'}});if(r.ok){const d=await r.json();value=d?.chart?.result?.[0]?.meta?.currency;}}
+  const result=typeof value==='string'&&/^[A-Z]{3}$/.test(value)?value:null;if(cache.size>150)cache.clear();cache.set(id,{at:now(),value:result});return result;
+ }
  async function usdQuotes(symbols){
   const result=await quotes(symbols);let cursor=0;const names=Object.keys(result);
-  await Promise.all(Array.from({length:3},async()=>{while(cursor<names.length){const name=names[cursor++];try{const info=await fundamentals(name);let currency=info.profile?.currency;
-      if(!currency){const r=await fetchImpl('https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(name)+'?interval=1d&range=1d',{signal:AbortSignal.timeout(8000),headers:{'User-Agent':'StockAI/1.0'}});if(r.ok){const d=await r.json();currency=d?.chart?.result?.[0]?.meta?.currency;}}
-      if(currency==='USD')result[name].currency='USD';else delete result[name];}catch(_){delete result[name];}}}));return result;
+  await Promise.all(Array.from({length:3},async()=>{while(cursor<names.length){const name=names[cursor++];try{if(await currency(name)==='USD')result[name].currency='USD';else delete result[name];}catch(_){delete result[name];}}}));return result;
  }
- return {fundamentals,quotes,usdQuotes};
+ async function companyDetails(sym){
+  sym=symbol(sym);const id='details:'+sym;if(cache.has(id)&&now()-cache.get(id).at<300000)return cache.get(id).value;if(pending.has(id))return pending.get(id);
+  const task=(async()=>{const from=new Date(now()-2*366*86400000).toISOString().slice(0,10),to=new Date(now()+90*86400000).toISOString().slice(0,10);
+   const results=await Promise.allSettled([vendor('stock/financials-reported',{symbol:sym,freq:'annual',from}),vendor('stock/dividend',{symbol:sym,from,to}),vendor('stock/split',{symbol:sym,from,to})]);
+   const safe=n=>typeof n==='number'&&Number.isFinite(n)?n:null, text=v=>typeof v==='string'?v.slice(0,200):null;
+   const reports=results[0].status==='fulfilled'&&Array.isArray(results[0].value?.data)?results[0].value.data.filter(r=>!r.symbol||r.symbol===sym).sort((a,b)=>String(b.endDate).localeCompare(String(a.endDate))).slice(0,3).map(r=>{
+    const sections={};for(const key of ['ic','bs','cf']){const raw=r.report?.[key];const rows=Array.isArray(raw)?raw:raw&&typeof raw==='object'?Object.entries(raw).map(([concept,value])=>({concept,value})):[];sections[key]=rows.slice(0,100).map(x=>({concept:text(x.concept),label:text(x.label),unit:text(x.unit),value:safe(x.value)}));}
+    return {startDate:text(r.startDate),endDate:text(r.endDate),filedDate:text(r.filedDate),form:text(r.form),accessNumber:text(r.accessNumber),sections};}):null;
+   const events=(index,fn)=>results[index].status==='fulfilled'&&Array.isArray(results[index].value)?results[index].value.filter(x=>!x.symbol||x.symbol===sym).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,80).map(fn):null;
+   const value={symbol:sym,source:'Finnhub',fetchedAt:new Date(now()).toISOString(),from,to,reports,dividends:events(1,x=>({date:text(x.date),payDate:text(x.payDate),amount:safe(x.amount),currency:text(x.currency)})),splits:events(2,x=>({date:text(x.date),fromFactor:safe(x.fromFactor),toFactor:safe(x.toFactor)}))};
+   if(cache.size>150)cache.clear();cache.set(id,{at:now(),value});return value;
+  })();pending.set(id,task);try{return await task;}finally{pending.delete(id);}
+ }
+ return {fundamentals,quotes,usdQuotes,companyDetails,currency};
 }
 module.exports={createResearchData};

@@ -25,6 +25,7 @@ function validateWorkspace(input){
       if(filters[key]==null)continue;
       const val=String(filters[key]);if(val.length>40||/[<>]/.test(val))throw Error('Invalid screen filter');out[key]=val;
     }
+    if(filters.symbols){const values=[...new Set(String(filters.symbols).toUpperCase().split(/[\s,]+/).filter(Boolean).map(symbol))];if(values.length>50)throw Error('Maximum 50 screener symbols');out.symbols=values.join(',');}
     for(const key of ['min','max','maxPE','minROE','minVolume']){
       if(out[key]==null||out[key]==='')continue;
       const n=Number(out[key]);if(!Number.isFinite(n)||n>1e12||n<(key==='minROE'?-10000:0))throw Error('Invalid numeric screen filter');
@@ -35,10 +36,11 @@ function validateWorkspace(input){
   return {lists,screens,emailAlerts:input.emailAlerts===true};
 }
 function validateTransaction(input,now=Date.now()){
-  const type=input?.type;if(!['deposit','withdrawal','buy','sell','dividend'].includes(type))throw Error('Invalid transaction type');
+  const type=input?.type;if(!['deposit','withdrawal','buy','sell','dividend','split'].includes(type))throw Error('Invalid transaction type');
   const clientId=String(input.clientId||'');if(!/^[a-zA-Z0-9-]{8,80}$/.test(clientId))throw Error('Transaction identifier required');
   const at=Date.parse(input.at);if(!Number.isFinite(at)||at>now+60000||at<Date.UTC(1970,0,1))throw Error('Invalid transaction time');
   const memo=typeof input.memo==='string'?input.memo.trim():'';if(memo.length>160)throw Error('Memo too long');
+  if(type==='split')return {clientId,type,symbol:symbol(input.symbol),numerator:number(input.numerator,1e-6,1e6),denominator:number(input.denominator,1e-6,1e6),at:new Date(at),memo};
   if(type==='buy'||type==='sell')return {clientId,type,symbol:symbol(input.symbol),quantity:number(input.quantity,1e-8,1e9),price:number(input.price,1e-8,1e8),fee:number(input.fee??0),at:new Date(at),memo};
   return {clientId,type,symbol:type==='dividend'?symbol(input.symbol):null,amount:number(input.amount,1e-8),at:new Date(at),memo};
 }
@@ -49,6 +51,7 @@ function ledger(transactions){
     if(t.type==='deposit'){cash+=t.amount;netContributions+=t.amount;}
     else if(t.type==='withdrawal'){cash-=t.amount;netContributions-=t.amount;}
     else if(t.type==='dividend'){cash+=t.amount;dividends+=t.amount;}
+    else if(t.type==='split'){const h=holdings.get(t.symbol);if(!h||h.quantity<=0)throw Error('Split requires an existing position');h.quantity*=t.numerator/t.denominator;if(!Number.isFinite(h.quantity)||h.quantity>1e12||h.quantity<1e-8)throw Error('Split quantity is outside supported limits');h.lastSplitAt=t.at;}
     else {
       const h=holdings.get(t.symbol)||{symbol:t.symbol,quantity:0,cost:0};
       if(t.type==='buy'){cash-=t.quantity*t.price+t.fee;h.quantity+=t.quantity;h.cost+=t.quantity*t.price+t.fee;}
@@ -64,7 +67,7 @@ function verifiedPrice(q,now=Date.now()){
 }
 function valueLedger(book,quotes,now=Date.now()){
   const missing=[];let invested=0,cost=0;
-  for(const h of book.holdings){const q=quotes[h.symbol];if(!verifiedPrice(q,now)||q.currency!=='USD'){missing.push(h.symbol);continue;}invested+=h.quantity*q.price;cost+=h.cost;}
+  for(const h of book.holdings){const q=quotes[h.symbol];if(!verifiedPrice(q,now)||q.currency!=='USD'||(h.lastSplitAt&&Date.parse(q.observedAt)<+new Date(h.lastSplitAt))){missing.push(h.symbol);continue;}invested+=h.quantity*q.price;cost+=h.cost;}
   return {cash:book.cash,equity:missing.length?null:round(book.cash+invested),unrealized:missing.length?null:round(invested-cost),missing};
 }
 // Modified Dietz is an estimate weighted by each external cash flow's actual time.

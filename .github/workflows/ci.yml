@@ -84,3 +84,16 @@ jobs:
           path: |
             playwright-report/
             test-results/
+
+  database-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify isolated two-account Mongo and backup restoration
+        run: npm run test:integration
