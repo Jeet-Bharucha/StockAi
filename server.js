@@ -23,6 +23,9 @@ const { createTelemetry } = require('./operationalTelemetry');
 const { installEmailDiagnostics } = require('./emailReadiness');
 const {createPortfolioQuotes}=require('./portfolioQuotes');
 const {capabilities}=require('./serviceCapabilities');
+const {alertProcessingMode,startWebAlertChecks}=require('./webAlertChecks');
+const {runBackgroundCycle}=require('./backgroundResearch');
+const ALERT_PROCESSING_MODE=alertProcessingMode();
 const {validateAIRequest}=require('./aiRequest');
 const {
   MAX_BROWSER_WS_CLIENTS, normalizeMarketSymbol, parseWsMessage, canSubscribe
@@ -306,13 +309,29 @@ const researchData = createResearchData({key:FINNHUB_KEY,quote:async symbol=>{
 }});
 const researchLimiter=createRateLimiter({windowMs:60*60*1000,max:240,namespace:'research',keyFn:req=>req.user?.id||req.ip});
 installResearchRoutes(app,{...researchModels,telemetry:reliabilityTelemetry,Alert:PriceAlert,authMW,dbRequired,rateLimit:researchLimiter,ownerOnly,data:researchData,
-  backgroundEnabled:process.env.BACKGROUND_ALERTS_ENABLED==='true',emailConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)});
+  backgroundEnabled:ALERT_PROCESSING_MODE!=='disabled',alertProcessingMode:ALERT_PROCESSING_MODE,emailConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)});
+
+const webAlertChecks=startWebAlertChecks({
+ enabled:ALERT_PROCESSING_MODE==='web-best-effort',isReady:()=>mongoose.connection.readyState===1,
+ cycle:async()=>{
+  const restrictedEmail=!PUBLIC_SITE_ENABLED&&ALLOWED_EMAIL;
+  const owner=restrictedEmail?await User.findOne({email:restrictedEmail}).select('_id').lean():null;
+  if(restrictedEmail&&!owner)return;
+  const counts=await runBackgroundCycle({...researchModels,Alert:PriceAlert,User,data:researchData,snapshots:false,userId:owner?owner._id:null,isAllowedUser:email=>ACCESS.isLoginAllowed(email),sendEmail:async message=>{
+  const {Resend}=require('resend');
+  if(!process.env.RESEND_API_KEY||!process.env.RESEND_FROM_EMAIL)throw Error('Email sender unavailable');
+  const result=await new Resend(process.env.RESEND_API_KEY).emails.send({from:process.env.RESEND_FROM_EMAIL,to:message.to,subject:message.subject,text:message.text},{idempotencyKey:'stockai-price-alert-'+message.id,signal:AbortSignal.timeout(15000)});
+  if(result.error||!result.data?.id)throw Error('Email provider rejected delivery');
+ }});console.log('[WebAlertChecks]',JSON.stringify(counts));},onError:()=>console.warn('[WebAlertChecks] Cycle failed; retrying while this web process remains awake')
+});
+server.once('close',()=>void webAlertChecks.stop());
 
 const emailDiagnosticsLimiter=createRateLimiter({windowMs:3600000,max:10,namespace:'email-diagnostics',keyFn:req=>req.user.id});
 installEmailDiagnostics(app,{authMW,ownerOnly,rateLimit:emailDiagnosticsLimiter,sendTest:async to=>{
   const {Resend}=require('resend');const mail=new Resend(process.env.RESEND_API_KEY);
   const result=await mail.emails.send({from:process.env.RESEND_FROM_EMAIL,to,subject:'StockAI sender test',text:'This is the sender test you requested from StockAI. No account or portfolio details are included.'},{signal:AbortSignal.timeout(15000)});
-  if(result.error||!result.data?.id)throw Error('Rejected');
+  if(result.error)throw result.error;
+  if(!result.data?.id)throw Error('Provider did not return a message receipt');
 }});
 
 // ── Portfolio routes (protected) ──────────────────────────────────────────

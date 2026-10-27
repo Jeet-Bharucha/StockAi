@@ -10,7 +10,7 @@ async function captureSnapshot({account,ResearchAccount,PortfolioSnapshot,data,n
  const current=await ResearchAccount.findOne({userId:account.userId}).lean();if(!current||current.version!==account.version)throw Error('Ledger changed during valuation; retry');
  try {const snapshot=await PortfolioSnapshot.create({userId:account.userId,bucket:Math.floor(now()/60000),at,equity:valued.equity,cash:valued.cash,spy:quotes.SPY?.price??null,quotes,ledgerVersion:account.version});return snapshot;}catch(e){if(e.code!==11000)throw e;return PortfolioSnapshot.findOne({userId:account.userId,bucket:Math.floor(now()/60000),ledgerVersion:account.version}).lean();}
 }
-function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHeartbeat,Alert,telemetry,authMW,dbRequired,rateLimit,ownerOnly,data,backgroundEnabled=false,emailConfigured=false,now=()=>Date.now()}){
+function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHeartbeat,Alert,telemetry,authMW,dbRequired,rateLimit,ownerOnly,data,backgroundEnabled=false,alertProcessingMode=backgroundEnabled?'always-on-worker':'disabled',emailConfigured=false,now=()=>Date.now()}){
  const handlers=[authMW,dbRequired,rateLimit];
  const account=async id=>await ResearchAccount.findOne({userId:id}).lean()||{userId:id,version:0,lists:[],screens:[],transactions:[],emailAlerts:false};
  async function mutate(id,version,set,extra={}){
@@ -21,7 +21,7 @@ function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHear
   if(!updated)throw Object.assign(Error('Another window changed this account. Reload before saving.'),{status:409});return updated;
  }
  const wrap=fn=>async(req,res)=>{try{res.set('Cache-Control','private, no-store');await fn(req,res);}catch(e){console.warn('[Research]',e.message);const internal=/Mongo|Mongoose|Cast|Validation/.test(e.name);res.status(internal?500:e.status||400).json({error:internal?'Account service unavailable. Please retry.':e.message});}};
- app.get('/api/user/research',...handlers,wrap(async(req,res)=>res.json({...publicState(await account(req.user.id)),backgroundEnabled,emailConfigured})));
+ app.get('/api/user/research',...handlers,wrap(async(req,res)=>res.json({...publicState(await account(req.user.id)),backgroundEnabled,alertProcessingMode,emailConfigured})));
  app.put('/api/user/research',...handlers,wrap(async(req,res)=>{
   const input=Core.validateWorkspace(req.body);const current=await account(req.user.id);
   if(input.emailAlerts&&!emailConfigured)throw Error('Email sender is not configured on this service');
@@ -63,7 +63,7 @@ function installResearchRoutes(app,{ResearchAccount,PortfolioSnapshot,WorkerHear
  }));
  app.get('/api/admin/operations',...handlers,ownerOnly,wrap(async(_req,res)=>{
   const heartbeat=await WorkerHeartbeat.findById('research-worker').lean();
-  res.json({ok:true,reliability:telemetry?.report()||null,database:'connected',uptimeSeconds:Math.floor(process.uptime()),backgroundEnabled,emailConfigured,worker:heartbeat?{lastStarted:heartbeat.lastStarted,lastSuccess:heartbeat.lastSuccess,lastError:heartbeat.lastError,counts:heartbeat.counts}:null,workerStale:backgroundEnabled&&(!heartbeat?.lastSuccess||now()-new Date(heartbeat.lastSuccess)>10*60000)});
+  res.json({ok:true,reliability:telemetry?.report()||null,database:'connected',uptimeSeconds:Math.floor(process.uptime()),backgroundEnabled,alertProcessingMode,emailConfigured,worker:heartbeat?{lastStarted:heartbeat.lastStarted,lastSuccess:heartbeat.lastSuccess,lastError:heartbeat.lastError,counts:heartbeat.counts}:null,workerStale:backgroundEnabled&&(!heartbeat?.lastSuccess||now()-new Date(heartbeat.lastSuccess)>10*60000)});
  }));
 }
 module.exports={installResearchRoutes,captureSnapshot,publicState};

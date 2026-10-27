@@ -3,7 +3,8 @@ const {verifiedPrice}=require('./researchCore');
 const {isTriggered}=require('./priceAlerts');
 const {captureSnapshot}=require('./researchRoutes');
 const {randomUUID}=require('node:crypto');
-async function runBackgroundCycle({Alert,User,ResearchAccount,PortfolioSnapshot,WorkerHeartbeat,data,sendEmail,isAllowedUser=()=>true,now=()=>Date.now(),snapshots=false}){
+async function runBackgroundCycle({Alert,User,ResearchAccount,PortfolioSnapshot,WorkerHeartbeat,data,sendEmail,isAllowedUser=()=>true,now=()=>Date.now(),snapshots=false,userId=null}){
+ const scope=userId?{userId}:{};
  const counts={checked:0,triggered:0,sent:0,failed:0,snapshots:0};const time=new Date(now());
  const leaseId=randomUUID();
  // Single database lease prevents overlapping worker processes checking the same batch.
@@ -14,7 +15,7 @@ async function runBackgroundCycle({Alert,User,ResearchAccount,PortfolioSnapshot,
  renewal.unref?.();
  const checkLease=()=>{if(leaseLost)throw Error('Worker lease lost');};
  try{
-  const alerts=await Alert.find({triggered:false}).sort({lastBackgroundCheck:1,createdAt:1}).limit(100).lean();
+  const alerts=await Alert.find({...scope,triggered:false}).sort({lastBackgroundCheck:1,createdAt:1}).limit(100).lean();
   const symbols=[...new Set(alerts.map(a=>a.symbol))].slice(0,25);const quotes=await data.quotes(symbols);
   for(const a of alerts){checkLease();if(!symbols.includes(a.symbol))continue;counts.checked++;
    await Alert.updateOne({_id:a._id,triggered:false},{$set:{lastBackgroundCheck:time}});
@@ -22,7 +23,7 @@ async function runBackgroundCycle({Alert,User,ResearchAccount,PortfolioSnapshot,
    const updated=await Alert.findOneAndUpdate({_id:a._id,userId:a.userId,triggered:false},{$set:{triggered:true,triggeredAt:time,observedPrice:q.price,observedAt:new Date(q.observedAt),source:q.source,deliveryStatus:'pending',deliveryAttempts:0}},{new:true});if(updated)counts.triggered++;
   }
   // Browser-triggered alerts also enter delivery, if triggered after email opt-in.
-  const deliveries=await Alert.find({triggered:true,deliveryStatus:{$nin:['sent','skipped']},$or:[{deliveryLease:{$lt:time}},{deliveryLease:{$exists:false}}]}).sort({triggeredAt:1}).limit(50).lean();
+  const deliveries=await Alert.find({...scope,triggered:true,deliveryStatus:{$nin:['sent','skipped']},$or:[{deliveryLease:{$lt:time}},{deliveryLease:{$exists:false}}]}).sort({triggeredAt:1}).limit(50).lean();
   for(const a of deliveries){checkLease();
    const prefs=await ResearchAccount.findOne({userId:a.userId}).lean();
    const user=await User.findById(a.userId).select('email emailVerified').lean();
@@ -37,7 +38,7 @@ async function runBackgroundCycle({Alert,User,ResearchAccount,PortfolioSnapshot,
    }catch(_){await Alert.updateOne({_id:a._id},{$set:{deliveryStatus:'failed',deliveryError:'Email delivery failed; worker will retry'},$unset:{deliveryLease:1}});counts.failed++;}
   }
   if(snapshots){
-   const accounts=await ResearchAccount.find({'transactions.0':{$exists:true},$or:[{lastSnapshotAttempt:{$lt:new Date(now()-3600000)}},{lastSnapshotAttempt:{$exists:false}}]}).sort({lastSnapshotAttempt:1}).limit(1).lean();
+   const accounts=await ResearchAccount.find({...scope,'transactions.0':{$exists:true},$or:[{lastSnapshotAttempt:{$lt:new Date(now()-3600000)}},{lastSnapshotAttempt:{$exists:false}}]}).sort({lastSnapshotAttempt:1}).limit(1).lean();
    for(const account of accounts){checkLease();await ResearchAccount.updateOne({_id:account._id},{$set:{lastSnapshotAttempt:time}});try{await captureSnapshot({account,ResearchAccount,PortfolioSnapshot,data,now});counts.snapshots++;}catch(_){counts.failed++;}}
   }
   await WorkerHeartbeat.updateOne({_id:'research-worker',leaseId},{$set:{lastSuccess:new Date(now()),lastError:counts.failed?'Some checks or deliveries failed; inspect counts':null,counts},$unset:{leaseUntil:1,leaseId:1}});return counts;
