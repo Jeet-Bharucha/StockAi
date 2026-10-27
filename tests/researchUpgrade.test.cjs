@@ -98,3 +98,8 @@ test('clear-all-data includes account research collections without touching anot
  const res={status(){return this;},json(){return this;}};await handler({user:{id:'alice'}},res);
  assert.deepEqual(deleted,[{name:'holdings',userId:'alice'},{name:'research',userId:'alice'},{name:'snapshots',userId:'alice'}]);
 });
+
+
+test('private free checks only quote, trigger and deliver alerts belonging to the scoped owner',async()=>{
+ const s=await workerFixture();await s.Alert.create({userId:'bob',symbol:'MSFT',targetPrice:100,direction:'above',triggered:false,createdAt:new Date(NOW-30000)});await s.Alert.create({userId:'bob',symbol:'GLD',targetPrice:100,direction:'above',triggered:true,triggeredAt:new Date(NOW-10000),deliveryStatus:'pending'});let symbols;const old=s.options.data.quotes;s.options.data.quotes=async input=>{symbols=input;return old(input);};const result=await runBackgroundCycle({...s.options,userId:'alice'});assert.deepEqual(symbols,['SPY']);assert.equal(result.checked,1);assert.equal(result.sent,1);const other=s.Alert.records.filter(a=>a.userId==='bob');assert.equal(other[0].triggered,false);assert.equal(other[0].lastBackgroundCheck,undefined);assert.equal(other[1].deliveryStatus,'pending');assert.equal(other[1].deliveryAttempts,undefined);
+});
