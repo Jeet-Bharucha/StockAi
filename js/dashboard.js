@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadStock(symbol) {
     symbol = symbol.toUpperCase().trim();
     if (!symbol) return;
-    StockAPI.unsubscribeAll(); clearInterval(simInterval);
+    StockAPI.unsubscribeSymbol(currentSymbol, onWSTrade); clearInterval(simInterval);
     currentSymbol = symbol;
     // Clear old overlays and invalidate in-flight comparisons immediately.
     clearCompare();
@@ -1236,28 +1236,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const input = document.getElementById('compare-input'); if (input) input.value='';
     const leg = document.getElementById('compare-legend'); if (leg) leg.innerHTML='';
   };
-
-  // ── Ticker Tape ──────────────────────────────────────────────────────────
-  async function renderTickerTape() {
-    const inner = document.getElementById('ticker-inner'); if (!inner) return;
-    const syms = ['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','JPM','V','SPY','QQQ','GLD'];
-    const quotes = (await Promise.all(syms.map(async sym => {
-      try { const q=await StockAPI.getQuote(sym);return {sym,price:q.price,pct:q.changePct}; }
-      catch (_) { return null; }
-    }))).filter(Boolean);
-    if (!quotes.length) { inner.textContent='Verified market ticker unavailable · check back shortly.'; inner.style.animation='none'; return; }
-    const html=quotes.map(q=> {
-      const up=q.pct>=0;
-      return `<span class="ticker-item"><b>${q.sym}</b> $${q.price.toFixed(2)}
-        <span style="color:${up?'var(--green)':'var(--red)'}">${up?'+':''}${q.pct.toFixed(2)}%</span></span>`;
-    }).join('');
-    inner.innerHTML=html+html;
-    const totalW=inner.scrollWidth/2;
-    inner.style.animation='none';
-    inner.style.width=(totalW*2)+'px';
-    void inner.offsetHeight;
-    inner.style.animation=`ticker ${Math.max(30,totalW/45)}s linear infinite`;
-  }
 
   // ── Notification Center ───────────────────────────────────────────────────
   const NotifCenter = window.NotifCenter = (function() {
@@ -2452,7 +2430,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   void updateMarket().catch(err => console.warn('Market overview failed:', err.message));
   void renderPortfolio().catch(err => console.warn('Portfolio could not load:', err.message));
-  void renderTickerTape().catch(err => console.warn('Ticker could not load:', err.message));
   void renderDailyBriefing().catch(err => console.warn('Market briefing could not load:', err.message));
 
   marketInterval = setInterval(() => {

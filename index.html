@@ -703,39 +703,8 @@ nav .logo-icon{animation:logoGlowIndex 3.5s ease-in-out infinite}
 })();
 </script>
 
-<!-- Ticker -->
-<script>
-(function(){
-  const tickers=[
-    {sym:'AAPL',price:185.42,chg:1.24},{sym:'GOOGL',price:175.18,chg:-0.83},
-    {sym:'MSFT',price:421.35,chg:2.15},{sym:'TSLA',price:246.80,chg:-3.42},
-    {sym:'AMZN',price:196.22,chg:0.97},{sym:'META',price:512.40,chg:4.18},
-    {sym:'NVDA',price:877.30,chg:12.45},{sym:'NFLX',price:651.20,chg:-2.10},
-    {sym:'AMD',price:167.55,chg:1.88},{sym:'JPM',price:207.33,chg:0.55},
-    {sym:'V',price:276.40,chg:-0.22},{sym:'DIS',price:96.10,chg:0.73},
-    {sym:'SPX',price:5232.10,chg:18.40},{sym:'BTC',price:67450,chg:1240},
-    {sym:'ETH',price:3520,chg:-45},{sym:'COIN',price:207.80,chg:3.22},
-  ];
-  const track=document.getElementById('ticker-track');
-  const all=[...tickers,...tickers];
-  function render(){
-    track.innerHTML=all.map(t=>`
-      <div class="ticker-item">
-        <span class="sym">${t.sym}</span>
-        <span>${t.price.toLocaleString('en-US',{maximumFractionDigits:2})}</span>
-        <span class="chg ${t.chg>=0?'up':'down'}">${t.chg>=0?'+':''}${t.chg.toFixed(2)}</span>
-      </div>`).join('');
-  }
-  render();
-  setInterval(()=>{
-    tickers.forEach(t=>{
-      t.price=Math.max(1,t.price*(1+(Math.random()-0.5)*0.0008));
-      t.chg+=(Math.random()-0.5)*0.04;
-    });
-    render();
-  },3000);
-})();
-</script>
+<script src="js/stockApi.js"></script>
+<script src="js/marketTicker.js"></script>
 
 <!-- Scroll reveal -->
 <script>

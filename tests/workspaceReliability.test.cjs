@@ -40,10 +40,10 @@ test('quote starts while history and profile are pending, and failed history cle
   const data=[];
   const context={console,clearInterval,location:{host:''},window:{},
     document:{getElementById:el,dispatchEvent(){}},CustomEvent:function(){},StockAPI:{
-      unsubscribeAll(){},getCompanyInfo:()=>({name:'SPY',sector:'ETF'}),
+      unsubscribeSymbol(){},getCompanyInfo:()=>({name:'SPY',sector:'ETF'}),
       getCompanyProfile:()=>new Promise(()=>{}),
       getCandles:()=>new Promise(resolve=>finishHistory=resolve)
-    },currentSymbol:'AAPL',claudeAnalysisVersion:0,claudeBusy:false,activePrediction:null,
+    },onWSTrade(){},currentSymbol:'AAPL',claudeAnalysisVersion:0,claudeBusy:false,activePrediction:null,
     activePredictionSymbol:null,stockRequestVersion:0,verifiedPrevClose:1,currentBars:[{close:999}],
     simInterval:null,compareSeries:null,newsMode:'market',chart:null,
     candleSeries:{setData:bars=>data.push(bars)},volumeSeries:{setData(){}},

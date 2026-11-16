@@ -12,10 +12,3 @@
   to     = "https://stockai-main.onrender.com/api/:splat"
   status = 200
   force  = true
-
-# Proxy WebSocket upgrades to Render too
-[[redirects]]
-  from   = "/ws"
-  to     = "https://stockai-main.onrender.com/ws"
-  status = 200
-  force  = true

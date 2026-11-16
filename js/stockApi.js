@@ -6,7 +6,7 @@ const StockAPI = {
   _CACHE_QUOTE:  30000,  // 30 s
   _CACHE_CANDLE: 300000, // 5 min
   _ws: null,
-  _wsSubs: {},    // symbol → callback
+  _wsSubs: Object.create(null),    // symbol → Set of independent listeners
   _wsStatus: 'disconnected',
   _reconnectTimer: null,
 
@@ -16,7 +16,10 @@ const StockAPI = {
     if (!location.host) return;
 
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url   = `${proto}//${location.host}/ws`;
+    // Netlify forwards REST, but the stream must connect to its Render origin.
+    const url = location.hostname === 'stockai-app.netlify.app'
+      ? 'wss://stockai-main.onrender.com/ws'
+      : `${proto}//${location.host}/ws`;
 
     // Never open duplicate sockets when network events fire close/retry together.
     if (this._ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this._ws.readyState)) return;
@@ -37,8 +40,10 @@ const StockAPI = {
         }
 
         if (msg.type === 'trade') {
-          const cb = this._wsSubs[msg.symbol];
-          if (cb) cb({ price: msg.price, volume: msg.volume, time: msg.time });
+          const listeners = this._wsSubs[msg.symbol];
+          if (listeners) for (const callback of listeners) {
+            callback({ price: msg.price, volume: msg.volume, time: msg.time });
+          }
         }
       } catch (_) {}
     };
@@ -70,19 +75,24 @@ const StockAPI = {
   },
 
   subscribeSymbol(symbol, callback) {
-    if (this._wsSubs[symbol]) this._wsSend('unsubscribe', symbol);
-    this._wsSubs[symbol] = callback;
-    this._wsSend('subscribe', symbol);
+    if (!this._wsSubs[symbol]) {
+      this._wsSubs[symbol] = new Set();
+      this._wsSend('subscribe', symbol);
+    }
+    this._wsSubs[symbol].add(callback);
   },
 
-  unsubscribeSymbol(symbol) {
-    this._wsSend('unsubscribe', symbol);
+  unsubscribeSymbol(symbol, callback) {
+    const listeners = this._wsSubs[symbol];
+    if (!listeners) return;
+    if (callback) listeners.delete(callback);
+    if (callback && listeners.size) return;
     delete this._wsSubs[symbol];
+    this._wsSend('unsubscribe', symbol);
   },
 
   unsubscribeAll() {
-    Object.keys(this._wsSubs).forEach(s => this._wsSend('unsubscribe', s));
-    this._wsSubs = {};
+    Object.keys(this._wsSubs).forEach(s => this.unsubscribeSymbol(s));
   },
 
   // ── REST (hits our /api/* proxy) ──────────────────────────────────────────

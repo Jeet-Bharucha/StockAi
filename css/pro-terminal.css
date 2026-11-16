@@ -717,3 +717,9 @@ body.stockai-pro .chart-btn.active,body.stockai-pro.light .chart-btn.active {
   body.stockai-pro .tab-view { padding-bottom:calc(8.5rem + env(safe-area-inset-bottom)); }
   body.stockai-pro #port-stats-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+
+#ticker-track, #ticker-inner { width:max-content; flex:none; font-variant-numeric:tabular-nums; }
+#ticker-track small, #ticker-inner small { color:var(--muted); font-size:.66rem; font-weight:500; }
+@media(prefers-reduced-motion:reduce) {
+  #ticker-tape-wrap, .ticker-wrap { overflow-x:auto; }
+}
