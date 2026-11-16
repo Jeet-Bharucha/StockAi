@@ -95,13 +95,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.innerHTML = '';
     chart = LightweightCharts.createChart(container, {
       width: container.clientWidth, height: 320,
-      layout: { background:{type:'solid',color:'transparent'}, textColor:'#94a3b8' },
-      grid: { vertLines:{color:'rgba(132,157,193,0.07)'}, horzLines:{color:'rgba(132,157,193,0.07)'} },
+      layout: { background:{type:'solid',color:'transparent'}, textColor:'#a3a3a3' },
+      grid: { vertLines:{color:'rgba(157,157,157,0.07)'}, horzLines:{color:'rgba(157,157,157,0.07)'} },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-      rightPriceScale: { borderColor:'rgba(132,157,193,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
-      timeScale: { borderColor:'rgba(132,157,193,0.2)', timeVisible:true },
+      rightPriceScale: { borderColor:'rgba(157,157,157,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
+      timeScale: { borderColor:'rgba(157,157,157,0.2)', timeVisible:true },
     });
-    candleSeries = chart.addCandlestickSeries({ upColor:'#4bbf8d', downColor:'#e27889', borderUpColor:'#4bbf8d', borderDownColor:'#e27889', wickUpColor:'#4bbf8d', wickDownColor:'#e27889' });
+    candleSeries = chart.addCandlestickSeries({ upColor:'#999999', downColor:'#959595', borderUpColor:'#999999', borderDownColor:'#959595', wickUpColor:'#999999', wickDownColor:'#959595' });
     volumeSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'', scaleMargins:{top:0.82,bottom:0} });
     window._chart = chart; window._candleSeries = candleSeries; window._volSeries = volumeSeries;
     window.addEventListener('resize', resizeChart);
@@ -127,18 +127,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!chart) return;
     const light = document.body.classList.contains('light');
     chart.applyOptions({
-      layout: { background:{type:'solid',color:light?'#f6fafb':'#0d1823'}, textColor:light?'#526b7e':'#9eb0bd' },
+      layout: { background:{type:'solid',color:light?'#f9f9f9':'#171717'}, textColor:light?'#686868':'#aeaeae' },
       grid: {
-        vertLines:{color:light?'rgba(56,91,110,0.08)':'rgba(111,152,168,0.10)'},
-        horzLines:{color:light?'rgba(56,91,110,0.08)':'rgba(111,152,168,0.10)'}
+        vertLines:{color:light?'rgba(85,85,85,0.08)':'rgba(144,144,144,0.10)'},
+        horzLines:{color:light?'rgba(85,85,85,0.08)':'rgba(144,144,144,0.10)'}
       },
-      rightPriceScale:{borderColor:light?'#cedee4':'#284251'},
-      timeScale:{borderColor:light?'#cedee4':'#284251'}
+      rightPriceScale:{borderColor:light?'#dbdbdb':'#3e3e3e'},
+      timeScale:{borderColor:light?'#dbdbdb':'#3e3e3e'}
     });
     candleSeries?.applyOptions({
-      upColor:light?'#158568':'#4bbf8d',downColor:light?'#c13d51':'#ff7784',
-      borderUpColor:light?'#158568':'#4bbf8d',borderDownColor:light?'#c13d51':'#ff7784',
-      wickUpColor:light?'#158568':'#4bbf8d',wickDownColor:light?'#c13d51':'#ff7784'
+      upColor:light?'#207a2f':'#999999',downColor:light?'#616161':'#9b9b9b',
+      borderUpColor:light?'#207a2f':'#999999',borderDownColor:light?'#616161':'#9b9b9b',
+      wickUpColor:light?'#207a2f':'#999999',wickDownColor:light?'#616161':'#9b9b9b'
     });
     resizeChart();
   }
@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     window.fullBars = currentBars;
     candleSeries.update(newBar);
-    volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'});
+    volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(84,223,119,0.3)':'rgba(209,214,210,0.3)'});
     updatePriceDisplay(close, last?last.close:close);
     checkAlertsForPrice(currentSymbol, close);
   }
@@ -481,7 +481,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Gradient arc (full sweep)
       const grad = ctx.createLinearGradient(cx-R,0,cx+R,0);
-      grad.addColorStop(0,'#e27889'); grad.addColorStop(0.5,'#d9b676'); grad.addColorStop(1,'#4bbf8d');
+      grad.addColorStop(0,'#959595'); grad.addColorStop(0.5,'#b4b4b4'); grad.addColorStop(1,'#999999');
       ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,0,false);
       ctx.lineWidth=lw; ctx.strokeStyle=grad; ctx.globalAlpha=0.18; ctx.stroke();
       ctx.globalAlpha=1;
@@ -490,7 +490,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const conf = r.confidence/100;
       const startAngle = Math.PI;
       const endAngle = Math.PI + conf * Math.PI;
-      const color = r.direction==='UP'?'#4bbf8d':r.direction==='DOWN'?'#e27889':'#d9b676';
+      const color = r.direction==='UP'?'#999999':r.direction==='DOWN'?'#959595':'#b4b4b4';
       ctx.beginPath(); ctx.arc(cx,cy,R,startAngle,endAngle,false);
       ctx.lineWidth=lw; ctx.strokeStyle=color;
       ctx.shadowColor=color; ctx.shadowBlur=18; ctx.stroke(); ctx.shadowBlur=0;
@@ -504,15 +504,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Center text
       ctx.fillStyle='#fff'; ctx.font='bold 36px Inter,sans-serif'; ctx.textAlign='center';
       ctx.fillText(`${r.confidence}%`, cx, cy-22);
-      ctx.fillStyle='#64748b'; ctx.font='600 11px Inter,sans-serif';
+      ctx.fillStyle='#a1aaa3'; ctx.font='600 11px Inter,sans-serif';
       ctx.fillText('INDICATOR SCORE', cx, cy-4);
 
       // Zone labels
-      ctx.font='500 10px Inter,sans-serif'; ctx.fillStyle='rgba(255,68,102,0.8)';
+      ctx.font='500 10px Inter,sans-serif'; ctx.fillStyle='rgba(209,214,210,0.8)';
       ctx.fillText('SELL', cx-R+4, cy+16);
-      ctx.fillStyle='rgba(255,215,0,0.8)';
+      ctx.fillStyle='rgba(171,180,173,0.8)';
       ctx.fillText('HOLD', cx, cy+20);
-      ctx.fillStyle='rgba(0,255,136,0.8)';
+      ctx.fillStyle='rgba(84,223,119,0.8)';
       ctx.fillText('BUY', cx+R-18, cy+16);
     }
 
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Risk needle
     const riskPct = Number.isFinite(r.atrPct)?Math.min(100,r.atrPct/4*100):0;
-    const riskColor = riskPct < 35 ? '#4bbf8d' : riskPct < 65 ? '#d9b676' : '#e27889';
+    const riskColor = riskPct < 35 ? '#999999' : riskPct < 65 ? '#b4b4b4' : '#959595';
     const needleEl = document.getElementById('risk-needle');
     if (!needleEl) {
       const track = document.querySelector('.risk-track');
@@ -793,7 +793,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cell.type='button';
         cell.className='heat-cell market-heat-button';
         cell.dataset.symbol=sector.sym;
-        cell.style.background='rgba(100,116,139,0.12)';
+        cell.style.background='rgba(161,170,163,0.12)';
         cell.style.color='var(--text)';
         cell.addEventListener('click',()=>window.selectSearch(sector.sym));
         const name=document.createElement('div');
@@ -859,8 +859,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if(valid){
         const intensity=Math.min(1,Math.abs(quote.changePct)/4);
         cell.style.background=up
-          ?'rgba(44,171,114,'+(0.08+intensity*0.30)+')'
-          :'rgba(215,79,105,'+(0.08+intensity*0.30)+')';
+          ?'rgba(45,170,65,'+(0.08+intensity*0.30)+')'
+          :'rgba(117,117,117,'+(0.08+intensity*0.30)+')';
         cell.style.color=up?'var(--green)':'var(--red)';
         change.textContent=(up?'+':'')+quote.changePct.toFixed(2)+'%';
         cell.title=(quote.source||'Market provider')+
@@ -1212,10 +1212,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!bars2.length) throw new Error('no data');
 
       // Enable left price scale for the comparison stock
-      window._chart.applyOptions({ leftPriceScale:{ visible:true, borderColor:'rgba(245,158,11,0.3)', scaleMargins:{top:0.08,bottom:0.22} } });
+      window._chart.applyOptions({ leftPriceScale:{ visible:true, borderColor:'rgba(155,155,155,0.3)', scaleMargins:{top:0.08,bottom:0.22} } });
 
       compareSeries = window._chart.addLineSeries({
-        color:'#f59e0b', lineWidth:2, priceLineVisible:false,
+        color:'#9b9b9b', lineWidth:2, priceLineVisible:false,
         lastValueVisible:true, crosshairMarkerVisible:true, title:sym,
         priceScaleId:'left',
       });
@@ -1379,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (wrap) wrap.style.display='';
 
     const total = rows.reduce((a,r) => a + r.value, 0) || 1;
-    const colors = ['#91a9cf','#4bbf8d','#60a5fa','#d9b676','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#a78bfa','#fb923c'];
+    const colors = ['#a9a9a9','#999999','#7ddd8d','#b4b4b4','#909090','#4ecd62','#48ce5d','#bababa','#9fe6ab','#9e9e9e'];
     const colored = rows.map((r,i) => ({ ...r, color: colors[i % colors.length] }));
 
     // Draw donut using actual portfolio values (canvas is 140×140)
@@ -1396,8 +1396,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       angle += sweep;
     });
     ctx.beginPath(); ctx.arc(cx,cy,r2,0,Math.PI*2);
-    ctx.fillStyle = '#060e1c'; ctx.fill();
-    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle = '#0e0e0e'; ctx.fill();
+    ctx.fillStyle = '#f2f5f2'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign='center';
     ctx.fillText(`$${total>=1000?(total/1000).toFixed(1)+'K':total.toFixed(0)}`, cx, cy+4);
 
     const legendEl = document.getElementById('port-legend');
@@ -1428,7 +1428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     canvas.width=width;canvas.height=80;
     const ctx=canvas.getContext('2d');
     ctx.clearRect(0,0,width,80);
-    ctx.fillStyle='#96adbe';
+    ctx.fillStyle='#aaaaaa';
     ctx.font='12px Inter,sans-serif';
     ctx.textAlign='center';
     ctx.fillText(rows?.length
@@ -1477,13 +1477,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(p.x<0||p.x>canvas.width)  p.vx*=-1;
         if(p.y<0||p.y>canvas.height) p.vy*=-1;
         ctx.beginPath(); ctx.arc(p.x,p.y,1.8,0,Math.PI*2);
-        ctx.fillStyle='rgba(110,90,255,0.55)'; ctx.fill();
+        ctx.fillStyle='rgba(125,220,140,0.55)'; ctx.fill();
       });
       pts.forEach((a,i) => pts.slice(i+1).forEach(b => {
         const d = Math.hypot(a.x-b.x, a.y-b.y);
         if (d<130) {
           ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-          ctx.strokeStyle=`rgba(100,80,220,${0.18*(1-d/130)})`; ctx.lineWidth=.7; ctx.stroke();
+          ctx.strokeStyle=`rgba(89,211,109,${0.18*(1-d/130)})`; ctx.lineWidth=.7; ctx.stroke();
         }
       }));
       _heroAnimId = requestAnimationFrame(draw);
@@ -1729,7 +1729,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!totalValue) return;
 
     // Group by assetType
-    const typeMap = { stock:'#3b82f6', etf:'#7e99c4', crypto:'#f59e0b' };
+    const typeMap = { stock:'#29ac53', etf:'#9a9a9a', crypto:'#9b9b9b' };
     const typeLabels = { stock:'Stocks', etf:'ETFs', crypto:'Crypto' };
     const byType = {};
     rows.forEach(r => {
@@ -1738,7 +1738,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Group by account
-    const acctMap  = { taxable:'#64748b', roth_ira:'#10b981', k401:'#d97706', crypto_wallet:'#f59e0b', other:'#475569' };
+    const acctMap  = { taxable:'#a1aaa3', roth_ira:'#2a9f3d', k401:'#7c7c7c', crypto_wallet:'#9b9b9b', other:'#555555' };
     const acctLabels= _acctLabels;
     const byAcct = {};
     rows.forEach(r => {
@@ -1753,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.55rem">${title}</div>
         ${entries.map(([key,val])=>{
           const pct = (val/totalValue*100).toFixed(1);
-          const color = colorMap[key] || '#64748b';
+          const color = colorMap[key] || '#a1aaa3';
           const label = labelMap[key] || key;
           return `<div class="alloc-item">
             <div class="alloc-row"><span class="alloc-name">${label}</span><span class="alloc-val">${pct}% · $${_fmtD(val)}</span></div>
@@ -2387,11 +2387,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateConnectionNotice();
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  function volData(bars){ return bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'})); }
+  function volData(bars){ return bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(84,223,119,0.3)':'rgba(209,214,210,0.3)'})); }
   function fmtVol(v){ if(v>=1e9)return(v/1e9).toFixed(2)+'B'; if(v>=1e6)return(v/1e6).toFixed(2)+'M'; if(v>=1e3)return(v/1e3).toFixed(1)+'K'; return v; }
   function showChartLoader(show) {
     let el=document.getElementById('chart-loader');
-    if (!el){ el=document.createElement('div'); el.id='chart-loader'; el.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,11,31,0.7);border-radius:10px;font-size:.85rem;color:#64748b;z-index:10;pointer-events:none'; el.innerHTML='<span>⟳ Loading chart data…</span>'; const cw=document.getElementById('price-chart'); cw.style.position='relative'; cw.appendChild(el); }
+    if (!el){ el=document.createElement('div'); el.id='chart-loader'; el.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(13,13,13,0.7);border-radius:10px;font-size:.85rem;color:#a1aaa3;z-index:10;pointer-events:none'; el.innerHTML='<span>⟳ Loading chart data…</span>'; const cw=document.getElementById('price-chart'); cw.style.position='relative'; cw.appendChild(el); }
     el.style.display=show?'flex':'none';
   }
 
@@ -2517,7 +2517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(W, H);
-    renderer.setClearColor(0x050b1f, 1);
+    renderer.setClearColor(0x0d0d0d, 1);
     window._3dRenderer = renderer;
 
     const scene  = new THREE.Scene();
@@ -2526,12 +2526,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     camera.lookAt(0, 3, 0);
 
     // Lighting
-    scene.add(new THREE.AmbientLight(0x1a2a6a, 3));
-    const sun = new THREE.DirectionalLight(0x00d4ff, 4); sun.position.set(8, 20, 12); scene.add(sun);
-    const rim = new THREE.DirectionalLight(0x00ff88, 2); rim.position.set(-8, 4, -8); scene.add(rim);
+    scene.add(new THREE.AmbientLight(0x1c6828, 3));
+    const sun = new THREE.DirectionalLight(0x68ea85, 4); sun.position.set(8, 20, 12); scene.add(sun);
+    const rim = new THREE.DirectionalLight(0x54df77, 2); rim.position.set(-8, 4, -8); scene.add(rim);
 
     // Floor grid
-    const grid = new THREE.GridHelper(bars.length * 1.3, bars.length, 0x0d2040, 0x071428);
+    const grid = new THREE.GridHelper(bars.length * 1.3, bars.length, 0x212121, 0x141414);
     grid.position.y = -0.05;
     scene.add(grid);
 
@@ -2545,7 +2545,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     bars.forEach((bar, i) => {
       const x   = startX + i * 1.2;
       const up  = bar.close >= bar.open;
-      const col = up ? 0x00ff88 : 0xff4466;
+      const col = up ? 0x54df77 : 0xd1d6d2;
 
       // Body
       const bH  = Math.max(0.06, Math.abs(norm(bar.close) - norm(bar.open)));

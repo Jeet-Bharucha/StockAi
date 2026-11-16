@@ -1,4 +1,4 @@
-const CACHE = 'stockai-v30-free-alert-checks-1';
+const CACHE = 'stockai-v31-green-theme';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/forgot-password.html', '/reset-password.html', '/owner-recovery.html', '/verify-email.html',
