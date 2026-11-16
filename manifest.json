@@ -5,8 +5,8 @@
   "start_url": "/dashboard.html",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#050b1f",
-  "theme_color": "#00d4ff",
+  "background_color": "#080a09",
+  "theme_color": "#080a09",
   "categories": ["finance", "business"],
   "icons": [
     { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }

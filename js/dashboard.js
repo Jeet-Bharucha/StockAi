@@ -80,13 +80,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.innerHTML = '';
     chart = LightweightCharts.createChart(container, {
       width: container.clientWidth, height: 320,
-      layout: { background:{type:'solid',color:'transparent'}, textColor:'#94a3b8' },
-      grid: { vertLines:{color:'rgba(0,212,255,0.07)'}, horzLines:{color:'rgba(0,212,255,0.07)'} },
+      layout: { background:{type:'solid',color:'transparent'}, textColor:'#a1aaa3' },
+      grid: { vertLines:{color:'rgba(104,234,133,0.07)'}, horzLines:{color:'rgba(104,234,133,0.07)'} },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-      rightPriceScale: { borderColor:'rgba(0,212,255,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
-      timeScale: { borderColor:'rgba(0,212,255,0.2)', timeVisible:true },
+      rightPriceScale: { borderColor:'rgba(104,234,133,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
+      timeScale: { borderColor:'rgba(104,234,133,0.2)', timeVisible:true },
     });
-    candleSeries = chart.addCandlestickSeries({ upColor:'#00ff88', downColor:'#ff4466', borderUpColor:'#00ff88', borderDownColor:'#ff4466', wickUpColor:'#00ff88', wickDownColor:'#ff4466' });
+    candleSeries = chart.addCandlestickSeries({ upColor:'#54df77', downColor:'#d1d6d2', borderUpColor:'#54df77', borderDownColor:'#d1d6d2', wickUpColor:'#54df77', wickDownColor:'#d1d6d2' });
     volumeSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'', scaleMargins:{top:0.82,bottom:0} });
     window._chart = chart; window._candleSeries = candleSeries; window._volSeries = volumeSeries;
     window.addEventListener('resize', () => chart && chart.applyOptions({ width: container.clientWidth }));
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     window.fullBars = currentBars;
     candleSeries.update(newBar);
-    volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'});
+    volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(84,223,119,0.3)':'rgba(209,214,210,0.3)'});
     updatePriceDisplay(close, last?last.close:close);
     checkAlertsForPrice(currentSymbol, close);
   }
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const newBar = { time:nowSec, open:last?last.close:+price.toFixed(2), high:Math.max(last?last.close:price,price), low:Math.min(last?last.close:price,price), close:+price.toFixed(2), volume:StockAPI._seeds[currentSymbol]?.volume||1e6 };
     currentBars.push(newBar); currentBars = currentBars.slice(-600); window.fullBars = currentBars;
     candleSeries.update(newBar);
-    volumeSeries.update({time:nowSec, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'});
+    volumeSeries.update({time:nowSec, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(84,223,119,0.3)':'rgba(209,214,210,0.3)'});
     updatePriceDisplay(price, last?last.close:price);
     checkAlertsForPrice(currentSymbol, +price.toFixed(2));
   }
@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Gradient arc (full sweep)
       const grad = ctx.createLinearGradient(cx-R,0,cx+R,0);
-      grad.addColorStop(0,'#ff4466'); grad.addColorStop(0.5,'#ffd700'); grad.addColorStop(1,'#00ff88');
+      grad.addColorStop(0,'#d1d6d2'); grad.addColorStop(0.5,'#abb4ad'); grad.addColorStop(1,'#54df77');
       ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,0,false);
       ctx.lineWidth=lw; ctx.strokeStyle=grad; ctx.globalAlpha=0.18; ctx.stroke();
       ctx.globalAlpha=1;
@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const conf = r.confidence/100;
       const startAngle = Math.PI;
       const endAngle = Math.PI + conf * Math.PI;
-      const color = r.direction==='UP'?'#00ff88':r.direction==='DOWN'?'#ff4466':'#ffd700';
+      const color = r.direction==='UP'?'#54df77':r.direction==='DOWN'?'#d1d6d2':'#abb4ad';
       ctx.beginPath(); ctx.arc(cx,cy,R,startAngle,endAngle,false);
       ctx.lineWidth=lw; ctx.strokeStyle=color;
       ctx.shadowColor=color; ctx.shadowBlur=18; ctx.stroke(); ctx.shadowBlur=0;
@@ -339,15 +339,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Center text
       ctx.fillStyle='#fff'; ctx.font='bold 36px Inter,sans-serif'; ctx.textAlign='center';
       ctx.fillText(`${r.confidence}%`, cx, cy-22);
-      ctx.fillStyle='#64748b'; ctx.font='600 11px Inter,sans-serif';
+      ctx.fillStyle='#a1aaa3'; ctx.font='600 11px Inter,sans-serif';
       ctx.fillText('AI CONFIDENCE', cx, cy-4);
 
       // Zone labels
-      ctx.font='500 10px Inter,sans-serif'; ctx.fillStyle='rgba(255,68,102,0.8)';
+      ctx.font='500 10px Inter,sans-serif'; ctx.fillStyle='rgba(209,214,210,0.8)';
       ctx.fillText('SELL', cx-R+4, cy+16);
-      ctx.fillStyle='rgba(255,215,0,0.8)';
+      ctx.fillStyle='rgba(171,180,173,0.8)';
       ctx.fillText('HOLD', cx, cy+20);
-      ctx.fillStyle='rgba(0,255,136,0.8)';
+      ctx.fillStyle='rgba(84,223,119,0.8)';
       ctx.fillText('BUY', cx+R-18, cy+16);
     }
 
@@ -371,7 +371,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Risk needle
     const riskPct = r.atrPct ? Math.min(100, parseFloat(r.atrPct) / 4 * 100) : 50;
-    const riskColor = riskPct < 35 ? '#00ff88' : riskPct < 65 ? '#ffd700' : '#ff4466';
+    const riskColor = riskPct < 35 ? '#54df77' : riskPct < 65 ? '#abb4ad' : '#d1d6d2';
     const needleEl = document.getElementById('risk-needle');
     if (!needleEl) {
       const track = document.querySelector('.risk-track');
@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (heatEl) {
       heatEl.innerHTML = HEAT_SECTORS.map(s =>
         `<div class="heat-cell" id="heat-${s.sym}" onclick="window.selectSearch('${s.sym}');switchTab(null,'dashboard')"
-          style="background:rgba(100,116,139,0.12)">
+          style="background:rgba(161,170,163,0.12)">
           <div class="heat-cell-name">${s.emoji} ${s.name}</div>
           <div class="heat-cell-chg" id="heat-chg-${s.sym}">—</div>
           <div class="heat-cell-sym">${s.sym}</div>
@@ -459,11 +459,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (!cell) return;
           const intensity = Math.min(1, Math.abs(chg) / 4);
           if (chg >= 0) {
-            cell.style.background = `rgba(0,255,136,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#00ff88';
+            cell.style.background = `rgba(84,223,119,${0.07 + intensity * 0.35})`;
+            cell.style.color = '#54df77';
           } else {
-            cell.style.background = `rgba(255,68,102,${0.07 + intensity * 0.35})`;
-            cell.style.color = '#ff4466';
+            cell.style.background = `rgba(209,214,210,${0.07 + intensity * 0.35})`;
+            cell.style.color = '#d1d6d2';
           }
           if (chgEl) chgEl.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
         } catch (_) {}
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grid = document.getElementById('wl-view-grid'); if (!grid) return;
     const list = Auth.getWatchlist();
     if (Auth.isGuest()) {
-      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.8rem">⭐</div><div style="margin-bottom:1.2rem">Create a free account to save your watchlist</div><a href="register.html" style="padding:.6rem 1.6rem;background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-radius:9px;color:#fff;font-weight:700;text-decoration:none;font-size:.88rem">Create Account →</a></div>`;
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.8rem">⭐</div><div style="margin-bottom:1.2rem">Create a free account to save your watchlist</div><a href="register.html" style="padding:.6rem 1.6rem;background:linear-gradient(135deg,#105c30,#19723d);border-radius:9px;color:#fff;font-weight:700;text-decoration:none;font-size:.88rem">Create Account →</a></div>`;
       return;
     }
     if (!list.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2rem;margin-bottom:.8rem">⭐</div><div>No stocks yet. Use the search box above to add some.</div></div>`; return; }
@@ -621,17 +621,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!bars2.length) throw new Error('no data');
 
       // Enable left price scale for the comparison stock
-      window._chart.applyOptions({ leftPriceScale:{ visible:true, borderColor:'rgba(245,158,11,0.3)', scaleMargins:{top:0.08,bottom:0.22} } });
+      window._chart.applyOptions({ leftPriceScale:{ visible:true, borderColor:'rgba(110,121,111,0.3)', scaleMargins:{top:0.08,bottom:0.22} } });
 
       compareSeries = window._chart.addLineSeries({
-        color:'#f59e0b', lineWidth:2, priceLineVisible:false,
+        color:'#6e796f', lineWidth:2, priceLineVisible:false,
         lastValueVisible:true, crosshairMarkerVisible:true, title:sym,
         priceScaleId:'left',
       });
       compareSeries.setData(bars2.map(b=>({time:b.time, value:b.close})));
 
       const leg = document.getElementById('compare-legend');
-      if (leg) leg.innerHTML = `<span><span class="cmp-dot" style="background:var(--cyan)"></span>${currentSymbol}</span><span><span class="cmp-dot" style="background:#f59e0b"></span>${sym}</span>`;
+      if (leg) leg.innerHTML = `<span><span class="cmp-dot" style="background:var(--cyan)"></span>${currentSymbol}</span><span><span class="cmp-dot" style="background:#6e796f"></span>${sym}</span>`;
       showToast(`Comparing ${currentSymbol} vs ${sym}`);
     } catch(_) {
       showToast(`No data for ${sym}`);
@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (wrap) wrap.style.display='';
 
     const total = rows.reduce((a,r) => a + r.value, 0) || 1;
-    const colors = ['#00d4ff','#00ff88','#60a5fa','#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#a78bfa','#fb923c'];
+    const colors = ['#68ea85','#f2f5f2','#40985b','#89948b','#adf3bb','#387247','#c6cec8','#74997c','#5b665d','#d9e7dc'];
     const colored = rows.map((r,i) => ({ ...r, color: colors[i % colors.length] }));
 
     // Draw donut using actual portfolio values (canvas is 140×140)
@@ -818,8 +818,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       angle += sweep;
     });
     ctx.beginPath(); ctx.arc(cx,cy,r2,0,Math.PI*2);
-    ctx.fillStyle = '#060e1c'; ctx.fill();
-    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle = '#0f1210'; ctx.fill();
+    ctx.fillStyle = '#f2f5f2'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign='center';
     ctx.fillText(`$${total>=1000?(total/1000).toFixed(1)+'K':total.toFixed(0)}`, cx, cy+4);
 
     const legendEl = document.getElementById('port-legend');
@@ -851,7 +851,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx.clearRect(0,0,W,H);
 
     if (!rows || !rows.length) {
-      ctx.fillStyle='rgba(100,116,139,0.4)'; ctx.font='13px Inter'; ctx.textAlign='center';
+      ctx.fillStyle='rgba(161,170,163,0.4)'; ctx.font='13px Inter'; ctx.textAlign='center';
       ctx.fillText('Add holdings to see portfolio chart',W/2,H/2+5); return;
     }
 
@@ -873,10 +873,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
     const pts = values.map((v,i)=>({ x:(i/(days-1))*W, y:H-4-((v-min)/range)*(H-10) }));
     const isUp = totalValue >= totalCost;
-    const color = isUp?'#00ff88':'#ff4466';
+    const color = isUp?'#54df77':'#d1d6d2';
 
     const grad = ctx.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0, isUp?'rgba(0,255,136,0.25)':'rgba(255,68,102,0.25)');
+    grad.addColorStop(0, isUp?'rgba(84,223,119,0.25)':'rgba(209,214,210,0.25)');
     grad.addColorStop(1,'rgba(0,0,0,0)');
 
     ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
@@ -889,7 +889,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx.strokeStyle=color; ctx.lineWidth=2; ctx.shadowColor=color; ctx.shadowBlur=6; ctx.stroke(); ctx.shadowBlur=0;
 
     const fmt = v=>`$${v.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
-    ctx.fillStyle='rgba(100,116,139,0.8)'; ctx.font='10px Inter'; ctx.textAlign='left';
+    ctx.fillStyle='rgba(161,170,163,0.8)'; ctx.font='10px Inter'; ctx.textAlign='left';
     ctx.fillText(fmt(totalCost),4,H-4);
     ctx.textAlign='right'; ctx.fillStyle=color;
     ctx.fillText(fmt(totalValue),W-4,H-4);
@@ -936,13 +936,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(p.x<0||p.x>canvas.width)  p.vx*=-1;
         if(p.y<0||p.y>canvas.height) p.vy*=-1;
         ctx.beginPath(); ctx.arc(p.x,p.y,1.8,0,Math.PI*2);
-        ctx.fillStyle='rgba(110,90,255,0.55)'; ctx.fill();
+        ctx.fillStyle='rgba(140,163,146,0.55)'; ctx.fill();
       });
       pts.forEach((a,i) => pts.slice(i+1).forEach(b => {
         const d = Math.hypot(a.x-b.x, a.y-b.y);
         if (d<130) {
           ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-          ctx.strokeStyle=`rgba(100,80,220,${0.18*(1-d/130)})`; ctx.lineWidth=.7; ctx.stroke();
+          ctx.strokeStyle=`rgba(140,163,146,${0.18*(1-d/130)})`; ctx.lineWidth=.7; ctx.stroke();
         }
       }));
       _heroAnimId = requestAnimationFrame(draw);
@@ -1166,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!totalValue) return;
 
     // Group by assetType
-    const typeMap = { stock:'#3b82f6', etf:'#06b6d4', crypto:'#f59e0b' };
+    const typeMap = { stock:'#40985b', etf:'#40985b', crypto:'#6e796f' };
     const typeLabels = { stock:'Stocks', etf:'ETFs', crypto:'Crypto' };
     const byType = {};
     rows.forEach(r => {
@@ -1175,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Group by account
-    const acctMap  = { taxable:'#64748b', roth_ira:'#10b981', k401:'#d97706', crypto_wallet:'#f59e0b', other:'#475569' };
+    const acctMap  = { taxable:'#a1aaa3', roth_ira:'#8ac99b', k401:'#494f4a', crypto_wallet:'#6e796f', other:'#6e796f' };
     const acctLabels= _acctLabels;
     const byAcct = {};
     rows.forEach(r => {
@@ -1190,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.55rem">${title}</div>
         ${entries.map(([key,val])=>{
           const pct = (val/totalValue*100).toFixed(1);
-          const color = colorMap[key] || '#64748b';
+          const color = colorMap[key] || '#a1aaa3';
           const label = labelMap[key] || key;
           return `<div class="alloc-item">
             <div class="alloc-row"><span class="alloc-name">${label}</span><span class="alloc-val">${pct}% · $${_fmtD(val)}</span></div>
@@ -1656,11 +1656,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  function volData(bars){ return bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(0,255,136,0.3)':'rgba(255,68,102,0.3)'})); }
+  function volData(bars){ return bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(84,223,119,0.3)':'rgba(209,214,210,0.3)'})); }
   function fmtVol(v){ if(v>=1e9)return(v/1e9).toFixed(2)+'B'; if(v>=1e6)return(v/1e6).toFixed(2)+'M'; if(v>=1e3)return(v/1e3).toFixed(1)+'K'; return v; }
   function showChartLoader(show) {
     let el=document.getElementById('chart-loader');
-    if (!el){ el=document.createElement('div'); el.id='chart-loader'; el.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,11,31,0.7);border-radius:10px;font-size:.85rem;color:#64748b;z-index:10;pointer-events:none'; el.innerHTML='<span>⟳ Loading chart data…</span>'; const cw=document.getElementById('price-chart'); cw.style.position='relative'; cw.appendChild(el); }
+    if (!el){ el=document.createElement('div'); el.id='chart-loader'; el.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,10,9,0.7);border-radius:10px;font-size:.85rem;color:#a1aaa3;z-index:10;pointer-events:none'; el.innerHTML='<span>⟳ Loading chart data…</span>'; const cw=document.getElementById('price-chart'); cw.style.position='relative'; cw.appendChild(el); }
     el.style.display=show?'flex':'none';
   }
 
@@ -1743,7 +1743,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(W, H);
-    renderer.setClearColor(0x050b1f, 1);
+    renderer.setClearColor(0x080a09, 1);
     window._3dRenderer = renderer;
 
     const scene  = new THREE.Scene();
@@ -1752,12 +1752,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     camera.lookAt(0, 3, 0);
 
     // Lighting
-    scene.add(new THREE.AmbientLight(0x1a2a6a, 3));
-    const sun = new THREE.DirectionalLight(0x00d4ff, 4); sun.position.set(8, 20, 12); scene.add(sun);
-    const rim = new THREE.DirectionalLight(0x00ff88, 2); rim.position.set(-8, 4, -8); scene.add(rim);
+    scene.add(new THREE.AmbientLight(0x252b26, 3));
+    const sun = new THREE.DirectionalLight(0x68ea85, 4); sun.position.set(8, 20, 12); scene.add(sun);
+    const rim = new THREE.DirectionalLight(0x54df77, 2); rim.position.set(-8, 4, -8); scene.add(rim);
 
     // Floor grid
-    const grid = new THREE.GridHelper(bars.length * 1.3, bars.length, 0x0d2040, 0x071428);
+    const grid = new THREE.GridHelper(bars.length * 1.3, bars.length, 0x252b26, 0x252b26);
     grid.position.y = -0.05;
     scene.add(grid);
 
@@ -1771,7 +1771,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     bars.forEach((bar, i) => {
       const x   = startX + i * 1.2;
       const up  = bar.close >= bar.open;
-      const col = up ? 0x00ff88 : 0xff4466;
+      const col = up ? 0x54df77 : 0xd1d6d2;
 
       // Body
       const bH  = Math.max(0.06, Math.abs(norm(bar.close) - norm(bar.open)));
