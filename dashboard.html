@@ -1601,7 +1601,7 @@ select.port-input option{background:#111111;color:#f2f5f2;padding:.4rem .6rem}
         <div class="port-hero-content">
           <div class="port-hero-top">
             <div>
-              <div class="port-hero-title">MY PORTFOLIO</div>
+              <div class="port-hero-title">Portfolio</div>
               <div class="port-hero-sub">Provider quotes may be delayed · Stocks, ETFs, Crypto &amp; Retirement accounts</div>
             </div>
             <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
@@ -1611,17 +1611,17 @@ select.port-input option{background:#111111;color:#f2f5f2;padding:.4rem .6rem}
           </div>
           <!-- 4 big stat cards inside hero -->
           <div id="port-stats-row">
+        <div class="pt-stat-card balance-primary">
+          <div class="pt-stat-icon">📊</div>
+          <div class="pt-stat-label">Current Value</div>
+          <div class="pt-stat-val" id="port-value">$0.00</div>
+          <div class="pt-stat-sub" id="port-count-sub">0 positions</div>
+        </div>
         <div class="pt-stat-card">
           <div class="pt-stat-icon">💰</div>
           <div class="pt-stat-label">Total Invested</div>
           <div class="pt-stat-val" id="port-invested">$0.00</div>
           <div class="pt-stat-sub">Your cost basis</div>
-        </div>
-        <div class="pt-stat-card">
-          <div class="pt-stat-icon">📊</div>
-          <div class="pt-stat-label">Current Value</div>
-          <div class="pt-stat-val" id="port-value">$0.00</div>
-          <div class="pt-stat-sub" id="port-count-sub">0 positions</div>
         </div>
         <div class="pt-stat-card">
           <div class="pt-stat-icon">⚡</div>
@@ -1935,6 +1935,12 @@ select.port-input option{background:#111111;color:#f2f5f2;padding:.4rem .6rem}
 
   </div><!-- /main -->
 </div><!-- /app -->
+<nav class="mobile-invest-nav" aria-label="Quick navigation">
+  <button type="button" data-view="dashboard" aria-current="page" onclick="switchTab(event,'dashboard')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 3 8-9"/></svg>Dashboard</button>
+  <button type="button" data-view="watchlist" onclick="switchTab(event,'watchlist')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg>Watchlist</button>
+  <button type="button" data-view="portfolio" onclick="switchTab(event,'portfolio')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h18v12H3z M8 8V5h8v3 M3 12q9 5 18 0"/></svg>Portfolio</button>
+  <button type="button" data-view="markets" onclick="switchTab(event,'markets')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11h3v9z M10 20V4h3v16z M16 20V8h3v12z"/></svg>Markets</button>
+</nav>
 
 <!-- ── AI CHAT WIDGET ──────────────────────────────────────────────────────── -->
 <button id="chat-fab" onclick="StockChat.toggle()" title="Chart Assistant (C)" aria-label="Open chart assistant">🤖</button>
@@ -2113,6 +2119,13 @@ function updateBasisPreview() {
     preview.style.display = 'none';
   }
 }
+
+document.addEventListener('stockai:tab', event => {
+  for (const button of document.querySelectorAll('.mobile-invest-nav button')) {
+    if (button.dataset.view === event.detail) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
+});
 
 // ── Tab switching ─────────────────────────────────────────────────────────
 function switchTab(e, name) {

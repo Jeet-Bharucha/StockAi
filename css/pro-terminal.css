@@ -602,19 +602,19 @@ body.stockai-pro.light :is(.research-btn,.chart-btn,.ind-btn).active { color:#ff
 
 /* Ink and paper surfaces. The signal color marks state and focus. */
 body.stockai-pro {
-  --bg:#090909; --sidebar:#101010; --card:#181818; --card2:#222;
+  --bg:#080808; --sidebar:#080808; --card:#101010; --card2:#1b1b1b;
   --text:#fafafa; --muted:#b2b2b2; --border:#373737; --border2:#292929;
-  --signal:#adff42; --focus:#adff42; --cyan:var(--text); --cyan2:#999;
-  --green:var(--signal); --red:#ccc; --gold:#aaa; --purple:#eee;
-  --button-face:#fafafa; --button-ink:#101010;
+  --signal:#00c805; --focus:#35df40; --cyan:var(--text); --cyan2:#999;
+  --green:#2edb37; --red:#ff805a; --gold:#aaa; --purple:#eee;
+  --button-face:#00c805; --button-ink:#061207;
   background:var(--bg); color:var(--text); accent-color:var(--focus);
 }
 body.stockai-pro.light {
-  --bg:#f5f5f5; --sidebar:#fff; --card:#fff; --card2:#eee;
+  --bg:#fff; --sidebar:#fff; --card:#fff; --card2:#eee;
   --text:#141414; --muted:#595959; --border:#ccc; --border2:#ddd;
-  --focus:#427000; --cyan:var(--text); --cyan2:#636363; --green:#426900;
-  --red:#505050; --gold:#595959; --purple:#333;
-  --button-face:#161616; --button-ink:#fff;
+  --focus:#007c05; --cyan:var(--text); --cyan2:#636363; --green:#087b0d;
+  --red:#ad391b; --gold:#595959; --purple:#333;
+  --button-face:#00c805; --button-ink:#061207;
   background:var(--bg); color:var(--text);
 }
 .stockai-pro ::selection { color:#101010; background:#d6ff9c; }
@@ -669,3 +669,51 @@ body.stockai-pro .features .feat-card:hover { border-color:#769b42; }
 .stockai-pro #data-source { color:var(--muted); line-height:1.6; max-width:52ch; overflow-wrap:anywhere; }
 .stockai-pro .chart-unavailable { flex-direction:column; gap:1rem; }
 .stockai-pro .chart-unavailable button { pointer-events:auto; }
+
+/* Keep the quote, balance and chart ahead of the surrounding tools. */
+body.stockai-pro :is(.btn-primary,.btn-submit,.btn-save,.btn-scr-run,.btn-add-holding,.btn-port-add,.btn-hero-ghost,.btn-home,#submit) {
+  border-radius:999px; min-height:44px; font-weight:650;
+}
+body.stockai-pro .port-hero,body.stockai-pro .stock-header {
+  background:var(--bg); border:0; border-radius:0; box-shadow:none;
+}
+.stockai-pro .port-hero :is(.port-hero-canvas,.port-hero-deco,.pt-stat-icon),
+.stockai-pro .port-hero::before,.stockai-pro .port-hero::after { display:none; }
+body.stockai-pro .port-hero-title { font-size:1.15rem; font-weight:600; letter-spacing:-.02em; text-transform:none; }
+body.stockai-pro #port-stats-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
+body.stockai-pro #port-stats-row .pt-stat-card {
+  padding:.8rem 0; background:transparent; border:0; border-top:1px solid var(--border);
+  border-radius:0; box-shadow:none; transform:none;
+}
+body.stockai-pro #port-stats-row .pt-stat-card::before { display:none; }
+body.stockai-pro #port-stats-row .balance-primary { grid-column:1/-1; border:0; padding:0 0 .75rem; }
+body.stockai-pro #stock-price,body.stockai-pro #port-value {
+  font-size:clamp(2.35rem,5vw,3.75rem)!important; line-height:1.12;
+  font-weight:550; letter-spacing:-.055em; font-variant-numeric:tabular-nums; color:var(--text);
+}
+body.stockai-pro :is(.port-holdings-hdr,.card-title,.view-title) { letter-spacing:-.025em; }
+body.stockai-pro :is(.port-table-wrap,.port-analytics,.port-chart-wrap,#price-chart) {
+  background:var(--bg); border-color:var(--border2); box-shadow:none;
+}
+body.stockai-pro .chart-btn { border:0; border-radius:999px; background:transparent; color:var(--muted); font-weight:700; }
+body.stockai-pro .chart-btn.active,body.stockai-pro.light .chart-btn.active {
+  color:var(--button-ink); background:var(--signal); border:0; box-shadow:none;
+}
+.mobile-invest-nav { display:none; }
+@media(max-width:700px) {
+  body.stockai-pro .mobile-invest-nav {
+    display:flex; position:fixed; inset:auto 0 0; z-index:190; padding:4px .35rem calc(4px + env(safe-area-inset-bottom));
+    background:var(--sidebar); border-top:1px solid var(--border); justify-content:space-around;
+  }
+  .mobile-invest-nav button {
+    flex:1; min-height:50px; background:transparent; border:0; color:var(--muted);
+    line-height:1.2; font-family:inherit; font-size:.7rem; font-weight:600;
+    display:grid; place-content:center; justify-items:center; gap:.25rem; cursor:pointer;
+  }
+  .mobile-invest-nav svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .mobile-invest-nav [aria-current=page] { color:var(--green); }
+  body.stockai-pro #chat-fab { bottom:calc(4.75rem + env(safe-area-inset-bottom)); }
+  body.stockai-pro #chat-panel { bottom:calc(8.3rem + env(safe-area-inset-bottom)); max-height:calc(100dvh - 9rem); }
+  body.stockai-pro .tab-view { padding-bottom:calc(8.5rem + env(safe-area-inset-bottom)); }
+  body.stockai-pro #port-stats-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}

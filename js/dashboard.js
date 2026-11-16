@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       rightPriceScale: { borderColor:'rgba(157,157,157,0.2)', scaleMargins:{top:0.08,bottom:0.22} },
       timeScale: { borderColor:'rgba(157,157,157,0.2)', timeVisible:true },
     });
-    candleSeries = chart.addCandlestickSeries({ upColor:'#999999', downColor:'#959595', borderUpColor:'#999999', borderDownColor:'#959595', wickUpColor:'#999999', wickDownColor:'#959595' });
+    candleSeries = chart.addCandlestickSeries();
     volumeSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'', scaleMargins:{top:0.82,bottom:0} });
     window._chart = chart; window._candleSeries = candleSeries; window._volSeries = volumeSeries;
     window.addEventListener('resize', resizeChart);
@@ -125,20 +125,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function applyChartTheme() {
     if (!chart) return;
-    const light = document.body.classList.contains('light');
+    const theme = getComputedStyle(document.body);
+    const color = name => theme.getPropertyValue(name).trim();
+    const up = color('--green');
+    const down = color('--red');
     chart.applyOptions({
-      layout: { background:{type:'solid',color:light?'#f9f9f9':'#171717'}, textColor:light?'#686868':'#aeaeae' },
-      grid: {
-        vertLines:{color:light?'rgba(85,85,85,0.08)':'rgba(144,144,144,0.10)'},
-        horzLines:{color:light?'rgba(85,85,85,0.08)':'rgba(144,144,144,0.10)'}
-      },
-      rightPriceScale:{borderColor:light?'#dbdbdb':'#3e3e3e'},
-      timeScale:{borderColor:light?'#dbdbdb':'#3e3e3e'}
+      layout: { background:{type:'solid',color:color('--bg')}, textColor:color('--muted') },
+      grid: { vertLines:{visible:false}, horzLines:{color:color('--border2')} },
+      rightPriceScale:{borderVisible:false}, timeScale:{borderVisible:false}
     });
     candleSeries?.applyOptions({
-      upColor:light?'#207a2f':'#999999',downColor:light?'#616161':'#9b9b9b',
-      borderUpColor:light?'#207a2f':'#999999',borderDownColor:light?'#616161':'#9b9b9b',
-      wickUpColor:light?'#207a2f':'#999999',wickDownColor:light?'#616161':'#9b9b9b'
+      upColor:up, downColor:down, borderUpColor:up, borderDownColor:down,
+      wickUpColor:up, wickDownColor:down
     });
     resizeChart();
   }
@@ -270,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     window.fullBars = currentBars;
     candleSeries.update(newBar);
-    volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(84,223,119,0.3)':'rgba(209,214,210,0.3)'});
+    volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,178,12,0.35)':'rgba(210,83,42,0.35)'});
     updatePriceDisplay(close, last?last.close:close);
     checkAlertsForPrice(currentSymbol, close);
   }
@@ -2387,7 +2385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateConnectionNotice();
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  function volData(bars){ return bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(84,223,119,0.3)':'rgba(209,214,210,0.3)'})); }
+  function volData(bars){ return bars.map(b=>({time:b.time,value:b.volume,color:b.close>=b.open?'rgba(0,178,12,0.35)':'rgba(210,83,42,0.35)'})); }
   function fmtVol(v){ if(v>=1e9)return(v/1e9).toFixed(2)+'B'; if(v>=1e6)return(v/1e6).toFixed(2)+'M'; if(v>=1e3)return(v/1e3).toFixed(1)+'K'; return v; }
   function showChartLoader(show) {
     let el=document.getElementById('chart-loader');
