@@ -1339,13 +1339,24 @@ select.port-input option{background:#111111;color:#f2f5f2;padding:.4rem .6rem}
         </div>
       </div>
 
+      <section class="trade-chart" id="live-trade-line" aria-label="Recent trade prices">
+        <h3>Live trades</h3>
+        <p data-trade-status>Waiting for trade data</p>
+        <svg viewBox="0 0 600 100" preserveAspectRatio="none" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+          <circle r="3" fill="currentColor" visibility="hidden"></circle>
+        </svg>
+        <div class="trade-axis"><span data-trade-times></span><span data-trade-scale></span></div>
+        <small>Finnhub · last trade each second · up to 5 minutes collected on this page</small>
+      </section>
+
       <!-- Chart + AI quick + watchlist -->
       <div class="dash-grid" style="flex:1">
         <!-- Chart -->
         <div style="display:flex;flex-direction:column;gap:1rem">
           <div class="card">
             <div class="card-title">
-              <span>📉 Price Chart</span>
+              <span>Daily price history</span>
               <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
                 <div style="display:flex;gap:.3rem">
                   <button class="chart-btn active" onclick="setRange(this,'1M')">1M</button>
@@ -1421,6 +1432,7 @@ select.port-input option{background:#111111;color:#f2f5f2;padding:.4rem .6rem}
         <div>
           <div class="view-title">📊 Technical Signals & Evidence</div>
           <div class="view-subtitle" id="ai-view-subtitle">Analyzing current stock…</div>
+          <p class="view-subtitle">Signal model: weighted technical indicators on daily Yahoo Finance price and volume history.</p>
         </div>
         <button onclick="switchTab(null,'dashboard')" style="padding:.5rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:9px;color:var(--muted);font-size:.82rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif">← Back to Chart</button>
       </div>
@@ -2176,6 +2188,7 @@ window.setRange = function(btn, range) {
 };
 </script>
 
+<script src="js/tradeLine.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/researchWorkspace.js"></script>
 <script src="js/usefulTools.js"></script>

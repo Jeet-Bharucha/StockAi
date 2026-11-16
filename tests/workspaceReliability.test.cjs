@@ -43,7 +43,7 @@ test('quote starts while history and profile are pending, and failed history cle
       unsubscribeSymbol(){},getCompanyInfo:()=>({name:'SPY',sector:'ETF'}),
       getCompanyProfile:()=>new Promise(()=>{}),
       getCandles:()=>new Promise(resolve=>finishHistory=resolve)
-    },onWSTrade(){},currentSymbol:'AAPL',claudeAnalysisVersion:0,claudeBusy:false,activePrediction:null,
+    },onWSTrade(){},tradeLine:{reset(){}},quoteTime:0,currentSymbol:'AAPL',claudeAnalysisVersion:0,claudeBusy:false,activePrediction:null,
     activePredictionSymbol:null,stockRequestVersion:0,verifiedPrevClose:1,currentBars:[{close:999}],
     simInterval:null,compareSeries:null,newsMode:'market',chart:null,
     candleSeries:{setData:bars=>data.push(bars)},volumeSeries:{setData(){}},

@@ -1,10 +1,10 @@
-const CACHE = 'stockai-v34-provider-ticker';
+const CACHE = 'stockai-v35-trade-line';
 const STATIC = [
   '/', '/index.html', '/login.html', '/register.html',
   '/forgot-password.html', '/reset-password.html', '/owner-recovery.html', '/verify-email.html',
   '/dashboard.html', '/profile.html', '/404.html',
   '/css/effects.css', '/css/pro-terminal.css', '/css/research-workspace.css',
-  '/js/auth.js', '/js/marketTicker.js', '/js/dashboard.js', '/js/stockApi.js',
+  '/js/auth.js', '/js/marketTicker.js', '/js/tradeLine.js', '/js/dashboard.js', '/js/stockApi.js',
   '/js/uiPolish.js', '/js/usefulTools.js', '/js/researchWorkspace.js', '/js/aiPredictor.js', '/js/researchTools.js', '/js/signalEvidence.js', '/js/features.js', '/js/animations.js', '/js/chat.js',
   '/favicon.svg', '/manifest.json'
 ];
@@ -43,6 +43,7 @@ self.addEventListener('fetch', e => {
   if (e.request.mode === 'navigate' ||
       url.pathname === '/js/auth.js' ||
       url.pathname === '/js/dashboard.js' ||
+      url.pathname === '/js/tradeLine.js' ||
       url.pathname === '/js/marketTicker.js' ||
       url.pathname === '/js/stockApi.js' ||
       url.pathname === '/js/researchTools.js' ||

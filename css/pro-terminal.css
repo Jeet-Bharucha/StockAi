@@ -723,3 +723,12 @@ body.stockai-pro .chart-btn.active,body.stockai-pro.light .chart-btn.active {
 @media(prefers-reduced-motion:reduce) {
   #ticker-tape-wrap, .ticker-wrap { overflow-x:auto; }
 }
+
+.trade-chart { padding:1rem 1.2rem; border-block:1px solid var(--border); }
+.trade-chart h3 { font-size:1rem; }
+.trade-chart p { margin:.35rem 0; font-variant-numeric:tabular-nums; }
+.trade-chart svg { display:block; width:100%; height:100px; color:var(--muted); }
+.trade-chart[data-direction=up] svg { color:var(--green); }
+.trade-chart[data-direction=down] svg { color:var(--red); }
+.trade-axis { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.4rem; min-height:1rem; font-size:.75rem; }
+.trade-chart small,.trade-axis { color:var(--muted); }

@@ -43,6 +43,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentSymbol = 'AAPL';
   let stockRequestVersion = 0;
   let verifiedPrevClose = null;
+  let quoteTime = 0;
+  const tradeLine = createTradeLine(document.getElementById('live-trade-line'));
+  const tradingDay = new Intl.DateTimeFormat('en-US', {timeZone:'America/New_York'});
+  setInterval(() => { if (!document.hidden) tradeLine.draw(); }, 1000);
   let chart = null;
   let candleSeries = null;
   let volumeSeries = null;
@@ -72,12 +76,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const wsBadge = document.getElementById('ws-badge');
   function setWsStatus(state) {
     if (!wsBadge) return;
-    const map = { connected:{text:'● STREAM LIVE',cls:'ws-live'}, disconnected:{text:'○ STREAM OFFLINE',cls:'ws-sim'}, error:{text:'⚠ STREAM ERROR',cls:'ws-error'}, connecting:{text:'… CONNECTING',cls:'ws-conn'} };
+    const map = { connected:{text:'● STREAM CONNECTED',cls:'ws-live'}, disconnected:{text:'○ STREAM OFFLINE',cls:'ws-sim'}, error:{text:'⚠ STREAM ERROR',cls:'ws-error'}, connecting:{text:'… CONNECTING',cls:'ws-conn'} };
     const cfg = map[state] || map.disconnected;
     wsBadge.textContent = cfg.text; wsBadge.className = `ws-badge ${cfg.cls}`;
   }
   document.addEventListener('stockai:ws', e => {
     const s = e.detail;
+    if (s !== 'connected') tradeLine.disconnect();
     if (s==='connected') { setWsStatus('connected'); switchToLive(); }
     else if (s==='no-key') setWsStatus('disconnected');
     else if (s==='connecting') setWsStatus('connecting');
@@ -161,6 +166,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearSignalView(symbol);
     const requestVersion = ++stockRequestVersion;
     verifiedPrevClose = null;
+    quoteTime = 0;
+    tradeLine.reset(symbol);
+    if (location.host) StockAPI.subscribeSymbol(symbol, onWSTrade);
 
     // Update UI chrome
     document.getElementById('current-symbol').textContent = symbol;
@@ -231,12 +239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateWatchlistUI();
     if (newsMode === 'stock') loadNews(symbol);
 
-    if (location.host && StockAPI._wsStatus === 'connected') {
-      StockAPI.subscribeSymbol(symbol, onWSTrade);
-    } else {
-      // Streaming unavailable: keep the last verified quote, never simulate trades.
-      simInterval = null;
-    }
+
   }
 
   window.retryStockChart = async function() {
@@ -251,33 +254,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   function switchToLive() { clearInterval(simInterval); simInterval = null; StockAPI.subscribeSymbol(currentSymbol, onWSTrade); }
 
   // ── Real-time handlers ────────────────────────────────────────────────────
-  function onWSTrade({ price, volume, time }) {
-    if (!Number.isFinite(price) || price <= 0) return;
-    const nowSec = Math.floor((time||Date.now())/1000);
-    const close  = +price.toFixed(4);
-    const dayBucket = Math.floor(nowSec/86400)*86400;
-    const last = currentBars[currentBars.length-1];
-    if (last && dayBucket < last.time) return;
-    let newBar;
-    if (last && last.time===dayBucket) {
-      newBar = {...last, high:Math.max(last.high,close), low:Math.min(last.low,close), close, volume:(last.volume||0)+(volume||0)};
-      currentBars[currentBars.length-1] = newBar;
-    } else {
-      newBar = {time:dayBucket, open:last?last.close:close, high:close, low:close, close, volume:volume||0};
-      currentBars.push(newBar);
-    }
-    window.fullBars = currentBars;
-    candleSeries.update(newBar);
-    volumeSeries.update({time:newBar.time, value:newBar.volume, color:newBar.close>=newBar.open?'rgba(0,178,12,0.35)':'rgba(210,83,42,0.35)'});
-    updatePriceDisplay(close, last?last.close:close);
-    checkAlertsForPrice(currentSymbol, close);
+  function onWSTrade({ price, time }) {
+    if (!tradeLine.record({price,time}) || time < quoteTime) return;
+    updatePriceDisplay(price);
+    document.getElementById('data-source').textContent =
+      'Finnhub trade · observed '+new Date(time).toLocaleString();
+    if (Date.now()-time < 60000) checkAlertsForPrice(currentSymbol, price);
   }
 
   function updatePriceDisplay(price) {
     if(!Number.isFinite(price)||price<=0)return;
     document.getElementById('stock-price').textContent='$'+price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     const el=document.getElementById('stock-change');
-    if(!Number.isFinite(verifiedPrevClose)||verifiedPrevClose<=0){
+    if(!Number.isFinite(verifiedPrevClose)||verifiedPrevClose<=0 || !quoteTime ||
+       tradingDay.format(quoteTime) !== tradingDay.format(tradeLine.latest.time)){
       el.textContent='Previous close unavailable';
       return;
     }
@@ -296,10 +286,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (currentSymbol !== symbol || requestVersion !== stockRequestVersion) return;
       const up = q.changePct >= 0;
       verifiedPrevClose = q.prevClose > 0 ? q.prevClose : null;
-      document.getElementById('stock-price').textContent = fmt(q.price);
-      const change = document.getElementById('stock-change');
-      change.textContent = (up?'+':'') + q.change.toFixed(2) + ' (' + (up?'+':'') + q.changePct.toFixed(2) + '%)';
-      change.className = 'stock-change ' + (up?'up':'down');
       document.getElementById('stat-high').textContent = fmt(q.high);
       document.getElementById('stat-low').textContent = fmt(q.low);
       document.getElementById('stat-open').textContent = fmt(q.open);
@@ -307,12 +293,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const observed = q.observedAt ? new Date(q.observedAt) : null;
       const timestamp = observed && Number.isFinite(observed.getTime())
         ? ' · observed '+observed.toLocaleString() : ' · observation time unavailable';
-      document.getElementById('data-source').textContent =
-        '● '+(q.source || 'Market provider')+timestamp+' · may be delayed';
+      quoteTime = observed?.getTime() || 0;
+      if (tradeLine.latest && tradeLine.latest.time >= quoteTime) {
+        updatePriceDisplay(tradeLine.latest.price);
+        document.getElementById('data-source').textContent = 'Finnhub trade · observed '+new Date(tradeLine.latest.time).toLocaleString();
+      } else {
+        document.getElementById('stock-price').textContent = fmt(q.price);
+        const change = document.getElementById('stock-change');
+        change.textContent = (up?'+':'') + q.change.toFixed(2) + ' (' + (up?'+':'') + q.changePct.toFixed(2) + '%)';
+        change.className = 'stock-change ' + (up?'up':'down');
+        document.getElementById('data-source').textContent =
+          '● '+(q.source || 'Market provider')+timestamp+' · may be delayed';
+      }
       const badge = document.getElementById('market-data-status');
       if (badge) { badge.textContent='● QUOTES AVAILABLE'; badge.className='ready'; }
     } catch (error) {
       if (currentSymbol !== symbol || requestVersion !== stockRequestVersion) return;
+      if (tradeLine.latest || quoteTime) return;
       document.getElementById('stock-price').textContent = '—';
       document.getElementById('stock-change').textContent = 'Quote unavailable';
       for (const id of ['stat-high','stat-low','stat-open','stat-volume'])
