@@ -15,7 +15,7 @@
 html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 canvas{position:fixed;inset:0;z-index:0}
 .page{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;text-align:center;padding:2rem}
-.err-code{font-size:clamp(6rem,20vw,12rem);font-weight:900;background:linear-gradient(135deg,var(--cyan2),var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-.05em;filter:drop-shadow(0 0 40px rgba(104,234,133,0.3))}
+.err-code{font-size:clamp(6rem,20vw,12rem);font-weight:900;background:linear-gradient(135deg,var(--cyan2),var(--text),var(--text));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-.05em;filter:drop-shadow(0 0 40px rgba(255,255,255,0.12))}
 .err-title{font-size:clamp(1.2rem,3vw,1.8rem);font-weight:800;letter-spacing:-.02em}
 .err-sub{color:var(--muted);font-size:.95rem;max-width:420px;line-height:1.6}
 .btn-home{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 2rem;background:linear-gradient(135deg,#105c30,#19723d);border:none;border-radius:12px;color:#fff;font-size:.95rem;font-weight:700;text-decoration:none;transition:.2s;cursor:pointer;font-family:'Inter',sans-serif}
@@ -25,8 +25,9 @@ canvas{position:fixed;inset:0;z-index:0}
 .btns{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap}
 .chart-line{position:absolute;bottom:15%;left:50%;transform:translateX(-50%);opacity:.08;pointer-events:none}
 </style>
+<link rel="stylesheet" href="css/pro-terminal.css">
 </head>
-<body>
+<body class="stockai-pro">
 <canvas id="c"></canvas>
 <div class="page">
   <div class="err-code">404</div>

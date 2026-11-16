@@ -35,8 +35,9 @@ for (const page of pages) {
 test('terminal uses the black, green and white palette', () => {
   const theme = fs.readFileSync(path.join(root,'css/pro-terminal.css'), 'utf8');
   const dash = fs.readFileSync(path.join(root,'dashboard.html'), 'utf8');
-  assert.match(theme, /--cyan:#68ea85/i);
-  assert.match(theme, /--bg:#080a09/i);
+  assert.match(theme, /--button-face:#fafafa/i);
+  assert.match(theme, /--signal:#adff42/i);
+  assert.match(theme, /--bg:#090909/i);
   assert.doesNotMatch(theme, /#59d9ff/i);
   assert.doesNotMatch(theme, /#00c9a7/i);
   assert.doesNotMatch(dash, /#00c9a7/i);
